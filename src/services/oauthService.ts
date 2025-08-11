@@ -222,7 +222,7 @@ class OAuthService {
         email: user.email,
         displayName: user.displayName,
       },
-      config.jwtSecret,
+      config.jwt.secret,
       { expiresIn: '7d' }
     );
 
@@ -274,7 +274,7 @@ class OAuthService {
   // Validate and decode JWT token
   async validateToken(token: string) {
     try {
-      const decoded = jwt.verify(token, config.jwtSecret) as any;
+      const decoded = jwt.verify(token, config.jwt.secret) as any;
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
         include: { musicAccounts: true }

@@ -8,11 +8,11 @@ export interface TokenPayload {
 
 export const generateTokens = (payload: TokenPayload) => {
   const accessToken = jwt.sign(payload, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn,
+    expiresIn: config.jwt.expiresIn as string,
   });
 
   const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
-    expiresIn: config.jwt.refreshExpiresIn,
+    expiresIn: config.jwt.refreshExpiresIn as string,
   });
 
   return { accessToken, refreshToken };

@@ -53,7 +53,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-const server = app.listen(config.port, '0.0.0.0', () => {
+const server = app.listen(Number(config.port), '0.0.0.0', () => {
   console.log(`Mixtape API server running on port ${config.port}`);
   console.log(`Accessible on both localhost and network IP`);
 });

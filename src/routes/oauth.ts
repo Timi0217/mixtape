@@ -2,6 +2,7 @@ import express from 'express';
 import { query, body } from 'express-validator';
 import { validateRequest } from '../utils/validation';
 import { oauthService } from '../services/oauthService';
+import { prisma } from '../config/database';
 
 const router = express.Router();
 
