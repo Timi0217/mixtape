@@ -709,6 +709,29 @@ router.post('/apple/callback',
   }
 );
 
+// Test route to isolate deep link redirect issue
+router.get('/test-deeplink', async (req, res) => {
+  console.log('🧪 === DEEP LINK TEST ROUTE ===');
+  console.log('Request URL:', req.url);
+  console.log('User-Agent:', req.get('User-Agent'));
+  console.log('FRONTEND_URL env var:', process.env.FRONTEND_URL);
+  
+  try {
+    const testDeepLinkUrl = `${process.env.FRONTEND_URL}auth/success?token=test_token_123&platform=spotify`;
+    console.log('🔗 Test deep link URL:', testDeepLinkUrl);
+    console.log('🚀 Attempting test redirect...');
+    
+    res.redirect(testDeepLinkUrl);
+    console.log('✅ Test redirect response sent');
+    
+  } catch (error) {
+    console.log('💥 Test redirect error:', error);
+    res.status(500).send('Test redirect failed');
+  }
+  
+  console.log('🧪 === END DEEP LINK TEST ===\n');
+});
+
 // Get current user info
 router.get('/me', async (req, res) => {
   try {
