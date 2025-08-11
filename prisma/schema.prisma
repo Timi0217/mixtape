@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  displayName       String   @map("display_name")
+  timezone          String   @default("UTC")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  groupMemberships  GroupMember[]
+  adminGroups       Group[]
+  musicAccounts     UserMusicAccount[]
+  submissions       Submission[]
+  
+  @@map("users")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  adminUserId String   @map("admin_user_id")
+  inviteCode  String   @unique @map("invite_code")
+  maxMembers  Int      @default(8) @map("max_members")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  admin       User           @relation(fields: [adminUserId], references: [id])
+  members     GroupMember[]
+  rounds      DailyRound[]
+  
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String   @map("group_id")
+  userId    String   @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model UserMusicAccount {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  platform     String
+  accessToken  String   @map("access_token")
+  refreshToken String?  @map("refresh_token")
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, platform])
+  @@map("user_music_accounts")
+}
+
+model DailyRound {
+  id         String   @id @default(cuid())
+  groupId    String   @map("group_id")
+  date       DateTime @db.Date
+  deadlineAt DateTime @map("deadline_at")
+  status     String   @default("active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+  playlist    Playlist?
+  
+  @@unique([groupId, date])
+  @@map("daily_rounds")
+}
+
+model Song {
+  id              String   @id @default(cuid())
+  title           String
+  artist          String
+  album           String?
+  platformIds     Json     @map("platform_ids")
+  duration        Int?
+  imageUrl        String?  @map("image_url")
+  previewUrl      String?  @map("preview_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  submissions     Submission[]
+  playlistTracks  PlaylistTrack[]
+  
+  @@map("songs")
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  roundId     String   @map("round_id")
+  userId      String   @map("user_id")
+  songId      String   @map("song_id")
+  comment     String?
+  submittedAt DateTime @default(now()) @map("submitted_at")
+  
+  round       DailyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song        Song       @relation(fields: [songId], references: [id])
+  
+  @@unique([roundId, userId])
+  @@map("submissions")
+}
+
+model Playlist {
+  id                   String   @id @default(cuid())
+  roundId              String   @unique @map("round_id")
+  generatedAt          DateTime @default(now()) @map("generated_at")
+  status               String   @default("pending")
+  platformPlaylistIds  Json     @map("platform_playlist_ids")
+  metadata             Json?
+  
+  round                DailyRound      @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  tracks               PlaylistTrack[]
+  
+  @@map("playlists")
+}
+
+model PlaylistTrack {
+  id               String @id @default(cuid())
+  playlistId       String @map("playlist_id")
+  songId           String @map("song_id")
+  submittedByUserId String @map("submitted_by_user_id")
+  orderIndex       Int    @map("order_index")
+  
+  playlist         Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song             Song     @relation(fields: [songId], references: [id])
+  
+  @@map("playlist_tracks")
+}
