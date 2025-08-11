@@ -465,9 +465,71 @@ router.get('/spotify/callback',
       console.log('Generated deep link URL:', deepLinkUrl);
       console.log('Deep link URL length:', deepLinkUrl.length);
       
-      console.log('🚀 Attempting redirect to app...');
-      res.redirect(deepLinkUrl);
-      console.log('✅ Redirect response sent');
+      console.log('🚀 Sending success page with deep link...');
+      
+      // Create success page with automatic redirect and manual fallback
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Login Success</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+              text-align: center; 
+              padding: 40px 20px;
+              background: #1DB954;
+              color: white;
+              margin: 0;
+            }
+            .container { max-width: 400px; margin: 0 auto; }
+            .logo { font-size: 60px; margin-bottom: 20px; }
+            h1 { margin-bottom: 10px; font-size: 28px; font-weight: 600; }
+            p { margin-bottom: 30px; line-height: 1.5; opacity: 0.9; }
+            .button {
+              background: white;
+              color: #1DB954;
+              border: none;
+              padding: 16px 32px;
+              border-radius: 12px;
+              font-size: 17px;
+              font-weight: 600;
+              cursor: pointer;
+              text-decoration: none;
+              display: inline-block;
+              margin: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="logo">✅</div>
+            <h1>Spotify Connected!</h1>
+            <p>Successfully connected to Mixtape. You should be redirected automatically...</p>
+            <a href="${deepLinkUrl}" class="button">Open Mixtape</a>
+          </div>
+          
+          <script>
+            console.log('Attempting automatic redirect to: ${deepLinkUrl}');
+            // Try multiple redirect methods
+            setTimeout(() => {
+              try {
+                window.location.href = '${deepLinkUrl}';
+              } catch (e) {
+                console.log('Direct redirect failed:', e);
+                // Try using window.open as fallback
+                window.open('${deepLinkUrl}', '_self');
+              }
+            }, 500);
+          </script>
+        </body>
+        </html>
+      `;
+      
+      res.send(html);
+      console.log('✅ Success page sent with deep link:', deepLinkUrl);
       
     } catch (error) {
       console.log('💥 === OAUTH CALLBACK ERROR ===');
