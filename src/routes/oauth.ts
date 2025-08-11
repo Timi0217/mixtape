@@ -45,12 +45,6 @@ router.get('/spotify/login', async (req, res) => {
     const state = oauthService.generateState();
     console.log('Generated state:', state);
     
-    console.log('💾 Storing state in memory...');
-    const stateData = { platform: 'spotify', timestamp: Date.now() };
-    oauthStates.set(state, stateData);
-    console.log('Stored state data:', stateData);
-    console.log('Total states in memory:', oauthStates.size);
-    
     console.log('🔗 Generating Spotify auth URL...');
     const authUrl = oauthService.getSpotifyAuthUrl(state);
     console.log('Generated auth URL:', authUrl);
@@ -61,9 +55,18 @@ router.get('/spotify/login', async (req, res) => {
     console.log('Manual auth URL (for comparison):', manualUrl);
     console.log('URLs match:', authUrl === manualUrl);
     
+    // Generate token ID for polling 
+    const tokenId = 'token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    // Store the token ID with the state so we can link them later
+    const stateData = { platform: 'spotify', timestamp: Date.now(), tokenId };
+    oauthStates.set(state, stateData);
+    console.log('Stored state data with tokenId:', stateData);
+    
     const response = {
       authUrl,
       state,
+      tokenId, // Frontend will use this to poll for completion
     };
     
     console.log('📤 Sending response:', JSON.stringify(response, null, 2));
@@ -465,9 +468,27 @@ router.get('/spotify/callback',
       console.log('Generated deep link URL:', deepLinkUrl);
       console.log('Deep link URL length:', deepLinkUrl.length);
       
-      console.log('🚀 Sending success page with deep link...');
+      console.log('🚀 Sending success page...');
       
-      // Create success page with automatic redirect and manual fallback
+      // Get the tokenId from the stored state data
+      const tokenId = storedState.tokenId;
+      console.log('Using tokenId from stored state:', tokenId);
+      
+      // In production, use Redis. For now, store in memory with expiration
+      const tokenStore = global.tokenStore || (global.tokenStore = new Map());
+      tokenStore.set(tokenId, { token, platform: 'spotify', timestamp: Date.now() });
+      
+      // Clean up expired tokens (older than 5 minutes)
+      setTimeout(() => {
+        const now = Date.now();
+        for (const [id, data] of tokenStore.entries()) {
+          if (now - data.timestamp > 300000) { // 5 minutes
+            tokenStore.delete(id);
+          }
+        }
+      }, 1000);
+      
+      // Create success page with instructions to manually return to app
       const html = `
         <!DOCTYPE html>
         <html>
@@ -487,19 +508,27 @@ router.get('/spotify/callback',
             .container { max-width: 400px; margin: 0 auto; }
             .logo { font-size: 60px; margin-bottom: 20px; }
             h1 { margin-bottom: 10px; font-size: 28px; font-weight: 600; }
-            p { margin-bottom: 30px; line-height: 1.5; opacity: 0.9; }
-            .button {
-              background: white;
-              color: #1DB954;
-              border: none;
-              padding: 16px 32px;
-              border-radius: 12px;
-              font-size: 17px;
-              font-weight: 600;
-              cursor: pointer;
-              text-decoration: none;
-              display: inline-block;
-              margin: 10px;
+            p { margin-bottom: 20px; line-height: 1.5; opacity: 0.9; }
+            .token-code {
+              background: rgba(255,255,255,0.2);
+              border-radius: 8px;
+              padding: 15px;
+              margin: 20px 0;
+              font-family: monospace;
+              font-size: 18px;
+              letter-spacing: 2px;
+              border: 2px solid rgba(255,255,255,0.3);
+            }
+            .instructions {
+              font-size: 16px;
+              margin: 30px 0;
+              opacity: 0.9;
+            }
+            .step {
+              margin: 15px 0;
+              padding: 15px;
+              background: rgba(255,255,255,0.1);
+              border-radius: 8px;
             }
           </style>
         </head>
@@ -507,29 +536,51 @@ router.get('/spotify/callback',
           <div class="container">
             <div class="logo">✅</div>
             <h1>Spotify Connected!</h1>
-            <p>Successfully connected to Mixtape. You should be redirected automatically...</p>
-            <a href="${deepLinkUrl}" class="button">Open Mixtape</a>
+            <p>Authentication successful! Your Mixtape app is now connected to Spotify.</p>
+            
+            <div class="instructions">
+              <div class="step">
+                <strong>1.</strong> Switch back to your Mixtape app
+              </div>
+              <div class="step">
+                <strong>2.</strong> The app should automatically detect the successful login
+              </div>
+              <div class="step">
+                <strong>3.</strong> If not, pull down to refresh or restart the app
+              </div>
+            </div>
+            
+            <div class="token-code" onclick="copyTokenId()" style="cursor: pointer; user-select: all;">
+              ${tokenId}
+            </div>
+            <p style="font-size: 12px; opacity: 0.7;">
+              (Token ID - tap to copy if needed for debugging)
+            </p>
+            
+            <p style="font-size: 14px; opacity: 0.8; margin-top: 30px;">
+              You can close this browser window and return to Mixtape
+            </p>
           </div>
           
           <script>
-            console.log('Attempting automatic redirect to: ${deepLinkUrl}');
-            // Try multiple redirect methods
-            setTimeout(() => {
-              try {
-                window.location.href = '${deepLinkUrl}';
-              } catch (e) {
-                console.log('Direct redirect failed:', e);
-                // Try using window.open as fallback
-                window.open('${deepLinkUrl}', '_self');
-              }
-            }, 500);
+            console.log('OAuth success page loaded for token:', '${tokenId}');
+            
+            function copyTokenId() {
+              navigator.clipboard.writeText('${tokenId}').then(function() {
+                console.log('Token ID copied to clipboard');
+              }, function(err) {
+                console.error('Could not copy token ID: ', err);
+              });
+            }
+            
+            // No automatic redirect - user will switch back to app manually
           </script>
         </body>
         </html>
       `;
       
       res.send(html);
-      console.log('✅ Success page sent with deep link:', deepLinkUrl);
+      console.log('✅ Success page sent, token stored with ID:', tokenId);
       
     } catch (error) {
       console.log('💥 === OAUTH CALLBACK ERROR ===');
@@ -792,6 +843,39 @@ router.get('/test-deeplink', async (req, res) => {
   }
   
   console.log('🧪 === END DEEP LINK TEST ===\n');
+});
+
+// Check for completed OAuth token by polling
+router.get('/check-token/:tokenId', async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    console.log('🔍 Checking for token:', tokenId);
+    
+    const tokenStore = global.tokenStore || (global.tokenStore = new Map());
+    const tokenData = tokenStore.get(tokenId);
+    
+    if (tokenData) {
+      console.log('✅ Token found, cleaning up and returning');
+      // Clean up the token from storage
+      tokenStore.delete(tokenId);
+      
+      res.json({
+        success: true,
+        token: tokenData.token,
+        platform: tokenData.platform
+      });
+    } else {
+      console.log('⏳ Token not yet available');
+      res.json({
+        success: false,
+        message: 'Token not yet available'
+      });
+    }
+    
+  } catch (error) {
+    console.error('Check token error:', error);
+    res.status(500).json({ error: 'Failed to check token' });
+  }
 });
 
 // Get current user info
