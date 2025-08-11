@@ -211,63 +211,11 @@ router.get('/auth/spotify/callback',
         tokenData
       );
 
-      // Show success page with deep link
+      // Direct redirect to app with deep link
       const deepLinkUrl = `${process.env.FRONTEND_URL}auth/success?token=${token}&platform=spotify`;
       
-      const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Login Success</title>
-          <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-              text-align: center; 
-              padding: 40px 20px;
-              background: #1DB954;
-              color: white;
-              margin: 0;
-            }
-            .container { max-width: 400px; margin: 0 auto; }
-            .logo { font-size: 60px; margin-bottom: 20px; }
-            h1 { margin-bottom: 10px; font-size: 28px; font-weight: 600; }
-            p { margin-bottom: 30px; line-height: 1.5; opacity: 0.9; }
-            .button {
-              background: white;
-              color: #1DB954;
-              border: none;
-              padding: 16px 32px;
-              border-radius: 12px;
-              font-size: 17px;
-              font-weight: 600;
-              cursor: pointer;
-              text-decoration: none;
-              display: inline-block;
-              margin: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="logo">✅</div>
-            <h1>Spotify Connected!</h1>
-            <p>Successfully connected to Mixtape. Tap the button to return to the app.</p>
-            <a href="${deepLinkUrl}" class="button">Open Mixtape</a>
-          </div>
-          
-          <script>
-            // Try to open the app immediately
-            setTimeout(() => {
-              window.location.href = '${deepLinkUrl}';
-            }, 1000);
-          </script>
-        </body>
-        </html>
-      `;
-      
-      res.send(html);
+      console.log('Redirecting to app:', deepLinkUrl);
+      res.redirect(deepLinkUrl);
       
     } catch (error) {
       console.error('Spotify OAuth web callback error:', error);
