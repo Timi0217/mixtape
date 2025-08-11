@@ -12,37 +12,72 @@ const oauthStates = new Map<string, { platform: string; timestamp: number }>();
 // Clean up expired states every 10 minutes
 setInterval(() => {
   const now = Date.now();
+  let cleanedCount = 0;
   for (const [state, data] of oauthStates.entries()) {
     if (now - data.timestamp > 600000) { // 10 minutes
       oauthStates.delete(state);
+      cleanedCount++;
     }
+  }
+  if (cleanedCount > 0) {
+    console.log(`🧹 Cleaned up ${cleanedCount} expired OAuth states. Remaining: ${oauthStates.size}`);
   }
 }, 600000);
 
 // Start Spotify OAuth flow
 router.get('/spotify/login', async (req, res) => {
   try {
-    console.log('=== SPOTIFY OAUTH DEBUG ===');
-    console.log('SPOTIFY_CLIENT_ID:', process.env.SPOTIFY_CLIENT_ID);
-    console.log('SPOTIFY_REDIRECT_URI:', process.env.SPOTIFY_REDIRECT_URI);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('🚀 === SPOTIFY OAUTH LOGIN DEBUG ===');
+    console.log('Request details:');
+    console.log('  - URL:', req.url);
+    console.log('  - Method:', req.method);
+    console.log('  - IP:', req.ip);
+    console.log('  - User-Agent:', req.get('User-Agent'));
     
+    console.log('Environment variables:');
+    console.log('  - SPOTIFY_CLIENT_ID:', process.env.SPOTIFY_CLIENT_ID);
+    console.log('  - SPOTIFY_CLIENT_SECRET:', process.env.SPOTIFY_CLIENT_SECRET ? '[SET]' : '[MISSING]');
+    console.log('  - SPOTIFY_REDIRECT_URI:', process.env.SPOTIFY_REDIRECT_URI);
+    console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+    console.log('  - NODE_ENV:', process.env.NODE_ENV);
+    
+    console.log('🎲 Generating OAuth state...');
     const state = oauthService.generateState();
-    oauthStates.set(state, { platform: 'spotify', timestamp: Date.now() });
+    console.log('Generated state:', state);
     
+    console.log('💾 Storing state in memory...');
+    const stateData = { platform: 'spotify', timestamp: Date.now() };
+    oauthStates.set(state, stateData);
+    console.log('Stored state data:', stateData);
+    console.log('Total states in memory:', oauthStates.size);
+    
+    console.log('🔗 Generating Spotify auth URL...');
     const authUrl = oauthService.getSpotifyAuthUrl(state);
     console.log('Generated auth URL:', authUrl);
+    console.log('Auth URL length:', authUrl.length);
     
-    // Let's also manually construct the URL to double-check
+    // Manually construct URL for comparison
     const manualUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${process.env.SPOTIFY_CLIENT_ID}&scope=user-read-email%20user-read-private%20playlist-read-private%20playlist-read-collaborative%20playlist-modify-public%20playlist-modify-private&redirect_uri=${encodeURIComponent(process.env.SPOTIFY_REDIRECT_URI!)}&state=${state}`;
-    console.log('Manual auth URL:', manualUrl);
+    console.log('Manual auth URL (for comparison):', manualUrl);
+    console.log('URLs match:', authUrl === manualUrl);
     
-    res.json({
+    const response = {
       authUrl,
       state,
-    });
+    };
+    
+    console.log('📤 Sending response:', JSON.stringify(response, null, 2));
+    res.json(response);
+    console.log('✅ Response sent successfully');
+    console.log('🚀 === END SPOTIFY OAUTH LOGIN DEBUG ===\n');
+    
   } catch (error) {
-    console.error('Spotify OAuth initiation error:', error);
+    console.log('💥 === OAUTH LOGIN ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Full error:', error);
+    console.error('Stack trace:', error.stack);
+    
     res.status(500).json({ error: 'Failed to initiate Spotify authentication' });
   }
 });
@@ -339,50 +374,114 @@ router.get('/callback',
 
 // Handle Spotify OAuth callback - both direct app callback and web fallback
 router.get('/spotify/callback',
-  [
-    query('code').notEmpty().withMessage('Authorization code is required'),
-    query('state').notEmpty().withMessage('State parameter is required'),
-  ],
-  validateRequest,
   async (req, res) => {
+    console.log('🎵 === SPOTIFY OAUTH CALLBACK DEBUG ===');
+    console.log('Full URL:', req.url);
+    console.log('Query params:', JSON.stringify(req.query, null, 2));
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Method:', req.method);
+    console.log('IP:', req.ip);
+    console.log('User-Agent:', req.get('User-Agent'));
+    
     try {
       const { code, state, error } = req.query;
+      
+      console.log('🔍 Extracted params:');
+      console.log('  - code:', code ? `${String(code).substring(0, 20)}...` : 'MISSING');
+      console.log('  - state:', state || 'MISSING');
+      console.log('  - error:', error || 'None');
 
       // Check for OAuth error
       if (error) {
-        return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=${error}`);
+        console.log('❌ OAuth error received:', error);
+        const errorUrl = `${process.env.FRONTEND_URL}auth/error?error=${error}`;
+        console.log('🔄 Redirecting to error URL:', errorUrl);
+        return res.redirect(errorUrl);
+      }
+      
+      // Check if code is missing
+      if (!code) {
+        console.log('❌ Missing authorization code');
+        const errorUrl = `${process.env.FRONTEND_URL}auth/error?error=missing_code`;
+        console.log('🔄 Redirecting to error URL:', errorUrl);
+        return res.redirect(errorUrl);
+      }
+      
+      // Check if state is missing
+      if (!state) {
+        console.log('❌ Missing state parameter');
+        const errorUrl = `${process.env.FRONTEND_URL}auth/error?error=missing_state`;
+        console.log('🔄 Redirecting to error URL:', errorUrl);
+        return res.redirect(errorUrl);
       }
 
       // Validate state parameter
+      console.log('🔐 Validating state parameter...');
+      console.log('Available states in memory:', Array.from(oauthStates.keys()));
       const storedState = oauthStates.get(state as string);
+      console.log('Stored state data:', storedState);
+      
       if (!storedState || storedState.platform !== 'spotify') {
-        return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=invalid_state`);
+        console.log('❌ Invalid state parameter');
+        const errorUrl = `${process.env.FRONTEND_URL}auth/error?error=invalid_state`;
+        console.log('🔄 Redirecting to error URL:', errorUrl);
+        return res.redirect(errorUrl);
       }
+      
+      console.log('✅ State validation passed');
 
       // Clean up used state
       oauthStates.delete(state as string);
+      console.log('🧹 Cleaned up state from memory');
 
       // Exchange code for tokens
+      console.log('🔄 Exchanging authorization code for tokens...');
       const tokenData = await oauthService.exchangeSpotifyCode(code as string);
+      console.log('✅ Token exchange successful');
+      console.log('Token data keys:', Object.keys(tokenData));
       
       // Get user profile
+      console.log('👤 Fetching user profile...');
       const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
+      console.log('✅ User profile fetched');
+      console.log('User profile keys:', Object.keys(userProfile));
+      console.log('User display name:', userProfile.display_name);
       
       // Create or update user
+      console.log('💾 Creating/updating user in database...');
       const { user, token } = await oauthService.createOrUpdateUser(
         'spotify',
         userProfile,
         tokenData
       );
+      console.log('✅ User created/updated successfully');
+      console.log('Generated JWT token length:', token.length);
+      console.log('User ID:', user.id);
 
-      // Redirect to frontend with token
-      const redirectUrl = `${process.env.FRONTEND_URL}auth/success?token=${token}&platform=spotify`;
-      res.redirect(redirectUrl);
+      // Generate deep link
+      console.log('🔗 Generating deep link...');
+      console.log('FRONTEND_URL env var:', process.env.FRONTEND_URL);
+      const deepLinkUrl = `${process.env.FRONTEND_URL}auth/success?token=${token}&platform=spotify`;
+      console.log('Generated deep link URL:', deepLinkUrl);
+      console.log('Deep link URL length:', deepLinkUrl.length);
+      
+      console.log('🚀 Attempting redirect to app...');
+      res.redirect(deepLinkUrl);
+      console.log('✅ Redirect response sent');
       
     } catch (error) {
-      console.error('Spotify OAuth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}auth/error?error=authentication_failed`);
+      console.log('💥 === OAUTH CALLBACK ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Full error:', error);
+      console.error('Stack trace:', error.stack);
+      
+      const errorUrl = `${process.env.FRONTEND_URL}auth/error?error=authentication_failed`;
+      console.log('🔄 Redirecting to error URL:', errorUrl);
+      res.redirect(errorUrl);
     }
+    
+    console.log('🎵 === END SPOTIFY OAUTH CALLBACK DEBUG ===\n');
   }
 );
 
