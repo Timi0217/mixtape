@@ -4,6 +4,13 @@ import { Request, Response, NextFunction } from 'express';
 export const validateRequest = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('=== VALIDATION ERRORS ===');
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
+    console.log('========================');
+    
     return res.status(400).json({ 
       error: 'Validation failed',
       details: errors.array(),

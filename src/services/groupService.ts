@@ -7,11 +7,13 @@ export interface CreateGroupData {
   name: string;
   adminUserId: string;
   maxMembers?: number;
+  isPublic?: boolean;
 }
 
 export interface UpdateGroupData {
   name?: string;
   maxMembers?: number;
+  isPublic?: boolean;
 }
 
 export class GroupService {
@@ -25,6 +27,7 @@ export class GroupService {
           adminUserId: groupData.adminUserId,
           inviteCode,
           maxMembers: groupData.maxMembers || 8,
+          isPublic: groupData.isPublic || false,
         },
         include: {
           admin: {
@@ -219,10 +222,13 @@ export class GroupService {
       throw new Error('Only group admin can update group');
     }
 
-    return prisma.group.update({
+    await prisma.group.update({
       where: { id },
       data: updateData,
     });
+
+    // Return the full updated group data
+    return this.getGroupById(id);
   }
 
   static async removeGroupMember(groupId: string, memberUserId: string, adminUserId: string) {
@@ -263,6 +269,17 @@ export class GroupService {
                 displayName: true,
               },
             },
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    displayName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
             _count: {
               select: {
                 members: true,
@@ -290,6 +307,97 @@ export class GroupService {
       where: { id: groupId },
       data: { inviteCode: newInviteCode },
       select: { inviteCode: true },
+    });
+  }
+
+  static async searchPublicGroups(searchQuery: string, userId: string) {
+    return prisma.group.findMany({
+      where: {
+        AND: [
+          {
+            name: {
+              contains: searchQuery,
+              mode: 'insensitive',
+            },
+          },
+          {
+            isPublic: true, // Only show public groups
+          },
+          {
+            NOT: {
+              members: {
+                some: {
+                  userId: userId, // Don't show groups user is already in
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        admin: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+          },
+        },
+      },
+      orderBy: [
+        { name: 'asc' },
+      ],
+      take: 20, // Limit results
+    });
+  }
+
+  static async joinGroupById(groupId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const group = await tx.group.findUnique({
+        where: { id: groupId },
+        include: {
+          _count: {
+            select: { members: true },
+          },
+        },
+      });
+
+      if (!group) {
+        throw new Error('Group not found');
+      }
+
+      if (!group.isPublic) {
+        throw new Error('This group is not public and requires an invite');
+      }
+
+      if (group._count.members >= group.maxMembers) {
+        throw new Error('Group is full');
+      }
+
+      const existingMember = await tx.groupMember.findUnique({
+        where: {
+          groupId_userId: {
+            groupId: group.id,
+            userId,
+          },
+        },
+      });
+
+      if (existingMember) {
+        throw new Error('User is already a member of this group');
+      }
+
+      await tx.groupMember.create({
+        data: {
+          groupId: group.id,
+          userId,
+        },
+      });
+
+      return this.getGroupById(group.id);
     });
   }
 }

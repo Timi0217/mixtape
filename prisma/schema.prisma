@@ -15,10 +15,12 @@ model User {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
   
-  groupMemberships  GroupMember[]
-  adminGroups       Group[]
-  musicAccounts     UserMusicAccount[]
-  submissions       Submission[]
+  groupMemberships      GroupMember[]
+  adminGroups           Group[]
+  musicAccounts         UserMusicAccount[]
+  submissions           Submission[]
+  notificationSettings  UserNotificationSettings?
+  musicPreferences      UserMusicPreferences?
   
   @@map("users")
 }
@@ -29,6 +31,7 @@ model Group {
   adminUserId String   @map("admin_user_id")
   inviteCode  String   @unique @map("invite_code")
   maxMembers  Int      @default(8) @map("max_members")
+  isPublic    Boolean  @default(false) @map("is_public")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   
@@ -142,4 +145,27 @@ model PlaylistTrack {
   song             Song     @relation(fields: [songId], references: [id])
   
   @@map("playlist_tracks")
+}
+
+model UserNotificationSettings {
+  id       String @id @default(cuid())
+  userId   String @unique @map("user_id")
+  settings Json   @default("{}")
+  
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_notification_settings")
+}
+
+model UserMusicPreferences {
+  id                    String @id @default(cuid())
+  userId                String @unique @map("user_id")
+  preferredPlatform     String @default("spotify") @map("preferred_platform")
+  autoMatchSongs        Boolean @default(true) @map("auto_match_songs")
+  highQualityOnly       Boolean @default(false) @map("high_quality_only")
+  explicitContentFilter Boolean @default(false) @map("explicit_content_filter")
+  
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_music_preferences")
 }

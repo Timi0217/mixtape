@@ -1,5 +1,5 @@
 import express from 'express';
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import { GroupService } from '../services/groupService';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { validateRequest } from '../utils/validation';
@@ -11,16 +11,18 @@ router.post('/',
   [
     body('name').trim().isLength({ min: 1, max: 100 }),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
+    body('isPublic').optional().isBoolean(),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
-      const { name, maxMembers } = req.body;
+      const { name, maxMembers, isPublic } = req.body;
 
       const group = await GroupService.createGroup({
         name,
         adminUserId: req.user!.id,
         maxMembers,
+        isPublic,
       });
 
       res.status(201).json({ group });
@@ -40,6 +42,24 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     res.status(500).json({ error: 'Failed to get groups' });
   }
 });
+
+router.get('/search',
+  authenticateToken,
+  [
+    query('q').isString().isLength({ min: 1 }),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { q } = req.query;
+      const groups = await GroupService.searchPublicGroups(q as string, req.user!.id);
+      res.json({ groups });
+    } catch (error) {
+      console.error('Search groups error:', error);
+      res.status(500).json({ error: 'Failed to search groups' });
+    }
+  }
+);
 
 router.get('/:id',
   authenticateToken,
@@ -98,6 +118,36 @@ router.post('/join',
   }
 );
 
+router.post('/:id/join',
+  authenticateToken,
+  [
+    param('id').isString().notEmpty(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+
+      const group = await GroupService.joinGroupById(id, req.user!.id);
+      
+      res.json({ group });
+    } catch (error) {
+      console.error('Join group by ID error:', error);
+      
+      if (error instanceof Error) {
+        const status = error.message.includes('not found') ? 404 :
+                      error.message.includes('not public') ? 403 :
+                      error.message.includes('full') ? 400 :
+                      error.message.includes('already a member') ? 400 : 500;
+        
+        return res.status(status).json({ error: error.message });
+      }
+      
+      res.status(500).json({ error: 'Failed to join group' });
+    }
+  }
+);
+
 router.post('/:id/leave',
   authenticateToken,
   [
@@ -136,14 +186,18 @@ router.put('/:id',
     param('id').isString().notEmpty(),
     body('name').optional().trim().isLength({ min: 1, max: 100 }),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
+    body('isPublic').optional().isBoolean(),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
-      const { name, maxMembers } = req.body;
+      const { name, maxMembers, isPublic } = req.body;
 
-      const group = await GroupService.updateGroup(id, { name, maxMembers }, req.user!.id);
+      const group = await GroupService.updateGroup(id, { name, maxMembers, isPublic }, req.user!.id);
+      
+      console.log('Backend returning group:', JSON.stringify(group, null, 2));
+      console.log('isPublic in response:', group.isPublic);
       
       res.json({ group });
     } catch (error) {

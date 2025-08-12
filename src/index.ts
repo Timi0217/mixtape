@@ -30,6 +30,7 @@ import groupRoutes from './routes/groups';
 import submissionRoutes from './routes/submissions';
 import musicRoutes from './routes/music';
 import playlistRoutes from './routes/playlists';
+import notificationRoutes from './routes/notifications';
 import testRoutes from './routes/test';
 
 app.use('/api/auth', authRoutes);
@@ -39,6 +40,7 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/music', musicRoutes);
 app.use('/api/playlists', playlistRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/test', testRoutes);
 
 // Root level OAuth callback for Spotify

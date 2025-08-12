@@ -84,6 +84,16 @@ router.post('/songs',
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
+      console.log('=== SONG CREATION DEBUG ===');
+      console.log('Full request body:', JSON.stringify(req.body, null, 2));
+      console.log('Content-Type:', req.headers['content-type']);
+      console.log('Body keys:', Object.keys(req.body));
+      console.log('previewUrl type:', typeof req.body.previewUrl);
+      console.log('previewUrl value:', req.body.previewUrl);
+      console.log('previewUrl === null:', req.body.previewUrl === null);
+      console.log('previewUrl === undefined:', req.body.previewUrl === undefined);
+      console.log('========================');
+      
       const { title, artist, album, platformIds, duration, imageUrl, previewUrl } = req.body;
 
       // Check if song already exists
@@ -182,6 +192,68 @@ router.get('/platforms',
     } catch (error) {
       console.error('Get platforms error:', error);
       res.status(500).json({ error: 'Failed to get available platforms' });
+    }
+  }
+);
+
+// Get user music accounts
+router.get('/accounts', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const accounts = await prisma.userMusicAccount.findMany({
+      where: { userId: req.user!.id },
+      select: {
+        id: true,
+        platform: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({ accounts });
+  } catch (error) {
+    console.error('Get music accounts error:', error);
+    res.status(500).json({ error: 'Failed to get music accounts' });
+  }
+});
+
+// Get music preferences
+router.get('/preferences', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const preferences = await prisma.userMusicPreferences.findUnique({
+      where: { userId: req.user!.id },
+    });
+
+    res.json({ preferences });
+  } catch (error) {
+    console.error('Get music preferences error:', error);
+    res.status(500).json({ error: 'Failed to get music preferences' });
+  }
+});
+
+// Update music preferences
+router.put('/preferences', 
+  authenticateToken,
+  [
+    body().isObject(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      const newPreferences = req.body;
+
+      const preferences = await prisma.userMusicPreferences.upsert({
+        where: { userId },
+        update: newPreferences,
+        create: {
+          userId,
+          ...newPreferences,
+        },
+      });
+
+      res.json({ preferences });
+    } catch (error) {
+      console.error('Update music preferences error:', error);
+      res.status(500).json({ error: 'Failed to update music preferences' });
     }
   }
 );
