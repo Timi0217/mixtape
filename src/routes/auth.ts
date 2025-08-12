@@ -103,35 +103,7 @@ router.post('/refresh',
   }
 );
 
-router.post('/spotify/callback',
-  [
-    body('code').notEmpty(),
-    body('state').optional(),
-  ],
-  validateRequest,
-  async (req, res) => {
-    try {
-      res.status(501).json({ error: 'Spotify OAuth not yet implemented' });
-    } catch (error) {
-      console.error('Spotify callback error:', error);
-      res.status(500).json({ error: 'Spotify authentication failed' });
-    }
-  }
-);
-
-router.post('/apple-music/token',
-  [
-    body('userToken').notEmpty(),
-  ],
-  validateRequest,
-  async (req, res) => {
-    try {
-      res.status(501).json({ error: 'Apple Music integration not yet implemented' });
-    } catch (error) {
-      console.error('Apple Music token error:', error);
-      res.status(500).json({ error: 'Apple Music authentication failed' });
-    }
-  }
-);
+// OAuth endpoints have been moved to /routes/oauth.ts
+// This file now only handles JWT token refresh
 
 export default router;

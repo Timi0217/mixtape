@@ -169,3 +169,15 @@ model UserMusicPreferences {
   
   @@map("user_music_preferences")
 }
+
+model OAuthSession {
+  id         String   @id @default(cuid())
+  sessionId  String   @unique @map("session_id")
+  platform   String
+  state      String?
+  tokenData  Json?    @map("token_data")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  @@map("oauth_sessions")
+}

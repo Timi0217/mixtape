@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { config } from './config/env';
 import { prisma } from './config/database';
+import { CronService } from './services/cronService';
 
 const app = express();
 
@@ -58,6 +59,9 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 const server = app.listen(Number(config.port), '0.0.0.0', () => {
   console.log(`Mixtape API server running on port ${config.port}`);
   console.log(`Accessible on both localhost and network IP`);
+  
+  // Start scheduled tasks after server is running
+  CronService.startScheduledTasks();
 });
 
 process.on('SIGTERM', async () => {

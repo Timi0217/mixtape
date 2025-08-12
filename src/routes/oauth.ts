@@ -2,27 +2,11 @@ import express from 'express';
 import { query, body } from 'express-validator';
 import { validateRequest } from '../utils/validation';
 import { oauthService } from '../services/oauthService';
+import { OAuthSessionService } from '../services/oauthSessionService';
 import { prisma } from '../config/database';
+import * as he from 'he';
 
 const router = express.Router();
-
-// Store OAuth states temporarily (in production, use Redis)
-const oauthStates = new Map<string, { platform: string; timestamp: number }>();
-
-// Clean up expired states every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  let cleanedCount = 0;
-  for (const [state, data] of oauthStates.entries()) {
-    if (now - data.timestamp > 600000) { // 10 minutes
-      oauthStates.delete(state);
-      cleanedCount++;
-    }
-  }
-  if (cleanedCount > 0) {
-    console.log(`🧹 Cleaned up ${cleanedCount} expired OAuth states. Remaining: ${oauthStates.size}`);
-  }
-}, 600000);
 
 // Start Spotify OAuth flow
 router.get('/spotify/login', async (req, res) => {
@@ -55,18 +39,14 @@ router.get('/spotify/login', async (req, res) => {
     console.log('Manual auth URL (for comparison):', manualUrl);
     console.log('URLs match:', authUrl === manualUrl);
     
-    // Generate token ID for polling 
-    const tokenId = 'token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    
-    // Store the token ID with the state so we can link them later
-    const stateData = { platform: 'spotify', timestamp: Date.now(), tokenId };
-    oauthStates.set(state, stateData);
-    console.log('Stored state data with tokenId:', stateData);
+    // Store the state in database for verification
+    await OAuthSessionService.storeState(state, 'spotify');
+    console.log('Stored state for Spotify OAuth');
     
     const response = {
       authUrl,
       state,
-      tokenId, // Frontend will use this to poll for completion
+      tokenId: state, // Frontend will use this to poll for completion (using state as tokenId)
     };
     
     console.log('📤 Sending response:', JSON.stringify(response, null, 2));
@@ -420,11 +400,9 @@ router.get('/spotify/callback',
 
       // Validate state parameter
       console.log('🔐 Validating state parameter...');
-      console.log('Available states in memory:', Array.from(oauthStates.keys()));
-      const storedState = oauthStates.get(state as string);
-      console.log('Stored state data:', storedState);
+      const isValidState = await OAuthSessionService.verifyState(state as string, 'spotify');
       
-      if (!storedState || storedState.platform !== 'spotify') {
+      if (!isValidState) {
         console.log('❌ Invalid state parameter');
         const errorUrl = `${process.env.FRONTEND_URL}auth/error?error=invalid_state`;
         console.log('🔄 Redirecting to error URL:', errorUrl);
@@ -432,9 +410,6 @@ router.get('/spotify/callback',
       }
       
       console.log('✅ State validation passed');
-
-      // Clean up used state
-      oauthStates.delete(state as string);
       console.log('🧹 Cleaned up state from memory');
 
       // Exchange code for tokens
@@ -470,23 +445,9 @@ router.get('/spotify/callback',
       
       console.log('🚀 Sending success page...');
       
-      // Get the tokenId from the stored state data
-      const tokenId = storedState.tokenId;
-      console.log('Using tokenId from stored state:', tokenId);
-      
-      // In production, use Redis. For now, store in memory with expiration
-      const tokenStore = global.tokenStore || (global.tokenStore = new Map());
-      tokenStore.set(tokenId, { token, platform: 'spotify', timestamp: Date.now() });
-      
-      // Clean up expired tokens (older than 5 minutes)
-      setTimeout(() => {
-        const now = Date.now();
-        for (const [id, data] of tokenStore.entries()) {
-          if (now - data.timestamp > 300000) { // 5 minutes
-            tokenStore.delete(id);
-          }
-        }
-      }, 1000);
+      // Store the token for polling using the state as session ID
+      await OAuthSessionService.storeTokenData(state as string, { token, platform: 'spotify' }, 'spotify');
+      console.log('Stored token data for polling with state:', state);
       
       // Create success page with instructions to manually return to app
       const html = `
@@ -551,7 +512,7 @@ router.get('/spotify/callback',
             </div>
             
             <div class="token-code" onclick="copyTokenId()" style="cursor: pointer; user-select: all;">
-              ${tokenId}
+              ${state}
             </div>
             <p style="font-size: 12px; opacity: 0.7;">
               (Token ID - tap to copy if needed for debugging)
@@ -563,10 +524,10 @@ router.get('/spotify/callback',
           </div>
           
           <script>
-            console.log('OAuth success page loaded for token:', '${tokenId}');
+            console.log('OAuth success page loaded for token:', '${state}');
             
             function copyTokenId() {
-              navigator.clipboard.writeText('${tokenId}').then(function() {
+              navigator.clipboard.writeText('${state}').then(function() {
                 console.log('Token ID copied to clipboard');
               }, function(err) {
                 console.error('Could not copy token ID: ', err);
@@ -580,7 +541,7 @@ router.get('/spotify/callback',
       `;
       
       res.send(html);
-      console.log('✅ Success page sent, token stored with ID:', tokenId);
+      console.log('✅ Success page sent, token stored with state:', state);
       
     } catch (error) {
       console.log('💥 === OAUTH CALLBACK ERROR ===');
@@ -602,7 +563,7 @@ router.get('/spotify/callback',
 router.get('/apple/login', async (req, res) => {
   try {
     const state = oauthService.generateState();
-    oauthStates.set(state, { platform: 'apple-music', timestamp: Date.now() });
+    await OAuthSessionService.storeState(state, 'apple-music');
     
     const baseUrl = process.env.NODE_ENV === 'production' 
       ? process.env.API_BASE_URL || 'https://api.yourdomain.com'
@@ -720,7 +681,7 @@ router.get('/apple/auth-page', async (req, res) => {
                   },
                   body: JSON.stringify({
                     musicUserToken: userToken,
-                    state: '${state}',
+                    state: '${he.encode(state)}',
                     userInfo: {
                       id: 'apple_user_' + Date.now(),
                       name: 'Apple Music User'
@@ -770,13 +731,10 @@ router.post('/apple/callback',
       const { musicUserToken, state, userInfo } = req.body;
 
       // Validate state parameter
-      const storedState = oauthStates.get(state);
-      if (!storedState || storedState.platform !== 'apple-music') {
+      const isValidState = await OAuthSessionService.verifyState(state, 'apple-music');
+      if (!isValidState) {
         return res.status(400).json({ error: 'Invalid state parameter' });
       }
-
-      // Clean up used state
-      oauthStates.delete(state);
 
       // Validate the user token with Apple Music API
       const isValidToken = await oauthService.validateAppleMusicUserToken(musicUserToken);
@@ -851,13 +809,10 @@ router.get('/check-token/:tokenId', async (req, res) => {
     const { tokenId } = req.params;
     console.log('🔍 Checking for token:', tokenId);
     
-    const tokenStore = global.tokenStore || (global.tokenStore = new Map());
-    const tokenData = tokenStore.get(tokenId);
+    const tokenData = await OAuthSessionService.getTokenData(tokenId);
     
     if (tokenData) {
       console.log('✅ Token found, cleaning up and returning');
-      // Clean up the token from storage
-      tokenStore.delete(tokenId);
       
       res.json({
         success: true,

@@ -167,13 +167,26 @@ class OAuthService {
     tokenData: SpotifyTokenResponse | any
   ) {
     const isSpotify = platform === 'spotify';
-    const email = isSpotify 
-      ? (profileData as SpotifyUserProfile).email 
-      : `${(profileData as AppleMusicUserProfile).id}@appleid.apple.com`;
     
-    const displayName = isSpotify
-      ? (profileData as SpotifyUserProfile).display_name
-      : (profileData as AppleMusicUserProfile).attributes?.name || 'Apple Music User';
+    // For Apple Music, we don't have access to user email, so we create a unique identifier
+    // Instead of a fake email, we use the platform prefix + user ID as the unique identifier
+    let email: string;
+    let displayName: string;
+    
+    if (isSpotify) {
+      email = (profileData as SpotifyUserProfile).email;
+      displayName = (profileData as SpotifyUserProfile).display_name;
+    } else {
+      // For Apple Music, use a proper unique identifier instead of fake email
+      const appleUserId = (profileData as AppleMusicUserProfile).id;
+      email = `apple_music_${appleUserId}@mixtape.internal`;
+      displayName = (profileData as AppleMusicUserProfile).attributes?.name || 'Apple Music User';
+      
+      // Ensure the identifier is unique and doesn't collide with real emails
+      if (!appleUserId || typeof appleUserId !== 'string') {
+        throw new Error('Invalid Apple Music user ID');
+      }
+    }
 
     // Find or create user
     let user = await prisma.user.findUnique({
