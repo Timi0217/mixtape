@@ -196,9 +196,6 @@ router.put('/:id',
 
       const group = await GroupService.updateGroup(id, { name, maxMembers, isPublic }, req.user!.id);
       
-      console.log('Backend returning group:', JSON.stringify(group, null, 2));
-      console.log('isPublic in response:', group.isPublic);
-      
       res.json({ group });
     } catch (error) {
       console.error('Update group error:', error);
