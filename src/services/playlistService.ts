@@ -1,340 +1,276 @@
-import axios from 'axios';
 import { prisma } from '../config/database';
-import { musicService } from './musicService';
+import axios from 'axios';
 
-export interface PlaylistCreationResult {
-  platform: string;
-  playlistId: string;
-  playlistUrl: string;
+interface PlaylistCreationResult {
   success: boolean;
+  playlistId?: string;
+  playlistUrl?: string;
   error?: string;
+  platform: string;
+  userId: string;
 }
 
-export interface CreatePlaylistRequest {
-  name: string;
-  description?: string;
-  platforms: string[];
-  songs: string[]; // Song IDs from our database
-  isPublic?: boolean;
-}
+export class PlaylistService {
 
-class PlaylistService {
-  async createCrossPlatformPlaylist(
-    userId: string,
-    request: CreatePlaylistRequest
-  ): Promise<{ results: PlaylistCreationResult[]; playlistId: string }> {
-    const songs = await prisma.song.findMany({
-      where: {
-        id: { in: request.songs }
-      }
-    });
+  /**
+   * Create playlists for all group members based on their preferred platform
+   */
+  static async createPlaylistsForCompletedRound(roundId: string): Promise<PlaylistCreationResult[]> {
+    console.log(`🎵 Creating playlists for completed round: ${roundId}`);
 
-    const playlist = await prisma.playlist.create({
-      data: {
-        roundId: '', // This would be set if creating from a round
-        status: 'pending',
-        platformPlaylistIds: {},
-      }
-    });
-
-    const creationPromises = request.platforms.map(platform =>
-      this.createPlaylistOnPlatform(userId, platform, request, songs)
-    );
-
-    const results = await Promise.allSettled(creationPromises);
-    const playlistResults: PlaylistCreationResult[] = [];
-    const platformPlaylistIds: Record<string, string> = {};
-
-    results.forEach((result, index) => {
-      const platform = request.platforms[index];
-      if (result.status === 'fulfilled' && result.value.success) {
-        playlistResults.push(result.value);
-        platformPlaylistIds[platform] = result.value.playlistId;
-      } else {
-        playlistResults.push({
-          platform,
-          playlistId: '',
-          playlistUrl: '',
-          success: false,
-          error: result.status === 'rejected' ? result.reason.message : 'Unknown error'
-        });
-      }
-    });
-
-    await prisma.playlist.update({
-      where: { id: playlist.id },
-      data: {
-        status: playlistResults.some(r => r.success) ? 'completed' : 'failed',
-        platformPlaylistIds,
-      }
-    });
-
-    // Create playlist tracks
-    const trackPromises = songs.map((song, index) =>
-      prisma.playlistTrack.create({
-        data: {
-          playlistId: playlist.id,
-          songId: song.id,
-          submittedByUserId: userId,
-          orderIndex: index,
-        }
-      })
-    );
-    await Promise.all(trackPromises);
-
-    return {
-      results: playlistResults,
-      playlistId: playlist.id,
-    };
-  }
-
-  private async createPlaylistOnPlatform(
-    userId: string,
-    platform: string,
-    request: CreatePlaylistRequest,
-    songs: any[]
-  ): Promise<PlaylistCreationResult> {
-    try {
-      switch (platform) {
-        case 'spotify':
-          return await this.createSpotifyPlaylist(userId, request, songs);
-        case 'apple-music':
-          return await this.createAppleMusicPlaylist(userId, request, songs);
-        case 'youtube-music':
-          return await this.createYouTubeMusicPlaylist(userId, request, songs);
-        default:
-          throw new Error(`Unsupported platform: ${platform}`);
-      }
-    } catch (error) {
-      console.error(`Failed to create playlist on ${platform}:`, error);
-      return {
-        platform,
-        playlistId: '',
-        playlistUrl: '',
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  private async createSpotifyPlaylist(
-    userId: string,
-    request: CreatePlaylistRequest,
-    songs: any[]
-  ): Promise<PlaylistCreationResult> {
-    const userAccount = await this.getUserMusicAccount(userId, 'spotify');
-    
-    // Create playlist
-    const playlistResponse = await axios.post(
-      `https://api.spotify.com/v1/users/${userAccount.spotifyUserId}/playlists`,
-      {
-        name: request.name,
-        description: request.description || 'Created by Mixtape',
-        public: request.isPublic || false,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${userAccount.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const playlist = playlistResponse.data;
-
-    // Add tracks
-    const spotifyTrackUris = songs
-      .filter(song => song.platformIds.spotify)
-      .map(song => `spotify:track:${song.platformIds.spotify}`);
-
-    if (spotifyTrackUris.length > 0) {
-      await axios.post(
-        `https://api.spotify.com/v1/playlists/${playlist.id}/tracks`,
-        { uris: spotifyTrackUris },
-        {
-          headers: {
-            'Authorization': `Bearer ${userAccount.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-    }
-
-    return {
-      platform: 'spotify',
-      playlistId: playlist.id,
-      playlistUrl: playlist.external_urls.spotify,
-      success: true,
-    };
-  }
-
-  private async createAppleMusicPlaylist(
-    userId: string,
-    request: CreatePlaylistRequest,
-    songs: any[]
-  ): Promise<PlaylistCreationResult> {
-    try {
-      const userAccount = await this.getUserMusicAccount(userId, 'apple-music');
-      const { appleMusicService } = await import('./appleMusicService');
-
-      // Get Apple Music song IDs
-      const appleMusicSongIds = songs
-        .filter(song => song.platformIds['apple-music'])
-        .map(song => song.platformIds['apple-music']);
-
-      // Create playlist using Apple Music service
-      const playlist = await appleMusicService.createPlaylist(
-        userAccount.accessToken, // This is the user token
-        {
-          name: request.name,
-          description: request.description,
-          songs: appleMusicSongIds,
-        }
-      );
-
-      return {
-        platform: 'apple-music',
-        playlistId: playlist.id,
-        playlistUrl: `https://music.apple.com/library/playlist/${playlist.id}`,
-        success: true,
-      };
-    } catch (error) {
-      console.error('Apple Music playlist creation error:', error);
-      return {
-        platform: 'apple-music',
-        playlistId: '',
-        playlistUrl: '',
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  private async createYouTubeMusicPlaylist(
-    userId: string,
-    request: CreatePlaylistRequest,
-    songs: any[]
-  ): Promise<PlaylistCreationResult> {
-    const userAccount = await this.getUserMusicAccount(userId, 'youtube-music');
-
-    // Create playlist
-    const playlistResponse = await axios.post(
-      'https://www.googleapis.com/youtube/v3/playlists',
-      {
-        snippet: {
-          title: request.name,
-          description: request.description || 'Created by Mixtape',
-        },
-        status: {
-          privacyStatus: request.isPublic ? 'public' : 'private',
-        },
-      },
-      {
-        params: { part: 'snippet,status' },
-        headers: {
-          'Authorization': `Bearer ${userAccount.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const playlist = playlistResponse.data;
-
-    // Add videos to playlist
-    const youtubeVideoIds = songs
-      .filter(song => song.platformIds['youtube-music'])
-      .map(song => song.platformIds['youtube-music']);
-
-    for (const videoId of youtubeVideoIds) {
-      await axios.post(
-        'https://www.googleapis.com/youtube/v3/playlistItems',
-        {
-          snippet: {
-            playlistId: playlist.id,
-            resourceId: {
-              kind: 'youtube#video',
-              videoId: videoId,
+    const round = await prisma.dailyRound.findUnique({
+      where: { id: roundId },
+      include: {
+        group: {
+          include: {
+            members: {
+              include: {
+                user: {
+                  include: {
+                    musicAccounts: true,
+                    musicPreferences: true,
+                  },
+                },
+              },
             },
           },
         },
-        {
-          params: { part: 'snippet' },
-          headers: {
-            'Authorization': `Bearer ${userAccount.accessToken}`,
-            'Content-Type': 'application/json',
+        submissions: {
+          include: {
+            user: true,
+            song: true,
           },
-        }
-      );
-    }
-
-    return {
-      platform: 'youtube-music',
-      playlistId: playlist.id,
-      playlistUrl: `https://www.youtube.com/playlist?list=${playlist.id}`,
-      success: true,
-    };
-  }
-
-  private async getUserMusicAccount(userId: string, platform: string) {
-    const account = await prisma.userMusicAccount.findUnique({
-      where: {
-        userId_platform: {
-          userId,
-          platform,
         },
       },
     });
 
-    if (!account) {
-      throw new Error(`No ${platform} account connected for user`);
+    if (!round) {
+      throw new Error('Round not found');
     }
 
-    if (account.expiresAt && account.expiresAt < new Date()) {
-      if (!account.refreshToken) {
-        throw new Error(`${platform} token expired and no refresh token available`);
+    const results: PlaylistCreationResult[] = [];
+    const playlistName = this.generatePlaylistName(round.group.name, round.date);
+
+    // Group members by their preferred platform
+    const membersByPlatform = this.groupMembersByPlatform(round.group.members);
+
+    // Create playlists for each platform
+    for (const [platform, members] of Object.entries(membersByPlatform)) {
+      console.log(`📱 Creating ${platform} playlist for ${members.length} members`);
+
+      try {
+        // For now, just use the songs as submitted (no cross-platform matching)
+        const songs = round.submissions.map(sub => ({
+          id: sub.song.spotifyId || sub.song.appleMusicId,
+          title: sub.song.title,
+          artist: sub.song.artist,
+          platform: sub.song.platform,
+          originalSubmission: sub,
+        })).filter(song => song.id); // Only include songs with valid IDs
+
+        if (songs.length === 0) {
+          console.log(`⚠️ No valid songs found for ${platform}`);
+          continue;
+        }
+
+        // Create playlist for each member on this platform
+        for (const member of members) {
+          try {
+            const result = await this.createPlatformPlaylist(
+              member.user,
+              platform,
+              playlistName,
+              songs,
+              round
+            );
+            results.push(result);
+          } catch (error) {
+            console.error(`❌ Failed to create playlist for user ${member.user.id} on ${platform}:`, error);
+            results.push({
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              platform,
+              userId: member.user.id,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Failed to process ${platform} playlists:`, error);
+        // Add failed results for all members of this platform
+        members.forEach(member => {
+          results.push({
+            success: false,
+            error: error instanceof Error ? error.message : 'Platform processing failed',
+            platform,
+            userId: member.user.id,
+          });
+        });
+      }
+    }
+
+    console.log(`✅ Playlist creation completed: ${results.filter(r => r.success).length}/${results.length} successful`);
+    return results;
+  }
+
+  /**
+   * Group members by their preferred music platform
+   */
+  private static groupMembersByPlatform(members: any[]): Record<string, any[]> {
+    const grouped: Record<string, any[]> = {};
+
+    for (const member of members) {
+      // Determine user's preferred platform
+      let platform = 'spotify'; // Default to Spotify
+
+      // Check user preferences
+      if (member.user.musicPreferences?.preferredPlatform) {
+        platform = member.user.musicPreferences.preferredPlatform;
+      } else if (member.user.musicAccounts?.length > 0) {
+        // Use the platform they have an active account for
+        platform = member.user.musicAccounts[0].platform;
       }
 
-      // Refresh token logic would go here
-      throw new Error(`${platform} token expired - refresh not implemented`);
+      if (!grouped[platform]) {
+        grouped[platform] = [];
+      }
+      grouped[platform].push(member);
     }
 
-    return account;
+    return grouped;
   }
 
-  async getPlaylistById(playlistId: string) {
-    return prisma.playlist.findUnique({
-      where: { id: playlistId },
-      include: {
-        tracks: {
-          include: {
-            song: true,
-          },
-          orderBy: { orderIndex: 'asc' },
+  /**
+   * Create a playlist on a specific platform for a user
+   */
+  private static async createPlatformPlaylist(
+    user: any,
+    platform: string,
+    playlistName: string,
+    songs: any[],
+    round: any
+  ): Promise<PlaylistCreationResult> {
+    console.log(`🎶 Creating ${platform} playlist "${playlistName}" for user ${user.displayName}`);
+
+    // Find user's music account for this platform
+    const musicAccount = user.musicAccounts?.find((account: any) => account.platform === platform);
+    
+    if (!musicAccount) {
+      throw new Error(`User ${user.id} has no ${platform} account connected`);
+    }
+
+    // Check if token is still valid
+    if (musicAccount.expiresAt && new Date() > musicAccount.expiresAt) {
+      throw new Error(`${platform} token expired for user ${user.id}`);
+    }
+
+    try {
+      let playlistResult;
+
+      if (platform === 'spotify') {
+        playlistResult = await this.createSpotifyPlaylist(musicAccount, playlistName, songs, round);
+      } else if (platform === 'apple-music') {
+        playlistResult = await this.createAppleMusicPlaylist(musicAccount, playlistName, songs, round);
+      } else {
+        throw new Error(`Unsupported platform: ${platform}`);
+      }
+
+      // Store the playlist in our database
+      await prisma.playlist.create({
+        data: {
+          userId: user.id,
+          roundId: round.id,
+          platform: platform,
+          platformPlaylistId: playlistResult.playlistId,
+          name: playlistName,
+          description: `Mixtape playlist for ${round.group.name} - ${round.date.toDateString()}`,
+          trackCount: songs.length,
+          isPublic: false,
         },
-      },
-    });
+      });
+
+      return {
+        success: true,
+        playlistId: playlistResult.playlistId,
+        playlistUrl: playlistResult.playlistUrl,
+        platform,
+        userId: user.id,
+      };
+
+    } catch (error) {
+      console.error(`❌ Error creating ${platform} playlist:`, error);
+      throw error;
+    }
   }
 
-  async getUserPlaylists(userId: string) {
-    return prisma.playlist.findMany({
-      where: {
-        tracks: {
-          some: {
-            submittedByUserId: userId,
-          },
-        },
-      },
-      include: {
-        tracks: {
-          include: {
-            song: true,
-          },
-          orderBy: { orderIndex: 'asc' },
-        },
-      },
-      orderBy: { generatedAt: 'desc' },
+  /**
+   * Create a Spotify playlist
+   */
+  private static async createSpotifyPlaylist(musicAccount: any, name: string, songs: any[], round: any) {
+    const spotifyApi = 'https://api.spotify.com/v1';
+    
+    // Get user's Spotify profile to get user ID
+    const profileResponse = await axios.get(`${spotifyApi}/me`, {
+      headers: { Authorization: `Bearer ${musicAccount.accessToken}` },
     });
+
+    const userId = profileResponse.data.id;
+
+    // Create playlist
+    const playlistResponse = await axios.post(`${spotifyApi}/users/${userId}/playlists`, {
+      name,
+      description: `Mixtape playlist for ${round.group.name} - ${round.date.toDateString()}`,
+      public: false,
+    }, {
+      headers: { 
+        Authorization: `Bearer ${musicAccount.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const playlistId = playlistResponse.data.id;
+    const playlistUrl = playlistResponse.data.external_urls.spotify;
+
+    // Add tracks to playlist - only Spotify tracks
+    const spotifyTracks = songs.filter(song => song.platform === 'spotify' && song.id);
+    
+    if (spotifyTracks.length > 0) {
+      const trackUris = spotifyTracks.map(song => `spotify:track:${song.id}`);
+
+      await axios.post(`${spotifyApi}/playlists/${playlistId}/tracks`, {
+        uris: trackUris,
+      }, {
+        headers: { 
+          Authorization: `Bearer ${musicAccount.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+
+    return { playlistId, playlistUrl };
+  }
+
+  /**
+   * Create an Apple Music playlist
+   */
+  private static async createAppleMusicPlaylist(musicAccount: any, name: string, songs: any[], round: any) {
+    // Apple Music playlist creation requires different approach
+    console.log(`🍎 Apple Music playlist creation not yet implemented for: ${name}`);
+    
+    // TODO: Implement Apple Music playlist creation
+    // Apple Music API requires different authentication and endpoints
+    
+    throw new Error('Apple Music playlist creation not yet implemented');
+  }
+
+  /**
+   * Generate a playlist name for the round
+   */
+  private static generatePlaylistName(groupName: string, date: Date): string {
+    const dateStr = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+    return `${groupName} Mixtape - ${dateStr}`;
   }
 }
-
-export const playlistService = new PlaylistService();

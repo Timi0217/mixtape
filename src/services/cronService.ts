@@ -1,5 +1,6 @@
 import * as cron from 'node-cron';
 import { prisma } from '../config/database';
+import { PlaylistService } from './playlistService';
 
 export class CronService {
   
@@ -105,15 +106,28 @@ export class CronService {
 
           // Check if all members submitted
           if (submissionCount === totalMembers) {
-            // Round successful - create playlist
-            await prisma.dailyRound.update({
-              where: { id: round.id },
-              data: { status: 'completed' },
-            });
+            // Round successful - create playlists for all members
+            try {
+              const playlistResults = await PlaylistService.createPlaylistsForCompletedRound(round.id);
+              
+              // Update round status to completed
+              await prisma.dailyRound.update({
+                where: { id: round.id },
+                data: { status: 'completed' },
+              });
 
-            // TODO: Integrate with music service to create actual playlist
-            console.log(`✅ Round ${round.id} completed successfully with ${submissionCount} submissions`);
-            processedCount++;
+              const successCount = playlistResults.filter(r => r.success).length;
+              console.log(`✅ Round ${round.id} completed: ${successCount}/${playlistResults.length} playlists created successfully`);
+              processedCount++;
+            } catch (playlistError) {
+              console.error(`❌ Error creating playlists for round ${round.id}:`, playlistError);
+              // Still mark round as completed but log the playlist creation failure
+              await prisma.dailyRound.update({
+                where: { id: round.id },
+                data: { status: 'completed' },
+              });
+              processedCount++;
+            }
           } else {
             // Round failed - mark as failed
             await prisma.dailyRound.update({
