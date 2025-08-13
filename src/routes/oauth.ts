@@ -584,14 +584,26 @@ router.get('/apple/auth-page', async (req, res) => {
   try {
     const { state } = req.query;
     
+    console.log('🍎 Apple auth page requested with state:', state);
+    
     const sessionData = await OAuthSessionService.getSessionState(state as string);
     if (!state || !sessionData) {
+      console.log('❌ Invalid state parameter');
       return res.status(400).send('Invalid or expired state parameter');
     }
     
+    console.log('✅ State validated, sessionData:', sessionData);
+    
+    // Define baseUrl for the HTML template
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? process.env.API_BASE_URL || 'https://amiable-upliftment-production.up.railway.app'
+      : `http://localhost:8080`;
+    
     // Get Apple Music developer token
+    console.log('🔑 Attempting to generate Apple Music developer token...');
     const { appleMusicService } = await import('../services/appleMusicService');
     const developerToken = await appleMusicService.getDeveloperToken();
+    console.log('✅ Developer token generated successfully');
     
     const html = `
       <!DOCTYPE html>
@@ -720,8 +732,12 @@ router.get('/apple/auth-page', async (req, res) => {
     
     res.send(html);
   } catch (error) {
-    console.error('Apple Music auth page error:', error);
-    res.status(500).send('Failed to load authentication page');
+    console.error('❌ Apple Music auth page error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    res.status(500).send(`Failed to load authentication page: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 });
 
