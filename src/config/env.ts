@@ -33,9 +33,6 @@ export const config = {
     privateKey: process.env.APPLE_MUSIC_PRIVATE_KEY!,
   },
   
-  youtube: {
-    apiKey: process.env.YOUTUBE_API_KEY!,
-  },
 };
 
 const requiredEnvVars = [

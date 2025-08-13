@@ -11,14 +11,14 @@ router.get('/search',
   authenticateToken,
   [
     query('q').isString().isLength({ min: 1 }).trim(),
-    query('platform').optional().isIn(['spotify', 'apple-music', 'youtube-music']),
+    query('platform').optional().isIn(['spotify', 'apple-music']),
     query('limit').optional().isInt({ min: 1, max: 50 }),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
       const { q, platform, limit = 20 } = req.query;
-      const platforms = platform ? [platform as string] : ['spotify', 'apple-music', 'youtube-music'];
+      const platforms = platform ? [platform as string] : ['spotify', 'apple-music'];
       
       const results = await musicService.searchAcrossPlatforms(
         q as string,
@@ -133,7 +133,7 @@ router.post('/songs/match',
     body('songs.*.title').isString().notEmpty(),
     body('songs.*.artist').isString().notEmpty(),
     body('songs.*.album').optional().isString(),
-    body('targetPlatform').isIn(['spotify', 'apple-music', 'youtube-music']),
+    body('targetPlatform').isIn(['spotify', 'apple-music']),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
@@ -174,7 +174,7 @@ router.post('/songs/bulk-match',
     body('songs.*.artist').isString().notEmpty(),
     body('songs.*.album').optional().isString(),
     body('targetPlatforms').isArray(),
-    body('targetPlatforms.*').isIn(['spotify', 'apple-music', 'youtube-music']),
+    body('targetPlatforms.*').isIn(['spotify', 'apple-music']),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
@@ -224,7 +224,6 @@ router.get('/platforms',
       // Check which platforms have proper configuration
       const spotifyAvailable = !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET);
       const appleMusicAvailable = !!(process.env.APPLE_MUSIC_KEY_ID && process.env.APPLE_MUSIC_TEAM_ID && process.env.APPLE_MUSIC_PRIVATE_KEY_PATH);
-      const youtubeAvailable = !!process.env.YOUTUBE_API_KEY;
 
       res.json({
         platforms: [
@@ -243,14 +242,6 @@ router.get('/platforms',
             requiresAuth: true,
             searchAvailable: appleMusicAvailable,
             playlistCreationAvailable: appleMusicAvailable,
-          },
-          {
-            id: 'youtube-music',
-            name: 'YouTube Music',
-            available: youtubeAvailable,
-            requiresAuth: false, // YouTube search doesn't require user auth
-            searchAvailable: youtubeAvailable,
-            playlistCreationAvailable: false, // Not implemented
           },
         ],
       });

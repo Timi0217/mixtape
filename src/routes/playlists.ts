@@ -12,7 +12,7 @@ router.post('/create',
     body('name').isString().isLength({ min: 1, max: 100 }).trim(),
     body('description').optional().isString().isLength({ max: 500 }).trim(),
     body('platforms').isArray().custom((platforms) => {
-      const validPlatforms = ['spotify', 'apple-music', 'youtube-music'];
+      const validPlatforms = ['spotify', 'apple-music'];
       return platforms.every((p: string) => validPlatforms.includes(p));
     }),
     body('songs').isArray().isLength({ min: 1 }),

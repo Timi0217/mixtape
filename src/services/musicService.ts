@@ -26,7 +26,7 @@ export interface NormalizedSong {
 class MusicService {
   async searchAcrossPlatforms(
     query: string,
-    platforms: string[] = ['spotify', 'apple-music', 'youtube-music'],
+    platforms: string[] = ['spotify', 'apple-music'],
     limit: number = 20
   ): Promise<SearchResult[]> {
     const searchPromises = platforms.map(platform => 
@@ -58,8 +58,6 @@ class MusicService {
         return this.searchSpotify(query, limit);
       case 'apple-music':
         return this.searchAppleMusic(query, limit);
-      case 'youtube-music':
-        return this.searchYouTubeMusic(query, limit);
       default:
         throw new Error(`Unsupported platform: ${platform}`);
     }
@@ -118,52 +116,6 @@ class MusicService {
     }
   }
 
-  private async searchYouTubeMusic(query: string, limit: number): Promise<SearchResult[]> {
-    try {
-      if (!process.env.YOUTUBE_API_KEY) {
-        console.warn('YouTube API key not configured, skipping YouTube Music search');
-        return [];
-      }
-
-      const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
-        params: {
-          part: 'snippet',
-          q: `${query} music`,
-          type: 'video',
-          videoCategoryId: '10', // Music category
-          maxResults: limit,
-          key: process.env.YOUTUBE_API_KEY,
-        },
-      });
-
-      return response.data.items.map((item: any) => ({
-        id: `youtube:${item.id.videoId}`,
-        title: this.cleanYouTubeTitle(item.snippet.title),
-        artist: item.snippet.channelTitle,
-        duration: undefined, // YouTube API doesn't provide duration in search
-        imageUrl: item.snippet.thumbnails.medium?.url,
-        previewUrl: undefined, // YouTube doesn't provide preview URLs
-        platform: 'youtube-music',
-        platformId: item.id.videoId,
-      }));
-    } catch (error) {
-      console.error('YouTube Music search error:', error);
-      return [];
-    }
-  }
-
-  // Clean up YouTube video titles to extract song information
-  private cleanYouTubeTitle(title: string): string {
-    // Remove common YouTube music video suffixes
-    return title
-      .replace(/\s*\(official\s*(music\s*)?video\)\s*/gi, '')
-      .replace(/\s*\(official\s*audio\)\s*/gi, '')
-      .replace(/\s*\(lyric\s*video\)\s*/gi, '')
-      .replace(/\s*\[official\s*(music\s*)?video\]\s*/gi, '')
-      .replace(/\s*\[official\s*audio\]\s*/gi, '')
-      .replace(/\s*\[lyric\s*video\]\s*/gi, '')
-      .trim();
-  }
 
   private spotifyAccessToken?: string;
   private spotifyTokenExpiry?: Date;
@@ -215,9 +167,8 @@ class MusicService {
 
   private getPlatformPriority(platform: string): number {
     const priorities: Record<string, number> = {
-      'spotify': 3,
-      'apple-music': 2,
-      'youtube-music': 1,
+      'spotify': 2,
+      'apple-music': 1,
     };
     return priorities[platform] || 0;
   }
