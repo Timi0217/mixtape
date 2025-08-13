@@ -13,6 +13,7 @@ export interface CreateGroupData {
 export interface UpdateGroupData {
   name?: string;
   emoji?: string;
+  backgroundColor?: string;
   maxMembers?: number;
   isPublic?: boolean;
 }
@@ -232,6 +233,7 @@ export class GroupService {
         id: true,
         name: true,
         emoji: true,
+        backgroundColor: true,
         adminUserId: true,
         inviteCode: true,
         maxMembers: true,

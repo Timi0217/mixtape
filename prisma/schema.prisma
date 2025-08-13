@@ -26,15 +26,16 @@ model User {
 }
 
 model Group {
-  id          String   @id @default(cuid())
-  name        String
-  emoji       String   @default("👥")
-  adminUserId String   @map("admin_user_id")
-  inviteCode  String   @unique @map("invite_code")
-  maxMembers  Int      @default(8) @map("max_members")
-  isPublic    Boolean  @default(false) @map("is_public")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  name            String
+  emoji           String   @default("👥")
+  backgroundColor String   @default("#8B5CF6") @map("background_color")
+  adminUserId     String   @map("admin_user_id")
+  inviteCode      String   @unique @map("invite_code")
+  maxMembers      Int      @default(8) @map("max_members")
+  isPublic        Boolean  @default(false) @map("is_public")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
   
   admin       User           @relation(fields: [adminUserId], references: [id])
   members     GroupMember[]
