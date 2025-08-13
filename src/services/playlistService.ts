@@ -59,14 +59,23 @@ export class PlaylistService {
       console.log(`📱 Creating ${platform} playlist for ${members.length} members`);
 
       try {
-        // For now, just use the songs as submitted (no cross-platform matching)
-        const songs = round.submissions.map(sub => ({
-          id: sub.song.spotifyId || sub.song.appleMusicId,
-          title: sub.song.title,
-          artist: sub.song.artist,
-          platform: sub.song.platform,
-          originalSubmission: sub,
-        })).filter(song => song.id); // Only include songs with valid IDs
+        // Extract songs with platform-specific IDs
+        const songs = round.submissions.map(sub => {
+          const platformIds = sub.song.platformIds as Record<string, string>;
+          const platformId = platformIds[platform] || platformIds['spotify'] || platformIds['apple-music'];
+          
+          return {
+            id: platformId,
+            title: sub.song.title,
+            artist: sub.song.artist,
+            album: sub.song.album,
+            duration: sub.song.duration,
+            imageUrl: sub.song.imageUrl,
+            platform: platformId ? platform : 'unknown',
+            originalSubmission: sub,
+            allPlatformIds: platformIds,
+          };
+        }).filter(song => song.id); // Only include songs with valid IDs
 
         if (songs.length === 0) {
           console.log(`⚠️ No valid songs found for ${platform}`);
@@ -174,19 +183,9 @@ export class PlaylistService {
         throw new Error(`Unsupported platform: ${platform}`);
       }
 
-      // Store the playlist in our database
-      await prisma.playlist.create({
-        data: {
-          userId: user.id,
-          roundId: round.id,
-          platform: platform,
-          platformPlaylistId: playlistResult.playlistId,
-          name: playlistName,
-          description: `Mixtape playlist for ${round.group.name} - ${round.date.toDateString()}`,
-          trackCount: songs.length,
-          isPublic: false,
-        },
-      });
+      // Note: We don't store individual user playlists in the database yet
+      // The current schema is designed for group-wide playlist metadata
+      // Individual platform playlists are created but not tracked per-user
 
       return {
         success: true,
@@ -230,8 +229,14 @@ export class PlaylistService {
     const playlistId = playlistResponse.data.id;
     const playlistUrl = playlistResponse.data.external_urls.spotify;
 
-    // Add tracks to playlist - only Spotify tracks
-    const spotifyTracks = songs.filter(song => song.platform === 'spotify' && song.id);
+    // Add tracks to playlist - extract Spotify IDs from platformIds
+    const spotifyTracks = songs.filter(song => {
+      const spotifyId = song.allPlatformIds?.['spotify'] || (song.platform === 'spotify' ? song.id : null);
+      return spotifyId;
+    }).map(song => {
+      const spotifyId = song.allPlatformIds?.['spotify'] || song.id;
+      return { ...song, id: spotifyId };
+    });
     
     if (spotifyTracks.length > 0) {
       const trackUris = spotifyTracks.map(song => `spotify:track:${song.id}`);
@@ -253,13 +258,39 @@ export class PlaylistService {
    * Create an Apple Music playlist
    */
   private static async createAppleMusicPlaylist(musicAccount: any, name: string, songs: any[], round: any) {
-    // Apple Music playlist creation requires different approach
-    console.log(`🍎 Apple Music playlist creation not yet implemented for: ${name}`);
+    console.log(`🍎 Creating Apple Music playlist "${name}"`);
     
-    // TODO: Implement Apple Music playlist creation
-    // Apple Music API requires different authentication and endpoints
-    
-    throw new Error('Apple Music playlist creation not yet implemented');
+    try {
+      const { appleMusicService } = await import('./appleMusicService');
+      
+      // Extract Apple Music song IDs
+      const appleMusicSongs = songs.filter(song => {
+        const appleMusicId = song.allPlatformIds?.['apple-music'] || (song.platform === 'apple-music' ? song.id : null);
+        return appleMusicId;
+      }).map(song => {
+        const appleMusicId = song.allPlatformIds?.['apple-music'] || song.id;
+        return appleMusicId;
+      });
+      
+      if (appleMusicSongs.length === 0) {
+        throw new Error('No Apple Music tracks found for playlist');
+      }
+      
+      // Create playlist using Apple Music service
+      const playlist = await appleMusicService.createPlaylist(musicAccount.accessToken, {
+        name,
+        description: `Mixtape playlist for ${round.group.name} - ${round.date.toDateString()}`,
+        songs: appleMusicSongs,
+      });
+      
+      return {
+        playlistId: playlist.id,
+        playlistUrl: `https://music.apple.com/playlist/${playlist.id}`,
+      };
+    } catch (error) {
+      console.error('Apple Music playlist creation error:', error);
+      throw error;
+    }
   }
 
   /**

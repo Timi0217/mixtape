@@ -84,15 +84,6 @@ router.post('/songs',
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
-      console.log('=== SONG CREATION DEBUG ===');
-      console.log('Full request body:', JSON.stringify(req.body, null, 2));
-      console.log('Content-Type:', req.headers['content-type']);
-      console.log('Body keys:', Object.keys(req.body));
-      console.log('previewUrl type:', typeof req.body.previewUrl);
-      console.log('previewUrl value:', req.body.previewUrl);
-      console.log('previewUrl === null:', req.body.previewUrl === null);
-      console.log('previewUrl === undefined:', req.body.previewUrl === undefined);
-      console.log('========================');
       
       const { title, artist, album, platformIds, duration, imageUrl, previewUrl } = req.body;
 
@@ -120,7 +111,7 @@ router.post('/songs',
         });
       } else {
         // Update platform IDs if new ones are provided
-        const updatedPlatformIds = { ...song.platformIds, ...platformIds };
+        const updatedPlatformIds = { ...(song.platformIds as Record<string, string>), ...platformIds };
         song = await prisma.song.update({
           where: { id: song.id },
           data: { platformIds: updatedPlatformIds },
@@ -167,25 +158,36 @@ router.get('/platforms',
   authenticateToken,
   async (req: AuthRequest, res) => {
     try {
+      // Check which platforms have proper configuration
+      const spotifyAvailable = !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET);
+      const appleMusicAvailable = !!(process.env.APPLE_MUSIC_KEY_ID && process.env.APPLE_MUSIC_TEAM_ID && process.env.APPLE_MUSIC_PRIVATE_KEY_PATH);
+      const youtubeAvailable = !!process.env.YOUTUBE_API_KEY;
+
       res.json({
         platforms: [
           {
             id: 'spotify',
             name: 'Spotify',
-            available: false,
+            available: spotifyAvailable,
             requiresAuth: true,
+            searchAvailable: spotifyAvailable,
+            playlistCreationAvailable: spotifyAvailable,
           },
           {
             id: 'apple-music',
             name: 'Apple Music',
-            available: false,
+            available: appleMusicAvailable,
             requiresAuth: true,
+            searchAvailable: appleMusicAvailable,
+            playlistCreationAvailable: appleMusicAvailable,
           },
           {
             id: 'youtube-music',
             name: 'YouTube Music',
-            available: false,
-            requiresAuth: true,
+            available: youtubeAvailable,
+            requiresAuth: false, // YouTube search doesn't require user auth
+            searchAvailable: youtubeAvailable,
+            playlistCreationAvailable: false, // Not implemented
           },
         ],
       });

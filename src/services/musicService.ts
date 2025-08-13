@@ -67,6 +67,11 @@ class MusicService {
 
   private async searchSpotify(query: string, limit: number): Promise<SearchResult[]> {
     try {
+      if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
+        console.warn('Spotify credentials not configured, skipping Spotify search');
+        return [];
+      }
+
       const accessToken = await this.getSpotifyAccessToken();
       
       const response = await axios.get('https://api.spotify.com/v1/search', {
@@ -99,6 +104,11 @@ class MusicService {
 
   private async searchAppleMusic(query: string, limit: number): Promise<SearchResult[]> {
     try {
+      if (!process.env.APPLE_MUSIC_KEY_ID || !process.env.APPLE_MUSIC_TEAM_ID || !process.env.APPLE_MUSIC_PRIVATE_KEY_PATH) {
+        console.warn('Apple Music credentials not configured, skipping Apple Music search');
+        return [];
+      }
+
       const { appleMusicService } = await import('./appleMusicService');
       const songs = await appleMusicService.searchMusic(query, limit);
       return appleMusicService.formatSearchResults(songs);
@@ -110,12 +120,17 @@ class MusicService {
 
   private async searchYouTubeMusic(query: string, limit: number): Promise<SearchResult[]> {
     try {
+      if (!process.env.YOUTUBE_API_KEY) {
+        console.warn('YouTube API key not configured, skipping YouTube Music search');
+        return [];
+      }
+
       const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
         params: {
           part: 'snippet',
           q: `${query} music`,
           type: 'video',
-          videoCategoryId: '10',
+          videoCategoryId: '10', // Music category
           maxResults: limit,
           key: process.env.YOUTUBE_API_KEY,
         },
@@ -123,11 +138,11 @@ class MusicService {
 
       return response.data.items.map((item: any) => ({
         id: `youtube:${item.id.videoId}`,
-        title: item.snippet.title,
+        title: this.cleanYouTubeTitle(item.snippet.title),
         artist: item.snippet.channelTitle,
-        duration: undefined,
+        duration: undefined, // YouTube API doesn't provide duration in search
         imageUrl: item.snippet.thumbnails.medium?.url,
-        previewUrl: undefined,
+        previewUrl: undefined, // YouTube doesn't provide preview URLs
         platform: 'youtube-music',
         platformId: item.id.videoId,
       }));
@@ -137,7 +152,28 @@ class MusicService {
     }
   }
 
+  // Clean up YouTube video titles to extract song information
+  private cleanYouTubeTitle(title: string): string {
+    // Remove common YouTube music video suffixes
+    return title
+      .replace(/\s*\(official\s*(music\s*)?video\)\s*/gi, '')
+      .replace(/\s*\(official\s*audio\)\s*/gi, '')
+      .replace(/\s*\(lyric\s*video\)\s*/gi, '')
+      .replace(/\s*\[official\s*(music\s*)?video\]\s*/gi, '')
+      .replace(/\s*\[official\s*audio\]\s*/gi, '')
+      .replace(/\s*\[lyric\s*video\]\s*/gi, '')
+      .trim();
+  }
+
+  private spotifyAccessToken?: string;
+  private spotifyTokenExpiry?: Date;
+
   private async getSpotifyAccessToken(): Promise<string> {
+    // Return cached token if still valid
+    if (this.spotifyAccessToken && this.spotifyTokenExpiry && this.spotifyTokenExpiry > new Date()) {
+      return this.spotifyAccessToken;
+    }
+
     try {
       const response = await axios.post('https://accounts.spotify.com/api/token', 
         'grant_type=client_credentials',
@@ -151,7 +187,11 @@ class MusicService {
         }
       );
 
-      return response.data.access_token;
+      // Cache the token with 1 hour expiry (Spotify tokens last 1 hour)
+      this.spotifyAccessToken = response.data.access_token;
+      this.spotifyTokenExpiry = new Date(Date.now() + (response.data.expires_in - 60) * 1000);
+
+      return this.spotifyAccessToken;
     } catch (error) {
       console.error('Spotify token error:', error);
       throw new Error('Failed to get Spotify access token');

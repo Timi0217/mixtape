@@ -198,7 +198,7 @@ router.get('/auth/spotify/callback',
       }
 
       // Validate state parameter
-      const storedState = oauthStates.get(state as string);
+      const storedState = await OAuthSessionService.getSessionState(state as string);
       if (!storedState || storedState.platform !== 'spotify') {
         return res.send(`
           <!DOCTYPE html>
@@ -214,7 +214,7 @@ router.get('/auth/spotify/callback',
       }
 
       // Clean up used state
-      oauthStates.delete(state as string);
+      await OAuthSessionService.deleteSessionState(state as string);
 
       // Exchange code for tokens
       const tokenData = await oauthService.exchangeSpotifyCodeWithUri(code as string, process.env.SPOTIFY_REDIRECT_URI!);
@@ -268,13 +268,13 @@ router.get('/callback',
       }
 
       // Validate state parameter
-      const storedState = oauthStates.get(state as string);
+      const storedState = await OAuthSessionService.getSessionState(state as string);
       if (!storedState || storedState.platform !== 'spotify') {
         return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=invalid_state`);
       }
 
       // Clean up used state
-      oauthStates.delete(state as string);
+      await OAuthSessionService.deleteSessionState(state as string);
 
       // Exchange code for tokens
       const tokenData = await oauthService.exchangeSpotifyCode(code as string);
@@ -566,8 +566,8 @@ router.get('/apple/login', async (req, res) => {
     await OAuthSessionService.storeState(state, 'apple-music');
     
     const baseUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.API_BASE_URL || 'https://api.yourdomain.com'
-      : `http://localhost:3000`;
+      ? process.env.API_BASE_URL || 'https://amiable-upliftment-production.up.railway.app'
+      : `http://localhost:8080`;
       
     res.json({
       authUrl: `${baseUrl}/api/oauth/apple/auth-page?state=${state}`,
@@ -584,7 +584,8 @@ router.get('/apple/auth-page', async (req, res) => {
   try {
     const { state } = req.query;
     
-    if (!state || !oauthStates.has(state as string)) {
+    const sessionData = await OAuthSessionService.getSessionState(state as string);
+    if (!state || !sessionData) {
       return res.status(400).send('Invalid or expired state parameter');
     }
     
@@ -674,7 +675,7 @@ router.get('/apple/auth-page', async (req, res) => {
                 status.textContent = 'Success! Redirecting...';
                 
                 // Send the user token to our backend
-                const response = await fetch('/api/oauth/apple/callback', {
+                const response = await fetch('${baseUrl}/api/oauth/apple/callback', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
