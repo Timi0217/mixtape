@@ -217,18 +217,26 @@ export class PlaylistService {
       throw new Error(`User ${user.id} has no ${platform} account connected`);
     }
 
-    // Check if token is still valid
-    if (musicAccount.expiresAt && new Date() > musicAccount.expiresAt) {
-      throw new Error(`${platform} token expired for user ${user.id}`);
+    // Ensure token is valid, refreshing if necessary
+    const { musicService } = await import('./musicService');
+    const tokenIsValid = await musicService.ensureValidToken(user.id, platform);
+    if (!tokenIsValid) {
+      throw new Error(`Unable to obtain valid ${platform} token for user ${user.id}`);
+    }
+
+    // Get the fresh token after potential refresh
+    const freshToken = await musicService.getValidUserToken(user.id, platform);
+    if (!freshToken) {
+      throw new Error(`No valid ${platform} token available for user ${user.id}`);
     }
 
     try {
       let playlistResult;
 
       if (platform === 'spotify') {
-        playlistResult = await this.createSpotifyPlaylist(musicAccount, playlistName, songs, round);
+        playlistResult = await this.createSpotifyPlaylist(freshToken, playlistName, songs, round);
       } else if (platform === 'apple-music') {
-        playlistResult = await this.createAppleMusicPlaylist(musicAccount, playlistName, songs, round);
+        playlistResult = await this.createAppleMusicPlaylist(freshToken, playlistName, songs, round);
       } else {
         throw new Error(`Unsupported platform: ${platform}`);
       }
@@ -254,12 +262,12 @@ export class PlaylistService {
   /**
    * Create a Spotify playlist
    */
-  private static async createSpotifyPlaylist(musicAccount: any, name: string, songs: any[], round: any) {
+  private static async createSpotifyPlaylist(accessToken: string, name: string, songs: any[], round: any) {
     const spotifyApi = 'https://api.spotify.com/v1';
     
     // Get user's Spotify profile to get user ID
     const profileResponse = await axios.get(`${spotifyApi}/me`, {
-      headers: { Authorization: `Bearer ${musicAccount.accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const userId = profileResponse.data.id;
@@ -271,7 +279,7 @@ export class PlaylistService {
       public: false,
     }, {
       headers: { 
-        Authorization: `Bearer ${musicAccount.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
@@ -295,7 +303,7 @@ export class PlaylistService {
         uris: trackUris,
       }, {
         headers: { 
-          Authorization: `Bearer ${musicAccount.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       });
@@ -307,7 +315,7 @@ export class PlaylistService {
   /**
    * Create an Apple Music playlist
    */
-  private static async createAppleMusicPlaylist(musicAccount: any, name: string, songs: any[], round: any) {
+  private static async createAppleMusicPlaylist(accessToken: string, name: string, songs: any[], round: any) {
     console.log(`🍎 Creating Apple Music playlist "${name}"`);
     
     try {
@@ -327,7 +335,7 @@ export class PlaylistService {
       }
       
       // Create playlist using Apple Music service
-      const playlist = await appleMusicService.createPlaylist(musicAccount.accessToken, {
+      const playlist = await appleMusicService.createPlaylist(accessToken, {
         name,
         description: `Mixtape playlist for ${round.group.name} - ${round.date.toDateString()}`,
         songs: appleMusicSongs,

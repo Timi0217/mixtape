@@ -28,6 +28,7 @@ model User {
 model Group {
   id          String   @id @default(cuid())
   name        String
+  emoji       String   @default("👥")
   adminUserId String   @map("admin_user_id")
   inviteCode  String   @unique @map("invite_code")
   maxMembers  Int      @default(8) @map("max_members")

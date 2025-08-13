@@ -1,6 +1,7 @@
 import * as cron from 'node-cron';
 import { prisma } from '../config/database';
 import { PlaylistService } from './playlistService';
+import { musicService } from './musicService';
 
 export class CronService {
   
@@ -151,6 +152,21 @@ export class CronService {
   }
 
   /**
+   * Refresh expired music tokens to maintain account connectivity
+   * Runs every 4 hours to check and refresh tokens that are about to expire
+   */
+  static async refreshExpiredTokens() {
+    console.log('🔄 Refreshing expired music tokens...');
+    
+    try {
+      await musicService.refreshAllExpiredTokens();
+      console.log('✅ Token refresh job completed');
+    } catch (error) {
+      console.error('❌ Error refreshing expired tokens:', error);
+    }
+  }
+
+  /**
    * Clean up old rounds and submissions to manage database size
    * Runs weekly to clean up data older than 30 days
    */
@@ -195,6 +211,15 @@ export class CronService {
     cron.schedule('0 8 * * *', () => {
       console.log('⏰ Running completed round processing job');
       this.processCompletedRounds();
+    }, {
+      scheduled: true,
+      timezone: "UTC"
+    });
+
+    // Refresh expired tokens every 4 hours
+    cron.schedule('0 */4 * * *', () => {
+      console.log('⏰ Running token refresh job');
+      this.refreshExpiredTokens();
     }, {
       scheduled: true,
       timezone: "UTC"

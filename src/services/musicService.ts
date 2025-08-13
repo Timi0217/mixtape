@@ -513,6 +513,236 @@ class MusicService {
 
     return matrix[str2.length][str1.length];
   }
+
+  /**
+   * Refresh an expired access token for a user's music account
+   */
+  async refreshUserToken(userId: string, platform: string): Promise<boolean> {
+    console.log(`🔄 Refreshing ${platform} token for user ${userId}`);
+
+    try {
+      const musicAccount = await prisma.userMusicAccount.findUnique({
+        where: {
+          userId_platform: {
+            userId,
+            platform,
+          },
+        },
+      });
+
+      if (!musicAccount) {
+        console.error(`No ${platform} account found for user ${userId}`);
+        return false;
+      }
+
+      if (!musicAccount.refreshToken) {
+        console.error(`No refresh token available for user ${userId} on ${platform}`);
+        return false;
+      }
+
+      let newTokenData;
+
+      if (platform === 'spotify') {
+        newTokenData = await this.refreshSpotifyToken(musicAccount.refreshToken);
+      } else if (platform === 'apple-music') {
+        newTokenData = await this.refreshAppleMusicToken(musicAccount.refreshToken);
+      } else {
+        console.error(`Token refresh not supported for platform: ${platform}`);
+        return false;
+      }
+
+      if (!newTokenData) {
+        console.error(`Failed to refresh ${platform} token for user ${userId}`);
+        return false;
+      }
+
+      // Update the database with new token data
+      await prisma.userMusicAccount.update({
+        where: {
+          userId_platform: {
+            userId,
+            platform,
+          },
+        },
+        data: {
+          accessToken: newTokenData.accessToken,
+          refreshToken: newTokenData.refreshToken || musicAccount.refreshToken,
+          expiresAt: newTokenData.expiresAt,
+          updatedAt: new Date(),
+        },
+      });
+
+      console.log(`✅ Successfully refreshed ${platform} token for user ${userId}`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ Error refreshing ${platform} token for user ${userId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Refresh a Spotify access token using refresh token
+   */
+  private async refreshSpotifyToken(refreshToken: string) {
+    try {
+      const response = await axios.post('https://accounts.spotify.com/api/token', 
+        new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+        }), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${Buffer.from(
+              `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+            ).toString('base64')}`,
+          },
+        }
+      );
+
+      const { access_token, refresh_token, expires_in } = response.data;
+      
+      return {
+        accessToken: access_token,
+        refreshToken: refresh_token, // Spotify may or may not provide a new refresh token
+        expiresAt: new Date(Date.now() + expires_in * 1000),
+      };
+    } catch (error) {
+      console.error('Spotify token refresh error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Refresh an Apple Music access token using refresh token
+   */
+  private async refreshAppleMusicToken(refreshToken: string) {
+    try {
+      // Apple Music user tokens don't have refresh tokens in the traditional sense
+      // They need to be re-authorized by the user through the OAuth flow
+      // For now, we'll validate if the existing token is still working
+      const { appleMusicService } = await import('./appleMusicService');
+      
+      // Try to validate the current token (which is stored as refreshToken in our DB)
+      const isValid = await appleMusicService.validateUserToken(refreshToken);
+      
+      if (isValid) {
+        // Token is still valid, return it as the "refreshed" token
+        return {
+          accessToken: refreshToken,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180 days from now
+        };
+      } else {
+        // Token is invalid, user needs to re-authorize
+        console.warn('Apple Music user token is invalid and needs re-authorization');
+        return null;
+      }
+    } catch (error) {
+      console.error('Apple Music token validation error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if a user's token needs refresh and automatically refresh it
+   */
+  async ensureValidToken(userId: string, platform: string): Promise<boolean> {
+    try {
+      const musicAccount = await prisma.userMusicAccount.findUnique({
+        where: {
+          userId_platform: {
+            userId,
+            platform,
+          },
+        },
+      });
+
+      if (!musicAccount) {
+        return false;
+      }
+
+      // Check if token is expired or about to expire (within 5 minutes)
+      const now = new Date();
+      const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+      
+      if (musicAccount.expiresAt && (musicAccount.expiresAt.getTime() - now.getTime()) < bufferTime) {
+        console.log(`🔄 Token for user ${userId} on ${platform} expires soon, refreshing...`);
+        return await this.refreshUserToken(userId, platform);
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Error checking token validity for user ${userId} on ${platform}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get a valid access token for a user, refreshing if necessary
+   */
+  async getValidUserToken(userId: string, platform: string): Promise<string | null> {
+    try {
+      // Ensure token is valid (refreshes if needed)
+      const isValid = await this.ensureValidToken(userId, platform);
+      if (!isValid) {
+        return null;
+      }
+
+      // Get the current token from database
+      const musicAccount = await prisma.userMusicAccount.findUnique({
+        where: {
+          userId_platform: {
+            userId,
+            platform,
+          },
+        },
+      });
+
+      return musicAccount?.accessToken || null;
+    } catch (error) {
+      console.error(`Error getting valid token for user ${userId} on ${platform}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Refresh all expired tokens in the database (can be run as a cron job)
+   */
+  async refreshAllExpiredTokens(): Promise<void> {
+    console.log('🔄 Checking for expired tokens to refresh...');
+
+    try {
+      // Find all tokens that will expire within the next hour
+      const soonToExpire = new Date(Date.now() + 60 * 60 * 1000);
+      
+      const expiredAccounts = await prisma.userMusicAccount.findMany({
+        where: {
+          expiresAt: {
+            lt: soonToExpire,
+          },
+          refreshToken: {
+            not: null,
+          },
+        },
+      });
+
+      console.log(`Found ${expiredAccounts.length} tokens that need refreshing`);
+
+      const refreshPromises = expiredAccounts.map(account =>
+        this.refreshUserToken(account.userId, account.platform)
+      );
+
+      const results = await Promise.allSettled(refreshPromises);
+      
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - successful;
+
+      console.log(`✅ Token refresh completed: ${successful} successful, ${failed} failed`);
+    } catch (error) {
+      console.error('❌ Error refreshing expired tokens:', error);
+    }
+  }
 }
 
 export const musicService = new MusicService();

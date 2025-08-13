@@ -185,6 +185,7 @@ router.put('/:id',
   [
     param('id').isString().notEmpty(),
     body('name').optional().trim().isLength({ min: 1, max: 100 }),
+    body('emoji').optional().isString().isLength({ min: 1, max: 10 }),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
     body('isPublic').optional().isBoolean(),
   ],
@@ -192,9 +193,9 @@ router.put('/:id',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
-      const { name, maxMembers, isPublic } = req.body;
+      const { name, emoji, maxMembers, isPublic } = req.body;
 
-      const group = await GroupService.updateGroup(id, { name, maxMembers, isPublic }, req.user!.id);
+      const group = await GroupService.updateGroup(id, { name, emoji, maxMembers, isPublic }, req.user!.id);
       
       res.json({ group });
     } catch (error) {

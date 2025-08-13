@@ -12,6 +12,7 @@ export interface CreateGroupData {
 
 export interface UpdateGroupData {
   name?: string;
+  emoji?: string;
   maxMembers?: number;
   isPublic?: boolean;
 }
@@ -222,13 +223,30 @@ export class GroupService {
       throw new Error('Only group admin can update group');
     }
 
-    await prisma.group.update({
+    console.log('Updating group with data:', updateData);
+
+    const updatedGroup = await prisma.group.update({
       where: { id },
       data: updateData,
+      select: {
+        id: true,
+        name: true,
+        emoji: true,
+        adminUserId: true,
+        inviteCode: true,
+        maxMembers: true,
+        isPublic: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
+    console.log('Updated group result:', updatedGroup);
+
     // Return the full updated group data
-    return this.getGroupById(id);
+    const fullGroup = await this.getGroupById(id);
+    console.log('Full group after update:', { id: fullGroup?.id, name: fullGroup?.name, emoji: fullGroup?.emoji });
+    return fullGroup;
   }
 
   static async removeGroupMember(groupId: string, memberUserId: string, adminUserId: string) {
