@@ -59,23 +59,73 @@ export class PlaylistService {
       console.log(`📱 Creating ${platform} playlist for ${members.length} members`);
 
       try {
-        // Extract songs with platform-specific IDs
-        const songs = round.submissions.map(sub => {
-          const platformIds = sub.song.platformIds as Record<string, string>;
-          const platformId = platformIds[platform] || platformIds['spotify'] || platformIds['apple-music'];
+        // Extract songs and attempt cross-platform matching if needed
+        const originalSongs = round.submissions.map(sub => ({
+          id: sub.song.id,
+          title: sub.song.title,
+          artist: sub.song.artist,
+          album: sub.song.album,
+          duration: sub.song.duration,
+          imageUrl: sub.song.imageUrl,
+          platformIds: sub.song.platformIds as Record<string, string>,
+          originalSubmission: sub,
+        }));
+
+        const songs = [];
+        
+        for (const song of originalSongs) {
+          const platformId = song.platformIds[platform];
           
-          return {
-            id: platformId,
-            title: sub.song.title,
-            artist: sub.song.artist,
-            album: sub.song.album,
-            duration: sub.song.duration,
-            imageUrl: sub.song.imageUrl,
-            platform: platformId ? platform : 'unknown',
-            originalSubmission: sub,
-            allPlatformIds: platformIds,
-          };
-        }).filter(song => song.id); // Only include songs with valid IDs
+          if (platformId) {
+            // Song already exists on this platform
+            songs.push({
+              id: platformId,
+              title: song.title,
+              artist: song.artist,
+              album: song.album,
+              duration: song.duration,
+              imageUrl: song.imageUrl,
+              platform: platform,
+              originalSubmission: song.originalSubmission,
+              allPlatformIds: song.platformIds,
+              confidence: 1.0, // Perfect match since it's the same song
+            });
+          } else {
+            // Try to find the song on this platform using cross-platform matching
+            console.log(`🔍 Song "${song.title}" not available on ${platform}, attempting cross-platform match...`);
+            
+            try {
+              const { musicService } = await import('./musicService');
+              const matchResults = await musicService.matchSongAcrossPlatforms(
+                [{ title: song.title, artist: song.artist, album: song.album }],
+                platform
+              );
+              
+              if (matchResults[0]?.bestMatch && matchResults[0].confidence > 0.7) {
+                const bestMatch = matchResults[0].bestMatch;
+                console.log(`✅ Found cross-platform match with confidence ${matchResults[0].confidence.toFixed(2)}`);
+                
+                songs.push({
+                  id: bestMatch.platformId,
+                  title: bestMatch.title,
+                  artist: bestMatch.artist,
+                  album: bestMatch.album,
+                  duration: bestMatch.duration,
+                  imageUrl: bestMatch.imageUrl || song.imageUrl,
+                  platform: platform,
+                  originalSubmission: song.originalSubmission,
+                  allPlatformIds: { ...song.platformIds, [platform]: bestMatch.platformId },
+                  confidence: matchResults[0].confidence,
+                  isCrossPlatformMatch: true,
+                });
+              } else {
+                console.log(`❌ No suitable cross-platform match found for "${song.title}"`);
+              }
+            } catch (matchError) {
+              console.error(`Failed to find cross-platform match for "${song.title}":`, matchError);
+            }
+          }
+        }
 
         if (songs.length === 0) {
           console.log(`⚠️ No valid songs found for ${platform}`);

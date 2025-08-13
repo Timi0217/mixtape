@@ -140,16 +140,79 @@ router.post('/songs/match',
     try {
       const { songs, targetPlatform } = req.body;
 
+      console.log(`🎵 Song matching request: ${songs.length} songs to ${targetPlatform}`);
       const matchResults = await musicService.matchSongAcrossPlatforms(songs, targetPlatform);
+
+      // Calculate statistics
+      const successfulMatches = matchResults.filter(result => result.matches.length > 0);
+      const highConfidenceMatches = matchResults.filter(result => result.confidence > 0.8);
 
       res.json({
         matches: matchResults,
         targetPlatform,
-        totalSongs: songs.length,
+        statistics: {
+          totalSongs: songs.length,
+          successfulMatches: successfulMatches.length,
+          highConfidenceMatches: highConfidenceMatches.length,
+          averageConfidence: matchResults.reduce((sum, result) => sum + result.confidence, 0) / matchResults.length,
+        },
       });
     } catch (error) {
       console.error('Song matching error:', error);
       res.status(500).json({ error: 'Song matching failed' });
+    }
+  }
+);
+
+// Bulk song matching across multiple platforms
+router.post('/songs/bulk-match',
+  authenticateToken,
+  [
+    body('songs').isArray(),
+    body('songs.*.id').isString().notEmpty(),
+    body('songs.*.title').isString().notEmpty(),
+    body('songs.*.artist').isString().notEmpty(),
+    body('songs.*.album').optional().isString(),
+    body('targetPlatforms').isArray(),
+    body('targetPlatforms.*').isIn(['spotify', 'apple-music', 'youtube-music']),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    const startTime = Date.now();
+    
+    try {
+      const { songs, targetPlatforms } = req.body;
+
+      console.log(`🔄 Bulk matching request: ${songs.length} songs across ${targetPlatforms.length} platforms`);
+      const matchResults = await musicService.bulkMatchSongs(songs, targetPlatforms);
+
+      // Calculate statistics per platform
+      const platformStats = targetPlatforms.reduce((stats: any, platform: string) => {
+        const platformMatches = Object.values(matchResults).map((result: any) => 
+          result.platformMatches[platform]?.length || 0
+        );
+        
+        stats[platform] = {
+          totalMatches: platformMatches.reduce((sum, count) => sum + count, 0),
+          songsWithMatches: platformMatches.filter(count => count > 0).length,
+          averageMatchesPerSong: platformMatches.reduce((sum, count) => sum + count, 0) / songs.length,
+        };
+        
+        return stats;
+      }, {});
+
+      res.json({
+        results: matchResults,
+        targetPlatforms,
+        statistics: {
+          totalSongs: songs.length,
+          platformStats,
+          processingTimeSeconds: Math.round((Date.now() - startTime) / 1000),
+        },
+      });
+    } catch (error) {
+      console.error('Bulk song matching error:', error);
+      res.status(500).json({ error: 'Bulk song matching failed' });
     }
   }
 );
