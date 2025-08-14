@@ -57,15 +57,34 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
-// Validate JWT secrets are not default values
-if (process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-in-production' ||
-    process.env.JWT_SECRET === 'CHANGE_ME_GENERATE_STRONG_SECRET_256_BITS') {
-  throw new Error('JWT_SECRET must be changed from default value. Generate a strong random secret.');
-}
+// Validate JWT secrets are not default values (only in production)
+if (config.nodeEnv === 'production') {
+  const insecureSecrets = [
+    'your-super-secret-jwt-key-change-in-production',
+    'CHANGE_ME_GENERATE_STRONG_SECRET_256_BITS'
+  ];
+  
+  if (insecureSecrets.includes(process.env.JWT_SECRET!)) {
+    throw new Error('JWT_SECRET must be changed from default value in production. Generate a strong random secret.');
+  }
 
-if (process.env.JWT_REFRESH_SECRET === 'your-super-secret-refresh-jwt-key-change-in-production' ||
-    process.env.JWT_REFRESH_SECRET === 'CHANGE_ME_GENERATE_STRONG_REFRESH_SECRET_256_BITS') {
-  throw new Error('JWT_REFRESH_SECRET must be changed from default value. Generate a strong random secret.');
+  if (insecureSecrets.includes(process.env.JWT_REFRESH_SECRET!)) {
+    throw new Error('JWT_REFRESH_SECRET must be changed from default value in production. Generate a strong random secret.');
+  }
+  
+  // Validate minimum length in production
+  if (process.env.JWT_SECRET!.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters long in production.');
+  }
+  
+  if (process.env.JWT_REFRESH_SECRET!.length < 32) {
+    throw new Error('JWT_REFRESH_SECRET must be at least 32 characters long in production.');
+  }
+} else {
+  // Development warning for weak secrets
+  if (process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-in-production') {
+    console.warn('⚠️  Using default JWT_SECRET in development. This is fine for local development but change it for production.');
+  }
 }
 
 // In production, validate API keys are provided
