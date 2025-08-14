@@ -45,18 +45,35 @@ app.get('/debug/routes', (req, res) => {
   res.json({ routeCount: routes.length, routes: routes.slice(0, 10) });
 });
 
+// Add a simple test API route to verify basic functionality
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'API is working',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'unknown'
+  });
+});
+
 console.log('🚀 Loading application routes...');
 
-// Start with just a few core routes to see if the issue is route-specific
-import authRoutes from './routes/auth';
-import userRoutes from './routes/users';
-import musicRoutes from './routes/music';
+// Only load routes if we can import them successfully
+try {
+  console.log('Attempting to import music routes...');
+  const musicRoutes = require('./routes/music');
+  app.use('/api/music', musicRoutes.default || musicRoutes);
+  console.log('✅ Music routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load music routes:', error.message);
+}
 
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);  
-app.use('/api/music', musicRoutes);
-
-console.log('✅ Core routes loaded (auth, users, music)');
+try {  
+  console.log('Attempting to import auth routes...');
+  const authRoutes = require('./routes/auth');
+  app.use('/api/auth', authRoutes.default || authRoutes);
+  console.log('✅ Auth routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load auth routes:', error.message);
+}
 
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
