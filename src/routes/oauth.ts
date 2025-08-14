@@ -397,7 +397,7 @@ router.get('/auth/spotify/callback',
           <script>
             // Create confetti animation
             function createConfetti() {
-              for (let i = 0; i < 50; i++) {
+              for (let i = 0; i < 80; i++) {
                 const confetti = document.createElement('div');
                 confetti.classList.add('confetti');
                 confetti.style.left = Math.random() * 100 + 'vw';
@@ -416,15 +416,16 @@ router.get('/auth/spotify/callback',
             window.addEventListener('load', () => {
               createConfetti();
               
-              // Add more confetti every 2 seconds for 6 seconds
-              setTimeout(() => createConfetti(), 2000);
-              setTimeout(() => createConfetti(), 4000);
+              // Add more confetti every 1.5 seconds for 7.5 seconds
+              setTimeout(() => createConfetti(), 1500);
+              setTimeout(() => createConfetti(), 3000);
+              setTimeout(() => createConfetti(), 4500);
             });
             
-            // Auto-redirect to app after 3 seconds
+            // Auto-redirect to app after 5 seconds (longer to enjoy the confetti)
             setTimeout(() => {
               window.location.href = 'mixtape://auth/success?platform=spotify';
-            }, 3000);
+            }, 5000);
           </script>
         </body>
         </html>
@@ -814,7 +815,7 @@ router.get('/spotify/callback',
           <script>
             // Create confetti animation
             function createConfetti() {
-              for (let i = 0; i < 50; i++) {
+              for (let i = 0; i < 80; i++) {
                 const confetti = document.createElement('div');
                 confetti.classList.add('confetti');
                 confetti.style.left = Math.random() * 100 + 'vw';
@@ -833,15 +834,16 @@ router.get('/spotify/callback',
             window.addEventListener('load', () => {
               createConfetti();
               
-              // Add more confetti every 2 seconds for 6 seconds
-              setTimeout(() => createConfetti(), 2000);
-              setTimeout(() => createConfetti(), 4000);
+              // Add more confetti every 1.5 seconds for 7.5 seconds
+              setTimeout(() => createConfetti(), 1500);
+              setTimeout(() => createConfetti(), 3000);
+              setTimeout(() => createConfetti(), 4500);
             });
             
-            // Auto-redirect to app after 3 seconds
+            // Auto-redirect to app after 5 seconds (longer to enjoy the confetti)
             setTimeout(() => {
               window.location.href = 'mixtape://auth/success?platform=spotify';
-            }, 3000);
+            }, 5000);
           </script>
         </body>
         </html>
