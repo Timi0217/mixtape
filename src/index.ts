@@ -21,31 +21,42 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
+// Debug endpoint to check if routes are loading
+app.get('/debug/routes', (req, res) => {
+  const routes = [];
+  app._router.stack.forEach(function(middleware) {
+    if (middleware.route) { 
+      routes.push(middleware.route);
+    } else if (middleware.name === 'router') { 
+      middleware.handle.stack.forEach(function(handler) {
+        if (handler.route) {
+          routes.push(handler.route);
+        }
+      });
+    }
+  });
+  res.json({ routeCount: routes.length, routes: routes.slice(0, 10) });
+});
+
+console.log('🚀 Loading application routes...');
+
+// Start with just a few core routes to see if the issue is route-specific
 import authRoutes from './routes/auth';
-import oauthRoutes from './routes/oauth';
 import userRoutes from './routes/users';
-import groupRoutes from './routes/groups';
-import submissionRoutes from './routes/submissions';
 import musicRoutes from './routes/music';
-import playlistRoutes from './routes/playlists';
-import notificationRoutes from './routes/notifications';
-import testRoutes from './routes/test';
 
 app.use('/api/auth', authRoutes);
-app.use('/api/oauth', oauthRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/groups', groupRoutes);
-app.use('/api/submissions', submissionRoutes);
+app.use('/api/users', userRoutes);  
 app.use('/api/music', musicRoutes);
-app.use('/api/playlists', playlistRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/test', testRoutes);
 
-// Root level OAuth callback for Spotify
-app.use('/', oauthRoutes);
+console.log('✅ Core routes loaded (auth, users, music)');
 
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
