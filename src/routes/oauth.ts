@@ -600,6 +600,12 @@ router.get('/apple/auth-page', async (req, res) => {
     
     console.log('🍎 Apple auth page requested with state:', state);
     
+    // Check if Apple Music is configured first
+    if (!process.env.APPLE_MUSIC_KEY_ID || !process.env.APPLE_MUSIC_TEAM_ID || !process.env.APPLE_MUSIC_PRIVATE_KEY_PATH) {
+      console.log('❌ Apple Music not configured properly');
+      return res.status(503).send('Apple Music authentication is currently unavailable. Please contact support.');
+    }
+    
     const sessionData = await OAuthSessionService.getSessionState(state as string);
     if (!state || !sessionData) {
       console.log('❌ Invalid state parameter');
@@ -615,13 +621,6 @@ router.get('/apple/auth-page', async (req, res) => {
     
     // Get Apple Music developer token
     console.log('🔑 Attempting to generate Apple Music developer token...');
-    
-    // Check if Apple Music is configured
-    if (!process.env.APPLE_MUSIC_KEY_ID || !process.env.APPLE_MUSIC_TEAM_ID || !process.env.APPLE_MUSIC_PRIVATE_KEY_PATH) {
-      console.log('❌ Apple Music not configured properly');
-      return res.status(503).send('Apple Music authentication is currently unavailable. Please contact support.');
-    }
-    
     const { appleMusicService } = await import('../services/appleMusicService');
     const developerToken = await appleMusicService.getDeveloperToken();
     console.log('✅ Developer token generated successfully');
