@@ -342,14 +342,11 @@ router.get('/auth/spotify/callback',
               height: 10px;
               background: #ff6b6b;
               animation: confetti-fall linear infinite;
-              z-index: 1;
+              z-index: 1000;
+              border-radius: 2px;
+              pointer-events: none;
+              top: -10px;
             }
-            
-            .confetti:nth-child(odd) { background: #4ecdc4; animation-delay: -0.5s; }
-            .confetti:nth-child(3n) { background: #45b7d1; animation-delay: -1s; }
-            .confetti:nth-child(4n) { background: #f9ca24; animation-delay: -1.5s; }
-            .confetti:nth-child(5n) { background: #6c5ce7; animation-delay: -2s; }
-            .confetti:nth-child(6n) { background: #a55eea; animation-delay: -2.5s; }
             
             @keyframes checkmark-bounce {
               0% { transform: scale(0); }
@@ -397,18 +394,29 @@ router.get('/auth/spotify/callback',
           <script>
             // Create confetti animation
             function createConfetti() {
+              console.log('Creating confetti...');
               for (let i = 0; i < 80; i++) {
                 const confetti = document.createElement('div');
                 confetti.classList.add('confetti');
                 confetti.style.left = Math.random() * 100 + 'vw';
                 confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
                 confetti.style.animationDelay = Math.random() * 2 + 's';
+                
+                // Set random colors for better visibility
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a55eea'];
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.width = Math.random() * 8 + 6 + 'px';
+                confetti.style.height = confetti.style.width;
+                
                 document.body.appendChild(confetti);
+                console.log('Confetti piece added:', i);
                 
                 // Remove confetti after animation
                 setTimeout(() => {
-                  confetti.remove();
-                }, 5000);
+                  if (confetti.parentNode) {
+                    confetti.remove();
+                  }
+                }, 7000);
               }
             }
             
@@ -760,14 +768,11 @@ router.get('/spotify/callback',
               height: 10px;
               background: #ff6b6b;
               animation: confetti-fall linear infinite;
-              z-index: 1;
+              z-index: 1000;
+              border-radius: 2px;
+              pointer-events: none;
+              top: -10px;
             }
-            
-            .confetti:nth-child(odd) { background: #4ecdc4; animation-delay: -0.5s; }
-            .confetti:nth-child(3n) { background: #45b7d1; animation-delay: -1s; }
-            .confetti:nth-child(4n) { background: #f9ca24; animation-delay: -1.5s; }
-            .confetti:nth-child(5n) { background: #6c5ce7; animation-delay: -2s; }
-            .confetti:nth-child(6n) { background: #a55eea; animation-delay: -2.5s; }
             
             @keyframes checkmark-bounce {
               0% { transform: scale(0); }
@@ -815,18 +820,29 @@ router.get('/spotify/callback',
           <script>
             // Create confetti animation
             function createConfetti() {
+              console.log('Creating confetti...');
               for (let i = 0; i < 80; i++) {
                 const confetti = document.createElement('div');
                 confetti.classList.add('confetti');
                 confetti.style.left = Math.random() * 100 + 'vw';
                 confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
                 confetti.style.animationDelay = Math.random() * 2 + 's';
+                
+                // Set random colors for better visibility
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a55eea'];
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.width = Math.random() * 8 + 6 + 'px';
+                confetti.style.height = confetti.style.width;
+                
                 document.body.appendChild(confetti);
+                console.log('Confetti piece added:', i);
                 
                 // Remove confetti after animation
                 setTimeout(() => {
-                  confetti.remove();
-                }, 5000);
+                  if (confetti.parentNode) {
+                    confetti.remove();
+                  }
+                }, 7000);
               }
             }
             
