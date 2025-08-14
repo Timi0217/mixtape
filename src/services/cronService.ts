@@ -1,6 +1,6 @@
 import * as cron from 'node-cron';
 import { prisma } from '../config/database';
-import { PlaylistService } from './playlistService';
+import { GroupPlaylistService } from './groupPlaylistService';
 import { musicService } from './musicService';
 
 export class CronService {
@@ -65,8 +65,8 @@ export class CronService {
   }
 
   /**
-   * Process completed rounds and create playlists
-   * This runs at 8 AM UTC to check yesterday's rounds
+   * Process completed rounds and update group playlists
+   * This runs at 8:30 AM UTC to update persistent group playlists with today's submissions
    */
   static async processCompletedRounds() {
     console.log('🎵 Processing completed rounds...');
@@ -105,38 +105,35 @@ export class CronService {
           const totalMembers = round.group.members.length;
           const submissionCount = round.submissions.length;
 
-          // Check if all members submitted
-          if (submissionCount === totalMembers) {
-            // Round successful - create playlists for all members
-            try {
-              const playlistResults = await PlaylistService.createPlaylistsForCompletedRound(round.id);
-              
-              // Update round status to completed
-              await prisma.dailyRound.update({
-                where: { id: round.id },
-                data: { status: 'completed' },
-              });
+          // Process round regardless of completion status
+          // This creates/updates the persistent group playlists
+          try {
+            // Ensure group playlists exist
+            await GroupPlaylistService.ensureGroupPlaylists(round.group.id);
+            
+            // Update group playlists with today's submissions (or clear if no submissions)
+            await GroupPlaylistService.updateGroupPlaylistsForRound(round.id);
+            
+            // Update round status based on completion
+            const newStatus = submissionCount === totalMembers ? 'completed' : 'partial';
+            await prisma.dailyRound.update({
+              where: { id: round.id },
+              data: { status: newStatus },
+            });
 
-              const successCount = playlistResults.filter(r => r.success).length;
-              console.log(`✅ Round ${round.id} completed: ${successCount}/${playlistResults.length} playlists created successfully`);
-              processedCount++;
-            } catch (playlistError) {
-              console.error(`❌ Error creating playlists for round ${round.id}:`, playlistError);
-              // Still mark round as completed but log the playlist creation failure
-              await prisma.dailyRound.update({
-                where: { id: round.id },
-                data: { status: 'completed' },
-              });
-              processedCount++;
+            if (submissionCount === totalMembers) {
+              console.log(`✅ Round ${round.id} completed: Group playlists updated with ${submissionCount} songs`);
+            } else {
+              console.log(`⚠️ Round ${round.id} partial: Group playlists updated with ${submissionCount}/${totalMembers} songs`);
             }
-          } else {
-            // Round failed - mark as failed
+            processedCount++;
+          } catch (playlistError) {
+            console.error(`❌ Error updating group playlists for round ${round.id}:`, playlistError);
+            // Mark round as failed if playlist update fails
             await prisma.dailyRound.update({
               where: { id: round.id },
               data: { status: 'failed' },
             });
-
-            console.log(`❌ Round ${round.id} failed: ${submissionCount}/${totalMembers} submissions`);
             failedCount++;
           }
         } catch (roundError) {
@@ -207,9 +204,9 @@ export class CronService {
       timezone: "UTC"
     });
 
-    // Process completed rounds at 8 AM UTC  
-    cron.schedule('0 8 * * *', () => {
-      console.log('⏰ Running completed round processing job');
+    // Process completed rounds at 8:30 AM UTC  
+    cron.schedule('30 8 * * *', () => {
+      console.log('⏰ Running group playlist update job');
       this.processCompletedRounds();
     }, {
       scheduled: true,
