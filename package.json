@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "echo 'Skipping build for now'",
+    "build": "tsc",
     "start": "tsx src/index.ts",
     "test": "jest",
     "db:generate": "prisma generate",

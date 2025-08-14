@@ -229,11 +229,208 @@ router.get('/auth/spotify/callback',
         tokenData
       );
 
-      // Direct redirect to app with deep link
-      const deepLinkUrl = `${process.env.FRONTEND_URL}auth/success?token=${token}&platform=spotify`;
+      // Create beautiful Apple-style success page
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Success - Mixtape</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            }
+            
+            .container {
+              background: rgba(255, 255, 255, 0.95);
+              backdrop-filter: blur(20px);
+              border-radius: 24px;
+              padding: 60px 40px;
+              text-align: center;
+              max-width: 400px;
+              width: 90%;
+              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+              position: relative;
+              z-index: 10;
+            }
+            
+            .success-icon {
+              width: 80px;
+              height: 80px;
+              background: #34C759;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 24px;
+              animation: checkmark-bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+            
+            .checkmark {
+              color: white;
+              font-size: 36px;
+              font-weight: bold;
+            }
+            
+            h1 {
+              color: #1d1d1f;
+              font-size: 32px;
+              font-weight: 700;
+              margin-bottom: 12px;
+              letter-spacing: -0.5px;
+            }
+            
+            .subtitle {
+              color: #86868b;
+              font-size: 17px;
+              line-height: 1.4;
+              margin-bottom: 36px;
+            }
+            
+            .platform-info {
+              background: #f5f5f7;
+              border-radius: 16px;
+              padding: 20px;
+              margin-bottom: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 12px;
+            }
+            
+            .platform-logo {
+              width: 32px;
+              height: 32px;
+              background: #1DB954;
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 14px;
+            }
+            
+            .platform-name {
+              color: #1d1d1f;
+              font-size: 17px;
+              font-weight: 600;
+            }
+            
+            .instructions {
+              color: #86868b;
+              font-size: 15px;
+              line-height: 1.5;
+            }
+            
+            .confetti {
+              position: fixed;
+              width: 10px;
+              height: 10px;
+              background: #ff6b6b;
+              animation: confetti-fall linear infinite;
+              z-index: 1;
+            }
+            
+            .confetti:nth-child(odd) { background: #4ecdc4; animation-delay: -0.5s; }
+            .confetti:nth-child(3n) { background: #45b7d1; animation-delay: -1s; }
+            .confetti:nth-child(4n) { background: #f9ca24; animation-delay: -1.5s; }
+            .confetti:nth-child(5n) { background: #6c5ce7; animation-delay: -2s; }
+            .confetti:nth-child(6n) { background: #a55eea; animation-delay: -2.5s; }
+            
+            @keyframes checkmark-bounce {
+              0% { transform: scale(0); }
+              50% { transform: scale(1.1); }
+              100% { transform: scale(1); }
+            }
+            
+            @keyframes confetti-fall {
+              0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+              }
+              100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+              }
+            }
+            
+            @media (prefers-reduced-motion: reduce) {
+              .confetti, .success-icon {
+                animation: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success-icon">
+              <div class="checkmark">✓</div>
+            </div>
+            
+            <h1>Connected!</h1>
+            <p class="subtitle">Your Mixtape app is now connected to Spotify.</p>
+            
+            <div class="platform-info">
+              <div class="platform-logo">♫</div>
+              <div class="platform-name">Spotify</div>
+            </div>
+            
+            <p class="instructions">
+              You can now close this page and return to your Mixtape app to start sharing music!
+            </p>
+          </div>
+          
+          <script>
+            // Create confetti animation
+            function createConfetti() {
+              for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                document.body.appendChild(confetti);
+                
+                // Remove confetti after animation
+                setTimeout(() => {
+                  confetti.remove();
+                }, 5000);
+              }
+            }
+            
+            // Start confetti when page loads
+            window.addEventListener('load', () => {
+              createConfetti();
+              
+              // Add more confetti every 2 seconds for 6 seconds
+              setTimeout(() => createConfetti(), 2000);
+              setTimeout(() => createConfetti(), 4000);
+            });
+            
+            // Auto-redirect to app after 3 seconds
+            setTimeout(() => {
+              window.location.href = 'mixtape://auth/success?platform=spotify';
+            }, 3000);
+          </script>
+        </body>
+        </html>
+      `;
       
-      console.log('Redirecting to app:', deepLinkUrl);
-      res.redirect(deepLinkUrl);
+      res.send(html);
       
     } catch (error) {
       console.error('Spotify OAuth web callback error:', error);
@@ -449,92 +646,202 @@ router.get('/spotify/callback',
       await OAuthSessionService.storeTokenData(state as string, { token, platform: 'spotify' }, 'spotify');
       console.log('Stored token data for polling with state:', state);
       
-      // Create success page with instructions to manually return to app
+      // Create beautiful Apple-style success page with confetti
       const html = `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Login Success</title>
+          <title>Success - Mixtape</title>
           <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-              text-align: center; 
-              padding: 40px 20px;
-              background: #1DB954;
-              color: white;
+            * {
               margin: 0;
+              padding: 0;
+              box-sizing: border-box;
             }
-            .container { max-width: 400px; margin: 0 auto; }
-            .logo { font-size: 60px; margin-bottom: 20px; }
-            h1 { margin-bottom: 10px; font-size: 28px; font-weight: 600; }
-            p { margin-bottom: 20px; line-height: 1.5; opacity: 0.9; }
-            .token-code {
-              background: rgba(255,255,255,0.2);
+            
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            }
+            
+            .container {
+              background: rgba(255, 255, 255, 0.95);
+              backdrop-filter: blur(20px);
+              border-radius: 24px;
+              padding: 60px 40px;
+              text-align: center;
+              max-width: 400px;
+              width: 90%;
+              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+              position: relative;
+              z-index: 10;
+            }
+            
+            .success-icon {
+              width: 80px;
+              height: 80px;
+              background: #34C759;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 24px;
+              animation: checkmark-bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+            
+            .checkmark {
+              color: white;
+              font-size: 36px;
+              font-weight: bold;
+            }
+            
+            h1 {
+              color: #1d1d1f;
+              font-size: 32px;
+              font-weight: 700;
+              margin-bottom: 12px;
+              letter-spacing: -0.5px;
+            }
+            
+            .subtitle {
+              color: #86868b;
+              font-size: 17px;
+              line-height: 1.4;
+              margin-bottom: 36px;
+            }
+            
+            .platform-info {
+              background: #f5f5f7;
+              border-radius: 16px;
+              padding: 20px;
+              margin-bottom: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 12px;
+            }
+            
+            .platform-logo {
+              width: 32px;
+              height: 32px;
+              background: #1DB954;
               border-radius: 8px;
-              padding: 15px;
-              margin: 20px 0;
-              font-family: monospace;
-              font-size: 18px;
-              letter-spacing: 2px;
-              border: 2px solid rgba(255,255,255,0.3);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 14px;
             }
+            
+            .platform-name {
+              color: #1d1d1f;
+              font-size: 17px;
+              font-weight: 600;
+            }
+            
             .instructions {
-              font-size: 16px;
-              margin: 30px 0;
-              opacity: 0.9;
+              color: #86868b;
+              font-size: 15px;
+              line-height: 1.5;
             }
-            .step {
-              margin: 15px 0;
-              padding: 15px;
-              background: rgba(255,255,255,0.1);
-              border-radius: 8px;
+            
+            .confetti {
+              position: fixed;
+              width: 10px;
+              height: 10px;
+              background: #ff6b6b;
+              animation: confetti-fall linear infinite;
+              z-index: 1;
+            }
+            
+            .confetti:nth-child(odd) { background: #4ecdc4; animation-delay: -0.5s; }
+            .confetti:nth-child(3n) { background: #45b7d1; animation-delay: -1s; }
+            .confetti:nth-child(4n) { background: #f9ca24; animation-delay: -1.5s; }
+            .confetti:nth-child(5n) { background: #6c5ce7; animation-delay: -2s; }
+            .confetti:nth-child(6n) { background: #a55eea; animation-delay: -2.5s; }
+            
+            @keyframes checkmark-bounce {
+              0% { transform: scale(0); }
+              50% { transform: scale(1.1); }
+              100% { transform: scale(1); }
+            }
+            
+            @keyframes confetti-fall {
+              0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+              }
+              100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+              }
+            }
+            
+            @media (prefers-reduced-motion: reduce) {
+              .confetti, .success-icon {
+                animation: none;
+              }
             }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="logo">✅</div>
-            <h1>Spotify Connected!</h1>
-            <p>Authentication successful! Your Mixtape app is now connected to Spotify.</p>
-            
-            <div class="instructions">
-              <div class="step">
-                <strong>1.</strong> Switch back to your Mixtape app
-              </div>
-              <div class="step">
-                <strong>2.</strong> The app should automatically detect the successful login
-              </div>
-              <div class="step">
-                <strong>3.</strong> If not, pull down to refresh or restart the app
-              </div>
+            <div class="success-icon">
+              <div class="checkmark">✓</div>
             </div>
             
-            <div class="token-code" onclick="copyTokenId()" style="cursor: pointer; user-select: all;">
-              ${state}
-            </div>
-            <p style="font-size: 12px; opacity: 0.7;">
-              (Token ID - tap to copy if needed for debugging)
-            </p>
+            <h1>Connected!</h1>
+            <p class="subtitle">Your Mixtape app is now connected to Spotify.</p>
             
-            <p style="font-size: 14px; opacity: 0.8; margin-top: 30px;">
-              You can close this browser window and return to Mixtape
+            <div class="platform-info">
+              <div class="platform-logo">♫</div>
+              <div class="platform-name">Spotify</div>
+            </div>
+            
+            <p class="instructions">
+              You can now close this page and return to your Mixtape app to start sharing music!
             </p>
           </div>
           
           <script>
-            console.log('OAuth success page loaded for token:', '${state}');
-            
-            function copyTokenId() {
-              navigator.clipboard.writeText('${state}').then(function() {
-                console.log('Token ID copied to clipboard');
-              }, function(err) {
-                console.error('Could not copy token ID: ', err);
-              });
+            // Create confetti animation
+            function createConfetti() {
+              for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                document.body.appendChild(confetti);
+                
+                // Remove confetti after animation
+                setTimeout(() => {
+                  confetti.remove();
+                }, 5000);
+              }
             }
             
-            // No automatic redirect - user will switch back to app manually
+            // Start confetti when page loads
+            window.addEventListener('load', () => {
+              createConfetti();
+              
+              // Add more confetti every 2 seconds for 6 seconds
+              setTimeout(() => createConfetti(), 2000);
+              setTimeout(() => createConfetti(), 4000);
+            });
+            
+            // Auto-redirect to app after 3 seconds
+            setTimeout(() => {
+              window.location.href = 'mixtape://auth/success?platform=spotify';
+            }, 3000);
           </script>
         </body>
         </html>
@@ -621,9 +928,21 @@ router.get('/apple/auth-page', async (req, res) => {
     
     // Get Apple Music developer token
     console.log('🔑 Attempting to generate Apple Music developer token...');
-    const { appleMusicService } = await import('../services/appleMusicService');
-    const developerToken = await appleMusicService.getDeveloperToken();
-    console.log('✅ Developer token generated successfully');
+    let developerToken;
+    try {
+      const { appleMusicService } = await import('../services/appleMusicService');
+      console.log('✅ Apple Music service imported successfully');
+      
+      developerToken = await appleMusicService.getDeveloperToken();
+      console.log('✅ Developer token generated successfully, length:', developerToken.length);
+    } catch (tokenError) {
+      console.error('❌ Failed to generate Apple Music developer token:', tokenError);
+      console.error('Token error details:', {
+        message: tokenError.message,
+        stack: tokenError.stack
+      });
+      throw tokenError;
+    }
     
     const html = `
       <!DOCTYPE html>
@@ -725,8 +1044,93 @@ router.get('/apple/auth-page', async (req, res) => {
                 const data = await response.json();
                 
                 if (data.success) {
-                  // Redirect back to the app
-                  window.location.href = 'mixtape://auth/success?token=' + data.token + '&platform=apple-music';
+                  // Show success message and redirect
+                  document.body.innerHTML = \`
+                    <div style="
+                      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                      background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+                      min-height: 100vh;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      margin: 0;
+                    ">
+                      <div style="
+                        background: rgba(255, 255, 255, 0.95);
+                        backdrop-filter: blur(20px);
+                        border-radius: 24px;
+                        padding: 60px 40px;
+                        text-align: center;
+                        max-width: 400px;
+                        width: 90%;
+                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+                      ">
+                        <div style="
+                          width: 80px;
+                          height: 80px;
+                          background: #34C759;
+                          border-radius: 50%;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          margin: 0 auto 24px;
+                          color: white;
+                          font-size: 36px;
+                          font-weight: bold;
+                        ">✓</div>
+                        
+                        <h1 style="
+                          color: #1d1d1f;
+                          font-size: 32px;
+                          font-weight: 700;
+                          margin-bottom: 12px;
+                        ">Connected!</h1>
+                        
+                        <p style="
+                          color: #86868b;
+                          font-size: 17px;
+                          margin-bottom: 36px;
+                        ">Your Mixtape app is now connected to Apple Music.</p>
+                        
+                        <div style="
+                          background: #f5f5f7;
+                          border-radius: 16px;
+                          padding: 20px;
+                          margin-bottom: 32px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          gap: 12px;
+                        ">
+                          <div style="
+                            width: 32px;
+                            height: 32px;
+                            background: #FC3C44;
+                            border-radius: 8px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-weight: bold;
+                          ">🍎</div>
+                          <div style="
+                            color: #1d1d1f;
+                            font-size: 17px;
+                            font-weight: 600;
+                          ">Apple Music</div>
+                        </div>
+                        
+                        <p style="
+                          color: #86868b;
+                          font-size: 15px;
+                        ">You can now close this page and return to your Mixtape app!</p>
+                      </div>
+                    </div>
+                  \`;
+                  
+                  setTimeout(() => {
+                    window.location.href = 'mixtape://auth/success?platform=apple-music';
+                  }, 2000);
                 } else {
                   throw new Error(data.error || 'Authentication failed');
                 }

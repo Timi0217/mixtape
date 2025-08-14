@@ -1,5 +1,4 @@
 import { prisma } from '../config/database';
-import bcrypt from 'bcryptjs';
 
 export interface CreateUserData {
   email: string;

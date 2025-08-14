@@ -66,6 +66,8 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
       req.user = user;
     }
   } catch (error) {
+    // Log error for debugging but don't fail the request in optional auth
+    console.error('Optional auth token verification failed:', error);
   }
 
   next();
