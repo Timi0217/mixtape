@@ -13,6 +13,34 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Comprehensive request logging middleware for debugging
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`\n🌐 [${timestamp}] ${req.method} ${req.url}`);
+  console.log(`   IP: ${req.ip}`);
+  console.log(`   User-Agent: ${req.headers['user-agent']}`);
+  console.log(`   Authorization: ${req.headers.authorization ? 'Present' : 'Missing'}`);
+  console.log(`   Content-Type: ${req.headers['content-type']}`);
+  console.log(`   Params: ${JSON.stringify(req.params)}`);
+  console.log(`   Query: ${JSON.stringify(req.query)}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`   Body: ${JSON.stringify(req.body)}`);
+  }
+  
+  // Log response status when request completes
+  const originalSend = res.send;
+  res.send = function(data) {
+    console.log(`   Response: ${res.statusCode} ${res.statusMessage}`);
+    if (res.statusCode >= 400) {
+      console.log(`   Error Response Body: ${data}`);
+    }
+    console.log(`   ================================================\n`);
+    return originalSend.call(this, data);
+  };
+  
+  next();
+});
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,

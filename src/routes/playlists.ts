@@ -76,20 +76,68 @@ router.post('/group/:groupId/create',
       const { groupId } = req.params;
       const userId = req.user?.id;
 
+      console.log(`🎵 Starting playlist creation for group ${groupId} by user ${userId}`);
+
+      if (!userId) {
+        console.log('❌ No user ID provided');
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      if (!groupId || !groupId.trim()) {
+        console.log('❌ No group ID provided');
+        return res.status(400).json({ error: 'Group ID is required' });
+      }
+
       // Verify user is admin of this group
+      console.log(`🔍 Checking if user ${userId} is admin of group ${groupId}`);
       const group = await prisma.group.findFirst({
         where: {
           id: groupId,
           adminUserId: userId,
         },
+        include: {
+          members: {
+            include: {
+              user: {
+                include: {
+                  musicAccounts: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!group) {
-        return res.status(403).json({ error: 'Not admin of this group' });
+        console.log(`❌ User ${userId} is not admin of group ${groupId} or group doesn't exist`);
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You must be the admin of this group to create playlists'
+        });
+      }
+
+      console.log(`✅ User ${userId} is admin of group "${group.name}" with ${group.members.length} members`);
+
+      // Check if any members have music accounts
+      const membersWithMusic = group.members.filter(member => 
+        member.user.musicAccounts && member.user.musicAccounts.length > 0
+      );
+
+      console.log(`🎼 ${membersWithMusic.length} out of ${group.members.length} members have music accounts`);
+
+      if (membersWithMusic.length === 0) {
+        console.log('❌ No group members have connected music accounts');
+        return res.status(400).json({
+          error: 'No music accounts found',
+          message: 'No group members have connected music accounts. Please connect Spotify or Apple Music accounts before creating playlists.'
+        });
       }
 
       // Create group playlists
+      console.log(`🚀 Calling GroupPlaylistService.ensureGroupPlaylists(${groupId})`);
       const groupPlaylists = await GroupPlaylistService.ensureGroupPlaylists(groupId);
+
+      console.log(`✅ Successfully created/ensured ${groupPlaylists.length} group playlists`);
 
       res.json({
         success: true,
@@ -97,8 +145,34 @@ router.post('/group/:groupId/create',
         message: 'Group playlists created successfully',
       });
     } catch (error) {
-      console.error('Create group playlists error:', error);
-      res.status(500).json({ error: 'Failed to create group playlists' });
+      console.error('❌ CREATE GROUP PLAYLISTS ERROR - FULL DETAILS:');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('Error code:', error.code);
+      console.error('Error name:', error.name);
+      console.error('Request details:', {
+        method: req.method,
+        url: req.url,
+        params: req.params,
+        headers: {
+          authorization: req.headers.authorization ? 'Present' : 'Missing',
+          'content-type': req.headers['content-type'],
+          'user-agent': req.headers['user-agent'],
+        },
+        body: req.body,
+        user: req.user,
+      });
+      
+      res.status(500).json({ 
+        error: 'Failed to create group playlists',
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          name: error.name
+        } : undefined
+      });
     }
   }
 );
@@ -115,6 +189,27 @@ router.get('/group/:groupId',
       const { groupId } = req.params;
       const userId = req.user?.id;
 
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      if (!groupId || !groupId.trim()) {
+        return res.status(400).json({ error: 'Group ID is required' });
+      }
+
+      // First check if the group exists
+      const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: { id: true, name: true },
+      });
+
+      if (!group) {
+        return res.status(404).json({ 
+          error: 'Group not found',
+          message: 'The requested group does not exist or has been deleted'
+        });
+      }
+
       // Verify user is a member of this group
       const groupMember = await prisma.groupMember.findFirst({
         where: {
@@ -124,7 +219,10 @@ router.get('/group/:groupId',
       });
 
       if (!groupMember) {
-        return res.status(403).json({ error: 'Not a member of this group' });
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You are not a member of this group'
+        });
       }
 
       // Get group playlists
@@ -157,10 +255,39 @@ router.get('/group/:groupId',
           groupEmoji: playlist.group.emoji,
         })),
         total: groupPlaylists.length,
+        message: groupPlaylists.length === 0 ? 
+          'No playlists found for this group. Ask your group admin to create playlists.' : 
+          undefined
       });
     } catch (error) {
-      console.error('Get group playlists error:', error);
-      res.status(500).json({ error: 'Failed to get group playlists' });
+      console.error('❌ GET GROUP PLAYLISTS ERROR - FULL DETAILS:');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('Error code:', error.code);
+      console.error('Error name:', error.name);
+      console.error('Request details:', {
+        method: req.method,
+        url: req.url,
+        params: req.params,
+        query: req.query,
+        headers: {
+          authorization: req.headers.authorization ? 'Present' : 'Missing',
+          'content-type': req.headers['content-type'],
+          'user-agent': req.headers['user-agent'],
+        },
+        user: req.user,
+      });
+      
+      res.status(500).json({ 
+        error: 'Failed to get group playlists',
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          name: error.name
+        } : undefined
+      });
     }
   }
 );
@@ -171,6 +298,10 @@ router.get('/',
   async (req: AuthRequest, res) => {
     try {
       const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
       // Get all groups the user is a member of
       const userGroups = await prisma.groupMember.findMany({
@@ -202,10 +333,39 @@ router.get('/',
       res.json({
         playlists: allPlaylists,
         total: allPlaylists.length,
+        message: allPlaylists.length === 0 ? 
+          'No playlists found. Join a group and ask the admin to create playlists.' : 
+          undefined
       });
     } catch (error) {
-      console.error('Get user playlists error:', error);
-      res.status(500).json({ error: 'Failed to get user playlists' });
+      console.error('❌ GET USER PLAYLISTS ERROR - FULL DETAILS:');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('Error code:', error.code);
+      console.error('Error name:', error.name);
+      console.error('Request details:', {
+        method: req.method,
+        url: req.url,
+        params: req.params,
+        query: req.query,
+        headers: {
+          authorization: req.headers.authorization ? 'Present' : 'Missing',
+          'content-type': req.headers['content-type'],
+          'user-agent': req.headers['user-agent'],
+        },
+        user: req.user,
+      });
+      
+      res.status(500).json({ 
+        error: 'Failed to get user playlists',
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          name: error.name
+        } : undefined
+      });
     }
   }
 );
