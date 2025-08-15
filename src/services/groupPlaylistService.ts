@@ -768,8 +768,76 @@ export class GroupPlaylistService {
     }
 
     const newPlaylistName = `${newGroupName.toLowerCase()} mixtape`;
+    console.log(`📝 Will update playlist name to: "${newPlaylistName}"`);
 
-    // Update database
+    // First, try to update all playlists on platforms
+    const platformUpdateResults = [];
+    for (const playlist of group.groupPlaylists) {
+      try {
+        console.log(`🔄 Processing ${playlist.platform} playlist: ${playlist.playlistName} (ID: ${playlist.platformPlaylistId})`);
+        
+        const playlistManager = await this.findPlaylistManager(group, playlist.platform);
+        if (!playlistManager) {
+          console.log(`⚠️ No playlist manager found for ${playlist.platform}`);
+          platformUpdateResults.push({ 
+            platform: playlist.platform, 
+            success: false, 
+            error: 'No playlist manager found' 
+          });
+          continue;
+        }
+        console.log(`👤 Found playlist manager: ${playlistManager.displayName} (${playlistManager.id})`);
+
+        const { musicService } = await import('./musicService');
+        const freshToken = await musicService.getValidUserToken(playlistManager.id, playlist.platform);
+        if (!freshToken) {
+          console.log(`⚠️ No valid token for ${playlist.platform} user ${playlistManager.id}`);
+          platformUpdateResults.push({ 
+            platform: playlist.platform, 
+            success: false, 
+            error: 'No valid token available' 
+          });
+          continue;
+        }
+        console.log(`🔑 Got valid token for ${playlist.platform}`);
+
+        if (playlist.platform === 'spotify') {
+          await this.updateSpotifyPlaylistName(freshToken, playlist.platformPlaylistId, newPlaylistName);
+        }
+
+        console.log(`✅ Updated ${playlist.platform} playlist name to: ${newPlaylistName}`);
+        platformUpdateResults.push({ 
+          platform: playlist.platform, 
+          success: true 
+        });
+      } catch (error) {
+        console.error(`❌ Failed to update ${playlist.platform} playlist name:`, {
+          platform: playlist.platform,
+          playlistId: playlist.platformPlaylistId,
+          playlistName: playlist.playlistName,
+          newName: newPlaylistName,
+          error: error.message,
+        });
+        platformUpdateResults.push({ 
+          platform: playlist.platform, 
+          success: false, 
+          error: error.message 
+        });
+      }
+    }
+
+    // Check if any platform updates succeeded
+    const successfulUpdates = platformUpdateResults.filter(result => result.success);
+    const failedUpdates = platformUpdateResults.filter(result => !result.success);
+
+    if (successfulUpdates.length === 0 && failedUpdates.length > 0) {
+      // All platform updates failed, don't update database
+      console.log('❌ All platform updates failed, not updating database');
+      const errorMessages = failedUpdates.map(f => `${f.platform}: ${f.error}`).join(', ');
+      throw new Error(`Failed to update playlists on all platforms: ${errorMessages}`);
+    }
+
+    // Update database only if at least one platform update succeeded
     await prisma.groupPlaylist.updateMany({
       where: {
         groupId: group.id,
@@ -780,40 +848,8 @@ export class GroupPlaylistService {
       },
     });
 
-    // Update actual playlists on platforms
-    for (const playlist of group.groupPlaylists) {
-      try {
-        console.log(`🔄 Processing ${playlist.platform} playlist: ${playlist.playlistName} (ID: ${playlist.platformPlaylistId})`);
-        
-        const playlistManager = await this.findPlaylistManager(group, playlist.platform);
-        if (!playlistManager) {
-          console.log(`⚠️ No playlist manager found for ${playlist.platform}`);
-          continue;
-        }
-        console.log(`👤 Found playlist manager: ${playlistManager.displayName} (${playlistManager.id})`);
-
-        const { musicService } = await import('./musicService');
-        const freshToken = await musicService.getValidUserToken(playlistManager.id, playlist.platform);
-        if (!freshToken) {
-          console.log(`⚠️ No valid token for ${playlist.platform} user ${playlistManager.id}`);
-          continue;
-        }
-        console.log(`🔑 Got valid token for ${playlist.platform}`);
-
-        if (playlist.platform === 'spotify') {
-          await this.updateSpotifyPlaylistName(freshToken, playlist.platformPlaylistId, newPlaylistName);
-        }
-
-        console.log(`✅ Updated ${playlist.platform} playlist name to: ${newPlaylistName}`);
-      } catch (error) {
-        console.error(`❌ Failed to update ${playlist.platform} playlist name:`, {
-          platform: playlist.platform,
-          playlistId: playlist.platformPlaylistId,
-          playlistName: playlist.playlistName,
-          newName: newPlaylistName,
-          error: error.message,
-        });
-      }
+    if (failedUpdates.length > 0) {
+      console.log(`⚠️ Some platform updates failed: ${failedUpdates.map(f => f.platform).join(', ')}`);
     }
 
     console.log(`✅ Finished updating all playlist names for group`);
