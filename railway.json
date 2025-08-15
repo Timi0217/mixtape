@@ -6,6 +6,7 @@
   "deploy": {
     "restartPolicyType": "on_failure",
     "sleepApplication": false,
-    "numReplicas": 1
+    "numReplicas": 1,
+    "startCommand": "npx prisma migrate deploy && npm start"
   }
 }
