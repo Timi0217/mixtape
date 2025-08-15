@@ -289,30 +289,13 @@ router.put('/:id',
         select: { name: true }
       });
 
-      console.log(`🔍 Group update debug:`, {
-        groupId: id,
-        requestedName: name,
-        originalName: originalGroup?.name,
-        hasOriginalGroup: !!originalGroup,
-        hasName: !!name,
-        nameChanged: name && originalGroup && name !== originalGroup.name
-      });
 
       const group = await GroupService.updateGroup(id, { name, emoji, backgroundColor, maxMembers, isPublic }, req.user!.id);
       
-      // Always update playlist names when group name changes
+      // Note: Playlist names are NOT automatically updated when group name changes
+      // Users must manually use the "Update Names" button in the playlist section
       if (name && originalGroup && name !== originalGroup.name) {
-        try {
-          console.log(`🔄 Group name changed from "${originalGroup.name}" to "${name}", updating playlists...`);
-          const { GroupPlaylistService } = await import('../services/groupPlaylistService');
-          await GroupPlaylistService.updateAllPlaylistNames(id, name);
-          console.log(`✅ Updated playlist names for group: ${name}`);
-        } catch (playlistError) {
-          console.error('❌ Failed to update playlist names:', playlistError);
-          // Continue anyway - group update succeeded
-        }
-      } else if (name) {
-        console.log(`ℹ️ Group name update: "${originalGroup?.name}" -> "${name}" (no change detected or missing original)`);
+        console.log(`ℹ️ Group name changed from "${originalGroup.name}" to "${name}". Playlist names will need to be updated manually.`);
       }
       
       res.json({ group });
