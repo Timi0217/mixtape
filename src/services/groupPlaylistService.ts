@@ -710,7 +710,9 @@ export class GroupPlaylistService {
     const spotifyApi = 'https://api.spotify.com/v1';
 
     try {
-      await axios.put(`${spotifyApi}/playlists/${playlistId}`, {
+      console.log(`🎵 Updating Spotify playlist ${playlistId} name to: "${name}"`);
+      
+      const response = await axios.put(`${spotifyApi}/playlists/${playlistId}`, {
         name,
         description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
       }, {
@@ -719,10 +721,29 @@ export class GroupPlaylistService {
           'Content-Type': 'application/json',
         },
       });
-      console.log(`✅ Updated Spotify playlist name to: ${name}`);
+      
+      console.log(`✅ Spotify API response status: ${response.status}`);
+      console.log(`✅ Successfully updated Spotify playlist name to: "${name}"`);
     } catch (error) {
-      console.error('❌ Failed to update Spotify playlist name:', error);
-      throw error;
+      console.error('❌ Failed to update Spotify playlist name:', {
+        playlistId,
+        requestedName: name,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        throw new Error(`Spotify playlist ${playlistId} not found or deleted`);
+      } else if (error.response?.status === 401) {
+        throw new Error(`Spotify token expired or invalid`);
+      } else if (error.response?.status === 403) {
+        throw new Error(`Insufficient permissions to modify Spotify playlist. Required scopes: playlist-modify-public, playlist-modify-private`);
+      } else {
+        throw new Error(`Failed to update Spotify playlist name: ${error.response?.data?.error?.message || error.message}`);
+      }
     }
   }
 
@@ -762,12 +783,22 @@ export class GroupPlaylistService {
     // Update actual playlists on platforms
     for (const playlist of group.groupPlaylists) {
       try {
+        console.log(`🔄 Processing ${playlist.platform} playlist: ${playlist.playlistName} (ID: ${playlist.platformPlaylistId})`);
+        
         const playlistManager = await this.findPlaylistManager(group, playlist.platform);
-        if (!playlistManager) continue;
+        if (!playlistManager) {
+          console.log(`⚠️ No playlist manager found for ${playlist.platform}`);
+          continue;
+        }
+        console.log(`👤 Found playlist manager: ${playlistManager.displayName} (${playlistManager.id})`);
 
         const { musicService } = await import('./musicService');
         const freshToken = await musicService.getValidUserToken(playlistManager.id, playlist.platform);
-        if (!freshToken) continue;
+        if (!freshToken) {
+          console.log(`⚠️ No valid token for ${playlist.platform} user ${playlistManager.id}`);
+          continue;
+        }
+        console.log(`🔑 Got valid token for ${playlist.platform}`);
 
         if (playlist.platform === 'spotify') {
           await this.updateSpotifyPlaylistName(freshToken, playlist.platformPlaylistId, newPlaylistName);
@@ -775,7 +806,13 @@ export class GroupPlaylistService {
 
         console.log(`✅ Updated ${playlist.platform} playlist name to: ${newPlaylistName}`);
       } catch (error) {
-        console.error(`❌ Failed to update ${playlist.platform} playlist name:`, error);
+        console.error(`❌ Failed to update ${playlist.platform} playlist name:`, {
+          platform: playlist.platform,
+          playlistId: playlist.platformPlaylistId,
+          playlistName: playlist.playlistName,
+          newName: newPlaylistName,
+          error: error.message,
+        });
       }
     }
 
