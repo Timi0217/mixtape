@@ -3,6 +3,7 @@ import { body, param, query } from 'express-validator';
 import { GroupService } from '../services/groupService';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { validateRequest } from '../utils/validation';
+import { prisma } from '../config/database';
 
 const router = express.Router();
 
@@ -197,18 +198,27 @@ router.put('/:id',
       const { id } = req.params;
       const { name, emoji, backgroundColor, maxMembers, isPublic, updatePlaylistNames } = req.body;
 
+      // Get original group data first to compare names
+      const originalGroup = await prisma.group.findUnique({
+        where: { id },
+        select: { name: true }
+      });
+
       const group = await GroupService.updateGroup(id, { name, emoji, backgroundColor, maxMembers, isPublic }, req.user!.id);
       
-      // Update playlist names if requested and group name changed
-      if (updatePlaylistNames && name && name !== group.name) {
+      // Update playlist names if requested and group name actually changed
+      if (updatePlaylistNames && name && originalGroup && name !== originalGroup.name) {
         try {
+          console.log(`🔄 Group name changed from "${originalGroup.name}" to "${name}", updating playlists...`);
           const { GroupPlaylistService } = await import('../services/groupPlaylistService');
           await GroupPlaylistService.updateAllPlaylistNames(id, name);
           console.log(`✅ Updated playlist names for group: ${name}`);
         } catch (playlistError) {
-          console.warn('⚠️ Failed to update playlist names:', playlistError);
+          console.error('❌ Failed to update playlist names:', playlistError);
           // Continue anyway - group update succeeded
         }
+      } else if (updatePlaylistNames && name) {
+        console.log(`ℹ️ Group name update: "${originalGroup?.name}" -> "${name}" (no change detected or missing original)`);
       }
       
       res.json({ group });

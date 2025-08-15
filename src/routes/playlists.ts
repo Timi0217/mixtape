@@ -378,6 +378,55 @@ router.put('/:playlistId/name',
   }
 );
 
+// Force update playlist names to match current group name
+router.post('/group/:groupId/update-names',
+  authenticateToken,
+  [
+    param('groupId').isString(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      // Verify user is admin of this group
+      const group = await prisma.group.findFirst({
+        where: {
+          id: groupId,
+          adminUserId: userId,
+        },
+      });
+
+      if (!group) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You must be the admin of this group to update playlist names'
+        });
+      }
+
+      // Force update playlist names to match current group name
+      console.log(`🔄 Force updating playlist names for group: ${group.name}`);
+      await GroupPlaylistService.updateAllPlaylistNames(groupId, group.name);
+
+      res.json({
+        success: true,
+        message: `Playlist names updated to match group name: ${group.name}`,
+      });
+    } catch (error) {
+      console.error('❌ FORCE UPDATE PLAYLIST NAMES ERROR:', error);
+      res.status(500).json({ 
+        error: 'Failed to update playlist names',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
 // Get all playlists for user's groups
 router.get('/',
   authenticateToken,
