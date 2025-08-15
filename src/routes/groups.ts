@@ -152,6 +152,19 @@ router.post('/:id/join',
 // Simple in-memory cache to prevent duplicate requests
 const playlistUpdateCache = new Map();
 
+// Test endpoint to debug request reception
+router.post('/:id/debug-update',
+  authenticateToken,
+  [
+    param('id').isString().notEmpty(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    console.log(`🔍 DEBUG: Request received for group ${req.params.id} from user ${req.user?.id}`);
+    res.json({ debug: true, message: 'Request received successfully' });
+  }
+);
+
 // Force update playlist names to match current group name
 router.post('/:id/update-playlist-names',
   authenticateToken,
@@ -167,6 +180,8 @@ router.post('/:id/update-playlist-names',
       if (!userId) {
         return res.status(401).json({ error: 'User not authenticated' });
       }
+
+      console.log(`🔍 UPDATE NAMES: Request received for group ${id} from user ${userId}`);
 
       // Check if there's already a request in progress for this group
       const cacheKey = `${id}-${userId}`;
