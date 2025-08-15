@@ -197,9 +197,17 @@ router.post('/:id/update-playlist-names',
       }
 
       // Force update playlist names to match current group name
-      console.log(`🔄 Force updating playlist names for group: ${group.name}`);
+      console.log(`🔄 Manual force update requested for group: ${group.name} (ID: ${id})`);
+      console.log(`📊 Group details:`, {
+        name: group.name,
+        id: group.id,
+        adminUserId: group.adminUserId,
+        createdAt: group.createdAt
+      });
+      
       const { GroupPlaylistService } = await import('../services/groupPlaylistService');
       await GroupPlaylistService.updateAllPlaylistNames(id, group.name);
+      console.log(`✅ Manual force update completed for group: ${group.name}`);
 
       res.json({
         success: true,
@@ -268,13 +276,12 @@ router.put('/:id',
     body('backgroundColor').optional().isString().matches(/^#[0-9A-Fa-f]{6}$/),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
     body('isPublic').optional().isBoolean(),
-    body('updatePlaylistNames').optional().isBoolean(),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
-      const { name, emoji, backgroundColor, maxMembers, isPublic, updatePlaylistNames } = req.body;
+      const { name, emoji, backgroundColor, maxMembers, isPublic } = req.body;
 
       // Get original group data first to compare names
       const originalGroup = await prisma.group.findUnique({
@@ -284,8 +291,8 @@ router.put('/:id',
 
       const group = await GroupService.updateGroup(id, { name, emoji, backgroundColor, maxMembers, isPublic }, req.user!.id);
       
-      // Update playlist names if requested and group name actually changed
-      if (updatePlaylistNames && name && originalGroup && name !== originalGroup.name) {
+      // Always update playlist names when group name changes
+      if (name && originalGroup && name !== originalGroup.name) {
         try {
           console.log(`🔄 Group name changed from "${originalGroup.name}" to "${name}", updating playlists...`);
           const { GroupPlaylistService } = await import('../services/groupPlaylistService');
@@ -295,7 +302,7 @@ router.put('/:id',
           console.error('❌ Failed to update playlist names:', playlistError);
           // Continue anyway - group update succeeded
         }
-      } else if (updatePlaylistNames && name) {
+      } else if (name) {
         console.log(`ℹ️ Group name update: "${originalGroup?.name}" -> "${name}" (no change detected or missing original)`);
       }
       
