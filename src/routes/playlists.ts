@@ -292,6 +292,92 @@ router.get('/group/:groupId',
   }
 );
 
+// Update playlist name
+router.put('/:playlistId/name',
+  authenticateToken,
+  [
+    param('playlistId').isString(),
+    body('name').isString().isLength({ min: 1, max: 100 }).trim(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { playlistId } = req.params;
+      const { name } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      // Get the playlist and verify user has permission
+      const playlist = await prisma.groupPlaylist.findFirst({
+        where: {
+          id: playlistId,
+          isActive: true,
+        },
+        include: {
+          group: {
+            include: {
+              members: true,
+            },
+          },
+        },
+      });
+
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+
+      // Check if user is admin of the group
+      if (playlist.group.adminUserId !== userId) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'Only group admins can edit playlist names'
+        });
+      }
+
+      // Update playlist name in database
+      const updatedPlaylist = await prisma.groupPlaylist.update({
+        where: { id: playlistId },
+        data: { playlistName: name.trim() },
+      });
+
+      // Update playlist name on platform
+      try {
+        const playlistManager = await GroupPlaylistService.findPlaylistManager(playlist.group, playlist.platform);
+        if (playlistManager) {
+          const { musicService } = await import('../services/musicService');
+          const freshToken = await musicService.getValidUserToken(playlistManager.id, playlist.platform);
+          
+          if (freshToken && playlist.platform === 'spotify') {
+            await GroupPlaylistService.updateSpotifyPlaylistName(
+              freshToken, 
+              playlist.platformPlaylistId, 
+              name.trim()
+            );
+          }
+        }
+      } catch (platformError) {
+        console.warn('⚠️ Failed to update playlist name on platform:', platformError);
+        // Continue anyway - database is updated
+      }
+
+      res.json({
+        success: true,
+        playlist: updatedPlaylist,
+        message: 'Playlist name updated successfully',
+      });
+    } catch (error) {
+      console.error('❌ UPDATE PLAYLIST NAME ERROR:', error);
+      res.status(500).json({ 
+        error: 'Failed to update playlist name',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
 // Get all playlists for user's groups
 router.get('/',
   authenticateToken,

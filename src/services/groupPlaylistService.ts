@@ -704,9 +704,88 @@ export class GroupPlaylistService {
   }
 
   /**
+   * Update Spotify playlist name
+   */
+  static async updateSpotifyPlaylistName(accessToken: string, playlistId: string, name: string): Promise<void> {
+    const spotifyApi = 'https://api.spotify.com/v1';
+
+    try {
+      await axios.put(`${spotifyApi}/playlists/${playlistId}`, {
+        name,
+        description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(`✅ Updated Spotify playlist name to: ${name}`);
+    } catch (error) {
+      console.error('❌ Failed to update Spotify playlist name:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update all playlist names when group name changes
+   */
+  static async updateAllPlaylistNames(groupId: string, newGroupName: string): Promise<void> {
+    console.log(`🔄 Updating all playlist names for group: ${groupId} to: ${newGroupName}`);
+
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        groupPlaylists: {
+          where: { isActive: true }
+        }
+      },
+    });
+
+    if (!group || group.groupPlaylists.length === 0) {
+      console.log('ℹ️ No playlists found to update');
+      return;
+    }
+
+    const newPlaylistName = `${newGroupName.toLowerCase()} mixtape`;
+
+    // Update database
+    await prisma.groupPlaylist.updateMany({
+      where: {
+        groupId: group.id,
+        isActive: true,
+      },
+      data: {
+        playlistName: newPlaylistName,
+      },
+    });
+
+    // Update actual playlists on platforms
+    for (const playlist of group.groupPlaylists) {
+      try {
+        const playlistManager = await this.findPlaylistManager(group, playlist.platform);
+        if (!playlistManager) continue;
+
+        const { musicService } = await import('./musicService');
+        const freshToken = await musicService.getValidUserToken(playlistManager.id, playlist.platform);
+        if (!freshToken) continue;
+
+        if (playlist.platform === 'spotify') {
+          await this.updateSpotifyPlaylistName(freshToken, playlist.platformPlaylistId, newPlaylistName);
+        }
+
+        console.log(`✅ Updated ${playlist.platform} playlist name to: ${newPlaylistName}`);
+      } catch (error) {
+        console.error(`❌ Failed to update ${playlist.platform} playlist name:`, error);
+      }
+    }
+
+    console.log(`✅ Finished updating all playlist names for group`);
+  }
+
+  /**
    * Find a user who can manage the playlist for a specific platform
    */
-  private static async findPlaylistManager(group: any, platform: string) {
+  static async findPlaylistManager(group: any, platform: string) {
     // Try admin first
     const admin = await this.findUserWithPlatform(group.adminUserId, platform);
     if (admin) return admin;

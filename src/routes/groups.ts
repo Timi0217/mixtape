@@ -189,14 +189,27 @@ router.put('/:id',
     body('backgroundColor').optional().isString().matches(/^#[0-9A-Fa-f]{6}$/),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
     body('isPublic').optional().isBoolean(),
+    body('updatePlaylistNames').optional().isBoolean(),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
-      const { name, emoji, backgroundColor, maxMembers, isPublic } = req.body;
+      const { name, emoji, backgroundColor, maxMembers, isPublic, updatePlaylistNames } = req.body;
 
       const group = await GroupService.updateGroup(id, { name, emoji, backgroundColor, maxMembers, isPublic }, req.user!.id);
+      
+      // Update playlist names if requested and group name changed
+      if (updatePlaylistNames && name && name !== group.name) {
+        try {
+          const { GroupPlaylistService } = await import('../services/groupPlaylistService');
+          await GroupPlaylistService.updateAllPlaylistNames(id, name);
+          console.log(`✅ Updated playlist names for group: ${name}`);
+        } catch (playlistError) {
+          console.warn('⚠️ Failed to update playlist names:', playlistError);
+          // Continue anyway - group update succeeded
+        }
+      }
       
       res.json({ group });
     } catch (error) {
