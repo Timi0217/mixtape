@@ -149,6 +149,9 @@ router.post('/:id/join',
   }
 );
 
+// Simple in-memory cache to prevent duplicate requests
+const playlistUpdateCache = new Map();
+
 // Force update playlist names to match current group name
 router.post('/:id/update-playlist-names',
   authenticateToken,
@@ -164,6 +167,19 @@ router.post('/:id/update-playlist-names',
       if (!userId) {
         return res.status(401).json({ error: 'User not authenticated' });
       }
+
+      // Check if there's already a request in progress for this group
+      const cacheKey = `${id}-${userId}`;
+      if (playlistUpdateCache.has(cacheKey)) {
+        console.log(`⚠️ Duplicate playlist update request for group ${id}, returning cached response`);
+        return res.status(429).json({ 
+          error: 'Request already in progress',
+          message: 'Please wait for the current update to complete'
+        });
+      }
+
+      // Mark request as in progress
+      playlistUpdateCache.set(cacheKey, Date.now());
 
       // Verify user is admin of this group
       const group = await prisma.group.findFirst({
@@ -195,6 +211,18 @@ router.post('/:id/update-playlist-names',
         error: 'Failed to update playlist names',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
+    } finally {
+      // Clean up cache entry
+      const cacheKey = `${req.params.id}-${req.user?.id}`;
+      playlistUpdateCache.delete(cacheKey);
+      
+      // Also clean up old cache entries (older than 5 minutes)
+      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+      for (const [key, timestamp] of playlistUpdateCache.entries()) {
+        if (timestamp < fiveMinutesAgo) {
+          playlistUpdateCache.delete(key);
+        }
+      }
     }
   }
 );
