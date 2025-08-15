@@ -289,6 +289,15 @@ router.put('/:id',
         select: { name: true }
       });
 
+      console.log(`🔍 Group update debug:`, {
+        groupId: id,
+        requestedName: name,
+        originalName: originalGroup?.name,
+        hasOriginalGroup: !!originalGroup,
+        hasName: !!name,
+        nameChanged: name && originalGroup && name !== originalGroup.name
+      });
+
       const group = await GroupService.updateGroup(id, { name, emoji, backgroundColor, maxMembers, isPublic }, req.user!.id);
       
       // Always update playlist names when group name changes
