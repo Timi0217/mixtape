@@ -564,7 +564,7 @@ export class GroupPlaylistService {
         throw new Error(`No valid ${platform} token available for user ${user.displayName}. Please reconnect the ${platform} account.`);
       }
 
-      const playlistName = `${groupName} Daily Mixtape`;
+      const playlistName = `${groupName.toLowerCase()} mixtape`;
       let playlistResult;
 
       if (platform === 'spotify') {
@@ -616,7 +616,7 @@ export class GroupPlaylistService {
       // Create playlist
       const playlistResponse = await axios.post(`${spotifyApi}/users/${userId}/playlists`, {
         name,
-        description: 'Daily music mixtape updated every morning at 8:30am with fresh submissions from your group',
+        description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
         public: false,
         collaborative: false, // Keep it managed by the system
       }, {
@@ -658,7 +658,7 @@ export class GroupPlaylistService {
       
       const playlist = await appleMusicService.createPlaylist(accessToken, {
         name,
-        description: 'Daily music mixtape updated every morning at 8:30am with fresh submissions from your group',
+        description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
         songs: [], // Start empty
       });
       
@@ -852,7 +852,7 @@ export class GroupPlaylistService {
   ) {
     console.log(`🎭 Creating MOCK ${platform} playlist for development`);
 
-    const playlistName = `${groupName} Daily Mixtape`;
+    const playlistName = `${groupName.toLowerCase()} mixtape`;
     const mockPlaylistId = `mock_${platform}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     let playlistUrl;
