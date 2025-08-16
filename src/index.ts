@@ -89,6 +89,10 @@ console.log('Importing notification routes...');
 import notificationRoutes from './routes/notifications';
 console.log('✅ Notification routes imported');
 
+console.log('Importing votes routes...');
+import voteRoutes from './routes/votes';
+console.log('✅ Vote routes imported');
+
 console.log('Importing test routes...');
 import testRoutes from './routes/test';
 console.log('✅ Test routes imported');
@@ -118,6 +122,9 @@ console.log('✅ Playlist routes registered at /api/playlists');
 
 app.use('/api/notifications', notificationRoutes);
 console.log('✅ Notification routes registered at /api/notifications');
+
+app.use('/api/votes', voteRoutes);
+console.log('✅ Vote routes registered at /api/votes');
 
 app.use('/test', testRoutes);
 console.log('✅ Test routes registered at /test');

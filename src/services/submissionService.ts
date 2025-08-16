@@ -276,7 +276,7 @@ export class SubmissionService {
   }
 
   static async getGroupSubmissionHistory(groupId: string, limit = 10) {
-    return prisma.dailyRound.findMany({
+    const rounds = await prisma.dailyRound.findMany({
       where: { 
         groupId,
         status: { in: ['completed', 'failed'] },
@@ -293,6 +293,11 @@ export class SubmissionService {
               },
             },
             song: true,
+            _count: {
+              select: {
+                votes: true,
+              },
+            },
           },
         },
         playlist: {
@@ -304,5 +309,16 @@ export class SubmissionService {
         },
       },
     });
+
+    // Add vote counts to submissions
+    const roundsWithVoteCounts = rounds.map(round => ({
+      ...round,
+      submissions: round.submissions.map(submission => ({
+        ...submission,
+        voteCount: submission._count.votes,
+      })),
+    }));
+
+    return roundsWithVoteCounts;
   }
 }

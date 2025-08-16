@@ -19,6 +19,7 @@ model User {
   adminGroups           Group[]
   musicAccounts         UserMusicAccount[]
   submissions           Submission[]
+  votes                 Vote[]
   notificationSettings  UserNotificationSettings?
   musicPreferences      UserMusicPreferences?
   
@@ -84,6 +85,7 @@ model DailyRound {
   
   group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions Submission[]
+  votes       Vote[]
   playlist    Playlist?
   
   @@unique([groupId, date])
@@ -118,6 +120,7 @@ model Submission {
   round       DailyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   song        Song       @relation(fields: [songId], references: [id])
+  votes       Vote[]
   
   @@unique([roundId, userId])
   @@map("submissions")
@@ -201,4 +204,19 @@ model GroupPlaylist {
   
   @@unique([groupId, platform])
   @@map("group_playlists")
+}
+
+model Vote {
+  id           String   @id @default(cuid())
+  roundId      String   @map("round_id")
+  userId       String   @map("user_id")
+  submissionId String   @map("submission_id")
+  votedAt      DateTime @default(now()) @map("voted_at")
+  
+  round        DailyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roundId, userId])
+  @@map("votes")
 }
