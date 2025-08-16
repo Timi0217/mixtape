@@ -51,6 +51,21 @@ router.post('/', authenticateToken, [
       return res.status(400).json({ error: 'Can only vote on completed rounds' });
     }
 
+    // Check if this is the most recent completed round (only allow voting on latest)
+    const mostRecentCompletedRound = await prisma.dailyRound.findFirst({
+      where: {
+        groupId: round.groupId,
+        status: 'completed'
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    if (!mostRecentCompletedRound || mostRecentCompletedRound.id !== roundId) {
+      return res.status(400).json({ 
+        error: 'Voting is only allowed on the most recent completed mixtape' 
+      });
+    }
+
     // Verify user is a member of the group
     const isMember = round.group.members.some(member => member.userId === userId);
     if (!isMember) {
