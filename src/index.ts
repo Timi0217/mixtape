@@ -44,12 +44,13 @@ app.use((req, res, next) => {
   next();
 });
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500, // Increased for development/testing
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use(limiter);
+// Temporarily disable rate limiting for development
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 500,
+//   message: 'Too many requests from this IP, please try again later.',
+// });
+// app.use(limiter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
