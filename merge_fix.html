@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Merge Fix</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; }
+        .fix-btn { background: #007AFF; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Temporary Merge UI Fix</h1>
+    <p>Since Railway isn't deploying our fixes, here's a JavaScript solution:</p>
+    
+    <button class="fix-btn" onclick="copyFix()">Copy Fix Code</button>
+    
+    <h2>Instructions:</h2>
+    <ol>
+        <li>Go to the broken merge page in Safari</li>
+        <li>Open Developer Console (Safari Settings > Advanced > Show Develop menu > Console)</li>
+        <li>Paste the code below and press Enter</li>
+        <li>The page will become clickable!</li>
+    </ol>
+    
+    <h3>Fix Code:</h3>
+    <textarea id="fixCode" style="width: 100%; height: 300px; font-family: monospace;">
+// Fix broken merge UI
+console.log('🔧 Applying merge UI fix...');
+
+// Fix radio button selection
+function selectAccount(accountId) {
+    console.log('Selecting account:', accountId);
+    
+    // Clear all selections
+    document.querySelectorAll('.account').forEach(acc => {
+        acc.style.backgroundColor = '#f8f9fa';
+        acc.style.border = '2px solid #e5e7eb';
+    });
+    
+    // Clear all radio buttons
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.checked = false;
+    });
+    
+    // Select the chosen account
+    const account = document.getElementById(accountId) || document.querySelector(`[onclick*="${accountId}"]`);
+    if (account) {
+        account.style.backgroundColor = '#eff6ff';
+        account.style.border = '2px solid #3b82f6';
+        
+        // Find and check radio button
+        const radio = account.querySelector('input[type="radio"]') || account.querySelector('.radio');
+        if (radio) {
+            if (radio.type === 'radio') radio.checked = true;
+            else radio.innerHTML = '✓';
+        }
+    }
+    
+    // Enable merge button
+    const mergeBtn = document.querySelector('button[onclick*="merge"], .merge-btn, #mergeBtn, #merge-button');
+    if (mergeBtn) {
+        mergeBtn.disabled = false;
+        mergeBtn.style.backgroundColor = '#10b981';
+        mergeBtn.style.opacity = '1';
+        mergeBtn.style.cursor = 'pointer';
+    }
+    
+    window.selectedAccount = accountId;
+    console.log('✅ Account selected:', accountId);
+}
+
+// Add click handlers to all accounts
+document.querySelectorAll('.account, [onclick*="selectAccount"]').forEach((account, index) => {
+    account.style.cursor = 'pointer';
+    account.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const accountId = index === 0 ? 'current' : 'existing';
+        selectAccount(accountId);
+    };
+});
+
+// Fix merge button
+document.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent.includes('Merge')) {
+        btn.onclick = async function() {
+            if (!window.selectedAccount) {
+                alert('Please select an account first');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = 'Merging...';
+            
+            try {
+                const state = new URLSearchParams(window.location.search).get('state');
+                const response = await fetch('/api/oauth/confirm-merge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        state: state,
+                        primaryAccount: window.selectedAccount
+                    })
+                });
+                
+                if (response.ok) {
+                    document.body.innerHTML = `
+                        <div style="text-align: center; padding: 60px;">
+                            <div style="font-size: 60px; margin-bottom: 20px;">✅</div>
+                            <h1>Accounts Merged!</h1>
+                            <p>Returning to app...</p>
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {
+                        window.location.href = 'mixtape://auth/success?platform=spotify&merged=true';
+                    }, 2000);
+                } else {
+                    throw new Error('Merge failed');
+                }
+            } catch (error) {
+                alert('Merge failed: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'Merge Accounts';
+            }
+        };
+    }
+});
+
+console.log('✅ Merge UI fix applied! You can now click accounts and merge.');
+    </textarea>
+    
+    <script>
+        function copyFix() {
+            document.getElementById('fixCode').select();
+            document.execCommand('copy');
+            alert('Fix code copied! Now paste it in Safari console on the merge page.');
+        }
+    </script>
+</body>
+</html>

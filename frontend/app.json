@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Mixtape",
+    "slug": "mixtape",
+    "version": "1.0.0",
+    "scheme": ["mixtape", "com.mixtape.app"],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mixtape.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-apple-authentication"
+    ],
+    "extra": {
+      "API_BASE_URL": "https://mixtape-production.up.railway.app/api",
+      "APP_ENV": "production",
+      "ENABLE_DEBUG_LOGS": false,
+      "DEEP_LINK_SCHEME": "mixtape"
+    }
+  }
+}
