@@ -2455,8 +2455,48 @@ router.get('/account-merge', async (req, res) => {
     
     // Add click handlers when page loads
     document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById('current-account').addEventListener('click', () => selectAccount('current'));
-      document.getElementById('existing-account').addEventListener('click', () => selectAccount('existing'));
+      console.log('🔧 Setting up click handlers...');
+      
+      const currentAccount = document.getElementById('current-account');
+      const existingAccount = document.getElementById('existing-account');
+      
+      if (currentAccount) {
+        currentAccount.addEventListener('click', function(e) {
+          console.log('🖱️ Current account clicked');
+          selectAccount('current');
+        });
+        console.log('✅ Current account handler added');
+      }
+      
+      if (existingAccount) {
+        existingAccount.addEventListener('click', function(e) {
+          console.log('🖱️ Existing account clicked');
+          selectAccount('existing');
+        });
+        console.log('✅ Existing account handler added');
+      }
+      
+      // Also add backup handler for merge button
+      const mergeBtn = document.getElementById('merge-btn');
+      if (mergeBtn) {
+        mergeBtn.addEventListener('click', function(e) {
+          console.log('🚀 Merge button clicked via event listener');
+          confirmMerge();
+        });
+        console.log('✅ Merge button handler added');
+      }
+      
+      // And cancel button
+      const cancelBtn = document.querySelector('.button.secondary');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', function(e) {
+          console.log('❌ Cancel button clicked');
+          cancelMerge();
+        });
+        console.log('✅ Cancel button handler added');
+      }
+      
+      console.log('🎯 All click handlers ready');
     });
     
     function selectAccount(account) {
@@ -2487,11 +2527,16 @@ router.get('/account-merge', async (req, res) => {
     }
     
     async function confirmMerge() {
-      if (!selectedAccount) return;
+      console.log('🚀 Confirm merge clicked! Selected account:', selectedAccount);
+      if (!selectedAccount) {
+        console.log('❌ No account selected, aborting');
+        return;
+      }
       
       const btn = document.getElementById('merge-btn');
       btn.disabled = true;
       btn.textContent = 'Merging...';
+      console.log('🔄 Starting merge process...');
       
       try {
         const response = await fetch('/api/oauth/confirm-merge', {
