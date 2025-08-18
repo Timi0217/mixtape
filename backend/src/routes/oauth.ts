@@ -2305,7 +2305,7 @@ router.get('/account-merge', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Account Found - Mixtape</title>
+  <title>🔴 RED TEST PAGE - Account Found - Mixtape</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -2425,7 +2425,7 @@ router.get('/account-merge', async (req, res) => {
 <body>
   <div class="container">
     <div class="icon">👥</div>
-    <h1>Account Found</h1>
+    <h1>🔴 RED TEST - Account Found</h1>
     <p class="subtitle">Choose which should be your primary account.</p>
     
     <div class="account-option" onclick="selectAccount('current')">
