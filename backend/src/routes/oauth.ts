@@ -2366,8 +2366,8 @@ router.get('/account-merge', async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <div class="warning">⚠️</div>
-    <h1 style="background: red; color: white; padding: 20px; font-size: 24px;">🚨 TESTING IF RAILWAY DEPLOYS - v2.1.0 🚨</h1>
+    <div class="warning">👤</div>
+    <h1>Account Found</h1>
     <p class="subtitle">Choose which account should be your primary profile.</p>
     
     <div class="account" id="current" onclick="selectAccount('current')">
@@ -2558,12 +2558,12 @@ router.get('/merge-confirmation', async (req, res) => {
           }
           .container {
             background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px);
-            border-radius: 24px; padding: 48px 32px; max-width: 480px; width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15); text-align: center;
+            border-radius: 20px; padding: 32px 28px; max-width: 420px; width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12); text-align: center;
           }
-          .icon { font-size: 56px; margin-bottom: 20px; }
-          h1 { color: #1D1D1F; font-size: 28px; font-weight: 600; margin-bottom: 12px; }
-          .subtitle { color: #86868B; font-size: 17px; line-height: 1.4; margin-bottom: 32px; }
+          .icon { font-size: 48px; margin-bottom: 16px; }
+          h1 { color: #1D1D1F; font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+          .subtitle { color: #86868B; font-size: 15px; line-height: 1.4; margin-bottom: 28px; }
           
           .account-option {
             background: rgba(255, 255, 255, 0.8); border-radius: 20px; padding: 24px; margin-bottom: 20px;
@@ -2643,14 +2643,14 @@ router.get('/merge-confirmation', async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <div class="icon">⚠️</div>
-          <h1>🚀 v2.0.0 DEPLOYMENT SUCCESS - MERGE PAGE ACTUALLY FIXED 🚀</h1>
-          <p class="subtitle">We found an existing Mixtape account linked to your ${platform === 'spotify' ? 'Spotify' : 'Apple Music'}. Choose which account should be your primary profile.</p>
+          <div class="icon">👤</div>
+          <h1>Account Found</h1>
+          <p class="subtitle">We found an existing account linked to your ${platform === 'spotify' ? 'Spotify' : 'Apple Music'}. Choose which should be your primary account.</p>
           
           <div class="account-option" id="current-account">
             <div class="account-header">
               <div class="platform-icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify' : 'apple'}">
-                ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? '♫' : '🍎'}
+                ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? '♪' : '🎵'}
               </div>
               <div>
                 <div class="account-name">${currentUser.displayName || 'Current Account'}</div>
@@ -2666,7 +2666,7 @@ router.get('/merge-confirmation', async (req, res) => {
           <div class="account-option" id="existing-account">
             <div class="account-header">
               <div class="platform-icon ${platform === 'spotify' ? 'spotify' : 'apple'}">
-                ${platform === 'spotify' ? '♫' : '🍎'}
+                ${platform === 'spotify' ? '♪' : '🎵'}
               </div>
               <div>
                 <div class="account-name">${existingUser.displayName || 'Existing Account'}</div>
