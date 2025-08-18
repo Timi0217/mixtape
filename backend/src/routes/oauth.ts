@@ -767,9 +767,9 @@ router.get('/spotify/callback',
       console.log(`🔍 Linking session result:`, linkingSession);
       
       if (linkingSession && linkingSession.platform === 'spotify') {
-        console.log('🔗 Detected linking session, processing account link...');
-        // TODO: Fix linking functionality
-        return res.status(500).send('Linking functionality temporarily disabled');
+        console.log('🔗 Detected linking session, redirecting to merge page...');
+        // Redirect to our simple merge page
+        return res.redirect(`/api/oauth/account-merge?state=${state}`);
       } else {
         console.log('🚫 No linking session found, proceeding with regular OAuth flow');
       }
