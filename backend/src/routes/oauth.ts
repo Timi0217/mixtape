@@ -2418,7 +2418,7 @@ router.get('/account-merge', async (req, res) => {
     <h1>Account Found</h1>
     <p class="subtitle">Choose which should be your primary account.</p>
     
-    <div class="account-option" id="current-account">
+    <div class="account-option" onclick="selectAccount('current')">
       <div class="account-header">
         <div class="platform-icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify' : 'apple'}"></div>
         <div class="account-details">
@@ -2426,10 +2426,10 @@ router.get('/account-merge', async (req, res) => {
           <div class="account-platform">Connected: ${currentUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
         </div>
       </div>
-      <div class="radio"></div>
+      <div class="radio" id="radio-current"></div>
     </div>
     
-    <div class="account-option" id="existing-account">
+    <div class="account-option" onclick="selectAccount('existing')">
       <div class="account-header">
         <div class="platform-icon ${platform === 'spotify' ? 'spotify' : 'apple'}"></div>
         <div class="account-details">
@@ -2437,62 +2437,65 @@ router.get('/account-merge', async (req, res) => {
           <div class="account-platform">Connected: ${existingUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
         </div>
       </div>
-      <div class="radio"></div>
+      <div class="radio" id="radio-existing"></div>
     </div>
     
     <div class="buttons">
-      <button class="button primary" id="merge-btn" disabled>
+      <button class="button primary" id="merge-btn" onclick="confirmMerge()" disabled>
         Merge Accounts
       </button>
-      <button class="button secondary" id="cancel-btn">
+      <button class="button secondary" onclick="window.location.href='mixtape://auth/cancelled'">
         Cancel
       </button>
     </div>
   </div>
   
   <script>
-    let selectedAccount = null;
+    var selectedAccount = null;
     
-    // Test if JavaScript is working
-    console.log('🔧 JavaScript loaded successfully');
+    function selectAccount(account) {
+      console.log('ACCOUNT CLICKED:', account);
+      selectedAccount = account;
+      
+      // Clear all selections
+      var radios = document.querySelectorAll('.radio');
+      for (var i = 0; i < radios.length; i++) {
+        radios[i].style.backgroundColor = 'white';
+        radios[i].style.borderColor = '#D1D1D6';
+        radios[i].innerHTML = '';
+      }
+      
+      // Select the clicked account
+      var radioId = account === 'current' ? 'radio-current' : 'radio-existing';
+      var radio = document.getElementById(radioId);
+      if (radio) {
+        radio.style.backgroundColor = '#007AFF';
+        radio.style.borderColor = '#007AFF';
+        radio.innerHTML = '✓';
+        radio.style.color = 'white';
+        radio.style.fontSize = '11px';
+        radio.style.fontWeight = '700';
+        radio.style.display = 'flex';
+        radio.style.alignItems = 'center';
+        radio.style.justifyContent = 'center';
+      }
+      
+      // Enable merge button
+      var mergeBtn = document.getElementById('merge-btn');
+      if (mergeBtn) {
+        mergeBtn.disabled = false;
+        mergeBtn.style.opacity = '1';
+      }
+    }
     
-    // Immediate setup - no waiting for DOMContentLoaded
-    setTimeout(function() {
-      console.log('🔧 FORCE Setting up click handlers...');
-      
-      // FORCE select current account
-      document.getElementById('current-account').onclick = function() {
-        console.log('CURRENT CLICKED');
-        selectedAccount = 'current';
-        document.querySelectorAll('.account-option').forEach(el => el.classList.remove('selected'));
-        document.getElementById('current-account').classList.add('selected');
-        document.getElementById('merge-btn').disabled = false;
-      };
-      
-      // FORCE select existing account  
-      document.getElementById('existing-account').onclick = function() {
-        console.log('EXISTING CLICKED');
-        selectedAccount = 'existing';
-        document.querySelectorAll('.account-option').forEach(el => el.classList.remove('selected'));
-        document.getElementById('existing-account').classList.add('selected');
-        document.getElementById('merge-btn').disabled = false;
-      };
-      
-      // FORCE merge button
-      document.getElementById('merge-btn').onclick = function() {
-        console.log('MERGE CLICKED');
-        if (!selectedAccount) return;
-        window.location.href = '/api/oauth/confirm-merge?state=${state}&primaryAccount=' + selectedAccount;
-      };
-      
-      // FORCE cancel button
-      document.getElementById('cancel-btn').onclick = function() {
-        console.log('CANCEL CLICKED');
-        window.location.href = 'mixtape://auth/cancelled';
-      };
-      
-      console.log('FORCE HANDLERS READY');
-    }, 100);
+    function confirmMerge() {
+      console.log('MERGE CLICKED, selected:', selectedAccount);
+      if (!selectedAccount) {
+        alert('Please select an account first');
+        return;
+      }
+      window.location.href = '/api/oauth/confirm-merge?state=${state}&primaryAccount=' + selectedAccount;
+    }
     
     // Make functions global for debugging
     window.selectAccount = function selectAccount(account) {
