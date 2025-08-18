@@ -2305,12 +2305,12 @@ router.get('/account-merge', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>🔴 RED TEST PAGE - Account Found - Mixtape</title>
+  <title>Account Found - Mixtape</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; 
-      background: red !important;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh; display: flex; align-items: center; justify-content: center;
       padding: 16px;
     }
@@ -2425,7 +2425,7 @@ router.get('/account-merge', async (req, res) => {
 <body>
   <div class="container">
     <div class="icon">👥</div>
-    <h1>🔴 RED TEST - Account Found</h1>
+    <h1>Account Found</h1>
     <p class="subtitle">Choose which should be your primary account.</p>
     
     <div class="account-option" onclick="selectAccount('current')">
@@ -2461,213 +2461,35 @@ router.get('/account-merge', async (req, res) => {
   </div>
   
   <script>
-    console.log('🔧 SCRIPT LOADING...');
-    
-    var selectedAccount = null;
-    
-    // TEST FUNCTION - Call this from console to test
-    function testClick() {
-      console.log('🧪 TEST FUNCTION CALLED');
-      alert('JavaScript is working!');
-    }
+    let selectedAccount = null;
     
     function selectAccount(account) {
-      console.log('🎯 selectAccount() called with:', account);
-      console.log('🔍 typeof account:', typeof account);
-      console.log('🔍 account value:', account);
-      
-      try {
-        selectedAccount = account;
-        console.log('✅ selectedAccount set to:', selectedAccount);
-        
-        // Clear all radio buttons
-        console.log('🔄 Clearing all radio buttons...');
-        var radios = document.querySelectorAll('.radio');
-        console.log('📍 Found', radios.length, 'radio buttons');
-        
-        for (var i = 0; i < radios.length; i++) {
-          radios[i].style.backgroundColor = 'white';
-          radios[i].style.borderColor = '#D1D1D6';
-          radios[i].innerHTML = '';
-          console.log('🔘 Cleared radio', i);
-        }
-        
-        // Select the clicked account
-        var radioId = account === 'current' ? 'radio-current' : 'radio-existing';
-        console.log('🎯 Looking for radio with ID:', radioId);
-        
-        var radio = document.getElementById(radioId);
-        if (radio) {
-          console.log('✅ Found radio element, styling it...');
-          radio.style.backgroundColor = '#007AFF';
-          radio.style.borderColor = '#007AFF';
-          radio.innerHTML = '✓';
-          radio.style.color = 'white';
-          radio.style.fontSize = '11px';
-          radio.style.fontWeight = '700';
-          radio.style.display = 'flex';
-          radio.style.alignItems = 'center';
-          radio.style.justifyContent = 'center';
-          console.log('✅ Radio styled successfully');
-        } else {
-          console.log('❌ Radio element not found with ID:', radioId);
-        }
-        
-        // Enable merge button
-        console.log('🔄 Enabling merge button...');
-        var mergeBtn = document.getElementById('merge-btn');
-        if (mergeBtn) {
-          mergeBtn.disabled = false;
-          mergeBtn.style.opacity = '1';
-          mergeBtn.style.backgroundColor = '#007AFF';
-          console.log('✅ Merge button enabled');
-        } else {
-          console.log('❌ Merge button not found');
-        }
-        
-        console.log('🎉 selectAccount() completed successfully');
-        
-      } catch (error) {
-        console.error('💥 ERROR in selectAccount():', error);
-        alert('Error in selectAccount: ' + error.message);
-      }
-    }
-    
-    function confirmMerge() {
-      console.log('🚀 confirmMerge() called');
-      console.log('🔍 selectedAccount:', selectedAccount);
-      
-      try {
-        if (!selectedAccount) {
-          console.log('❌ No account selected');
-          alert('Please select an account first');
-          return;
-        }
-        
-        var url = '/api/oauth/confirm-merge?state=${state}&primaryAccount=' + selectedAccount;
-        console.log('🌐 Navigating to:', url);
-        window.location.href = url;
-        
-      } catch (error) {
-        console.error('💥 ERROR in confirmMerge():', error);
-        alert('Error in confirmMerge: ' + error.message);
-      }
-    }
-    
-    function cancelMerge() {
-      console.log('❌ cancelMerge() called');
-      try {
-        window.location.href = 'mixtape://auth/cancelled';
-      } catch (error) {
-        console.error('💥 ERROR in cancelMerge():', error);
-        alert('Error in cancelMerge: ' + error.message);
-      }
-    }
-    
-    // Make functions global
-    window.selectAccount = selectAccount;
-    window.confirmMerge = confirmMerge;
-    window.cancelMerge = cancelMerge;
-    window.testClick = testClick;
-    
-    console.log('✅ All functions defined and made global');
-    
-    // Add backup event listeners after a delay
-    setTimeout(function() {
-      console.log('🔧 Setting up backup event listeners...');
-      
-      try {
-        var account1 = document.querySelector('.account-option:first-of-type');
-        var account2 = document.querySelector('.account-option:last-of-type');
-        var mergeBtn = document.getElementById('merge-btn');
-        var cancelBtn = document.querySelector('.button.secondary');
-        
-        if (account1) {
-          account1.addEventListener('click', function() {
-            console.log('🖱️ BACKUP: First account clicked');
-            selectAccount('current');
-          });
-          console.log('✅ Backup listener added to first account');
-        }
-        
-        if (account2) {
-          account2.addEventListener('click', function() {
-            console.log('🖱️ BACKUP: Second account clicked');
-            selectAccount('existing');
-          });
-          console.log('✅ Backup listener added to second account');
-        }
-        
-        if (mergeBtn) {
-          mergeBtn.addEventListener('click', function() {
-            console.log('🖱️ BACKUP: Merge button clicked');
-            confirmMerge();
-          });
-          console.log('✅ Backup listener added to merge button');
-        }
-        
-        if (cancelBtn) {
-          cancelBtn.addEventListener('click', function() {
-            console.log('🖱️ BACKUP: Cancel button clicked');
-            cancelMerge();
-          });
-          console.log('✅ Backup listener added to cancel button');
-        }
-        
-        // Add universal click handler for debugging
-        document.addEventListener('click', function(e) {
-          console.log('🖱️ UNIVERSAL CLICK on:', e.target.tagName, e.target.className, e.target.id);
-          console.log('🖱️ onclick attribute:', e.target.getAttribute('onclick'));
-        });
-        
-        console.log('🎯 All backup listeners ready');
-        
-      } catch (error) {
-        console.error('💥 ERROR setting up backup listeners:', error);
-      }
-    }, 500);
-    
-    console.log('🎉 SCRIPT LOADED SUCCESSFULLY');
-    
-    // Make functions global for debugging
-    window.selectAccount = function selectAccount(account) {
-      console.log('🎯 CLICK DETECTED! Selecting account:', account);
+      console.log('Account selected:', account);
       selectedAccount = account;
       
       // Clear all selections
-      document.querySelectorAll('.account-option').forEach(el => {
-        el.classList.remove('selected');
-      });
+      document.querySelectorAll('.account-option').forEach(el => el.classList.remove('selected'));
       
       // Select the chosen account
-      const selectedEl = document.getElementById(account + '-account');
-      if (selectedEl) {
-        selectedEl.classList.add('selected');
-        console.log('✅ Account selected');
+      if (account === 'current') {
+        document.querySelector('.account-option:first-of-type').classList.add('selected');
+      } else {
+        document.querySelector('.account-option:last-of-type').classList.add('selected');
       }
       
       // Enable merge button
-      const mergeBtn = document.getElementById('merge-btn');
-      if (mergeBtn) {
-        mergeBtn.disabled = false;
-        mergeBtn.style.cursor = 'pointer';
-        console.log('✅ Merge button ENABLED');
-      }
-      
-      console.log('🎯 Account selection COMPLETE:', account);
+      document.getElementById('merge-btn').disabled = false;
     }
     
-    window.confirmMerge = async function confirmMerge() {
-      console.log('🚀 Confirm merge clicked! Selected account:', selectedAccount);
+    async function confirmMerge() {
       if (!selectedAccount) {
-        console.log('❌ No account selected, aborting');
+        alert('Please select an account first');
         return;
       }
       
       const btn = document.getElementById('merge-btn');
       btn.disabled = true;
       btn.textContent = 'Merging...';
-      console.log('🔄 Starting merge process...');
       
       try {
         const response = await fetch('/api/oauth/confirm-merge', {
@@ -2677,6 +2499,7 @@ router.get('/account-merge', async (req, res) => {
         });
         
         const result = await response.json();
+        
         if (result.success) {
           document.body.innerHTML = \`
             <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
