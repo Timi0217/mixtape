@@ -2451,51 +2451,173 @@ router.get('/account-merge', async (req, res) => {
   </div>
   
   <script>
+    console.log('🔧 SCRIPT LOADING...');
+    
     var selectedAccount = null;
     
+    // TEST FUNCTION - Call this from console to test
+    function testClick() {
+      console.log('🧪 TEST FUNCTION CALLED');
+      alert('JavaScript is working!');
+    }
+    
     function selectAccount(account) {
-      console.log('ACCOUNT CLICKED:', account);
-      selectedAccount = account;
+      console.log('🎯 selectAccount() called with:', account);
+      console.log('🔍 typeof account:', typeof account);
+      console.log('🔍 account value:', account);
       
-      // Clear all selections
-      var radios = document.querySelectorAll('.radio');
-      for (var i = 0; i < radios.length; i++) {
-        radios[i].style.backgroundColor = 'white';
-        radios[i].style.borderColor = '#D1D1D6';
-        radios[i].innerHTML = '';
-      }
-      
-      // Select the clicked account
-      var radioId = account === 'current' ? 'radio-current' : 'radio-existing';
-      var radio = document.getElementById(radioId);
-      if (radio) {
-        radio.style.backgroundColor = '#007AFF';
-        radio.style.borderColor = '#007AFF';
-        radio.innerHTML = '✓';
-        radio.style.color = 'white';
-        radio.style.fontSize = '11px';
-        radio.style.fontWeight = '700';
-        radio.style.display = 'flex';
-        radio.style.alignItems = 'center';
-        radio.style.justifyContent = 'center';
-      }
-      
-      // Enable merge button
-      var mergeBtn = document.getElementById('merge-btn');
-      if (mergeBtn) {
-        mergeBtn.disabled = false;
-        mergeBtn.style.opacity = '1';
+      try {
+        selectedAccount = account;
+        console.log('✅ selectedAccount set to:', selectedAccount);
+        
+        // Clear all radio buttons
+        console.log('🔄 Clearing all radio buttons...');
+        var radios = document.querySelectorAll('.radio');
+        console.log('📍 Found', radios.length, 'radio buttons');
+        
+        for (var i = 0; i < radios.length; i++) {
+          radios[i].style.backgroundColor = 'white';
+          radios[i].style.borderColor = '#D1D1D6';
+          radios[i].innerHTML = '';
+          console.log('🔘 Cleared radio', i);
+        }
+        
+        // Select the clicked account
+        var radioId = account === 'current' ? 'radio-current' : 'radio-existing';
+        console.log('🎯 Looking for radio with ID:', radioId);
+        
+        var radio = document.getElementById(radioId);
+        if (radio) {
+          console.log('✅ Found radio element, styling it...');
+          radio.style.backgroundColor = '#007AFF';
+          radio.style.borderColor = '#007AFF';
+          radio.innerHTML = '✓';
+          radio.style.color = 'white';
+          radio.style.fontSize = '11px';
+          radio.style.fontWeight = '700';
+          radio.style.display = 'flex';
+          radio.style.alignItems = 'center';
+          radio.style.justifyContent = 'center';
+          console.log('✅ Radio styled successfully');
+        } else {
+          console.log('❌ Radio element not found with ID:', radioId);
+        }
+        
+        // Enable merge button
+        console.log('🔄 Enabling merge button...');
+        var mergeBtn = document.getElementById('merge-btn');
+        if (mergeBtn) {
+          mergeBtn.disabled = false;
+          mergeBtn.style.opacity = '1';
+          mergeBtn.style.backgroundColor = '#007AFF';
+          console.log('✅ Merge button enabled');
+        } else {
+          console.log('❌ Merge button not found');
+        }
+        
+        console.log('🎉 selectAccount() completed successfully');
+        
+      } catch (error) {
+        console.error('💥 ERROR in selectAccount():', error);
+        alert('Error in selectAccount: ' + error.message);
       }
     }
     
     function confirmMerge() {
-      console.log('MERGE CLICKED, selected:', selectedAccount);
-      if (!selectedAccount) {
-        alert('Please select an account first');
-        return;
+      console.log('🚀 confirmMerge() called');
+      console.log('🔍 selectedAccount:', selectedAccount);
+      
+      try {
+        if (!selectedAccount) {
+          console.log('❌ No account selected');
+          alert('Please select an account first');
+          return;
+        }
+        
+        var url = '/api/oauth/confirm-merge?state=${state}&primaryAccount=' + selectedAccount;
+        console.log('🌐 Navigating to:', url);
+        window.location.href = url;
+        
+      } catch (error) {
+        console.error('💥 ERROR in confirmMerge():', error);
+        alert('Error in confirmMerge: ' + error.message);
       }
-      window.location.href = '/api/oauth/confirm-merge?state=${state}&primaryAccount=' + selectedAccount;
     }
+    
+    function cancelMerge() {
+      console.log('❌ cancelMerge() called');
+      try {
+        window.location.href = 'mixtape://auth/cancelled';
+      } catch (error) {
+        console.error('💥 ERROR in cancelMerge():', error);
+        alert('Error in cancelMerge: ' + error.message);
+      }
+    }
+    
+    // Make functions global
+    window.selectAccount = selectAccount;
+    window.confirmMerge = confirmMerge;
+    window.cancelMerge = cancelMerge;
+    window.testClick = testClick;
+    
+    console.log('✅ All functions defined and made global');
+    
+    // Add backup event listeners after a delay
+    setTimeout(function() {
+      console.log('🔧 Setting up backup event listeners...');
+      
+      try {
+        var account1 = document.querySelector('.account-option:first-of-type');
+        var account2 = document.querySelector('.account-option:last-of-type');
+        var mergeBtn = document.getElementById('merge-btn');
+        var cancelBtn = document.querySelector('.button.secondary');
+        
+        if (account1) {
+          account1.addEventListener('click', function() {
+            console.log('🖱️ BACKUP: First account clicked');
+            selectAccount('current');
+          });
+          console.log('✅ Backup listener added to first account');
+        }
+        
+        if (account2) {
+          account2.addEventListener('click', function() {
+            console.log('🖱️ BACKUP: Second account clicked');
+            selectAccount('existing');
+          });
+          console.log('✅ Backup listener added to second account');
+        }
+        
+        if (mergeBtn) {
+          mergeBtn.addEventListener('click', function() {
+            console.log('🖱️ BACKUP: Merge button clicked');
+            confirmMerge();
+          });
+          console.log('✅ Backup listener added to merge button');
+        }
+        
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', function() {
+            console.log('🖱️ BACKUP: Cancel button clicked');
+            cancelMerge();
+          });
+          console.log('✅ Backup listener added to cancel button');
+        }
+        
+        // Add universal click handler for debugging
+        document.addEventListener('click', function(e) {
+          console.log('🖱️ UNIVERSAL CLICK on:', e.target.tagName, e.target.className, e.target.id);
+          console.log('🖱️ onclick attribute:', e.target.getAttribute('onclick'));
+        });
+        
+        console.log('🎯 All backup listeners ready');
+        
+      } catch (error) {
+        console.error('💥 ERROR setting up backup listeners:', error);
+      }
+    }, 500);
+    
+    console.log('🎉 SCRIPT LOADED SUCCESSFULLY');
     
     // Make functions global for debugging
     window.selectAccount = function selectAccount(account) {
