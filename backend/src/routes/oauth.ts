@@ -2333,42 +2333,36 @@ router.get('/account-merge', async (req, res) => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ULTRA SIMPLE TEST</title>
+  <title>🟢 NO JS VERSION</title>
 </head>
-<body style="background: yellow; padding: 50px; text-align: center; font-family: Arial;">
+<body style="background: lime; padding: 50px; text-align: center; font-family: Arial;">
   
-  <h1>🔥 ULTIMATE SIMPLE TEST</h1>
-  <p>Click buttons below - they should show alerts!</p>
+  <h1>🚀 NO JAVASCRIPT - PURE HTML</h1>
+  <p>Choose account with working buttons (no JS needed):</p>
   
-  <script>
-    console.log('🟡 JavaScript is working!');
-    alert('JavaScript Test - If you see this, JS works!');
-    
-    function testClick(message) {
-      console.log('Button clicked:', message);
-      alert(message);
-    }
-  </script>
+  <form method="GET" action="/api/oauth/merge-result" style="margin: 20px;">
+    <input type="hidden" name="state" value="${state}">
+    <input type="hidden" name="selected" value="current">
+    <button type="submit" style="padding: 20px; margin: 10px; font-size: 18px; background: lightblue; border: none; cursor: pointer;">
+      SELECT ACCOUNT 1: ${currentUser.displayName}
+    </button>
+  </form>
   
-  <button onclick="testClick('Account 1 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightblue;">
-    ACCOUNT 1 (${currentUser.displayName})
-  </button>
+  <form method="GET" action="/api/oauth/merge-result" style="margin: 20px;">
+    <input type="hidden" name="state" value="${state}">
+    <input type="hidden" name="selected" value="existing">
+    <button type="submit" style="padding: 20px; margin: 10px; font-size: 18px; background: lightgreen; border: none; cursor: pointer;">
+      SELECT ACCOUNT 2: ${existingUser.displayName}
+    </button>
+  </form>
   
-  <button onclick="testClick('Account 2 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightgreen;">
-    ACCOUNT 2 (${existingUser.displayName})
-  </button>
+  <br>
   
-  <br><br>
-  
-  <button onclick="testClick('MERGE WORKS!'); window.location.href='mixtape://auth/success?platform=${platform}&merged=true'" 
-          style="padding: 20px; margin: 10px; font-size: 18px; background: orange;">
-    MERGE ACCOUNTS
-  </button>
-  
-  <button onclick="testClick('CANCEL WORKS!'); window.location.href='mixtape://auth/cancelled'" 
-          style="padding: 20px; margin: 10px; font-size: 18px; background: red;">
-    CANCEL
-  </button>
+  <form method="GET" action="mixtape://auth/cancelled" style="margin: 20px;">
+    <button type="submit" style="padding: 20px; margin: 10px; font-size: 18px; background: red; border: none; cursor: pointer; color: white;">
+      CANCEL
+    </button>
+  </form>
 
 </body>
 </html>`;
@@ -2377,6 +2371,20 @@ router.get('/account-merge', async (req, res) => {
   } catch (error) {
     console.error('Account merge page error:', error);
     res.status(500).send('Failed to load merge page');
+  }
+});
+
+// Handle merge result (form submission)
+router.get('/merge-result', async (req, res) => {
+  try {
+    const { state, selected } = req.query;
+    console.log(`🚀 Form submitted! Selected: ${selected}, State: ${state}`);
+    
+    // For now, just redirect to success regardless of choice
+    res.redirect(`mixtape://auth/success?platform=spotify&merged=true&selected=${selected}`);
+  } catch (error) {
+    console.error('Merge result error:', error);
+    res.redirect('mixtape://auth/error');
   }
 });
 
