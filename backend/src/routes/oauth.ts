@@ -2441,10 +2441,10 @@ router.get('/account-merge', async (req, res) => {
     </div>
     
     <div class="buttons">
-      <button class="button primary" id="merge-btn" onclick="confirmMerge()" disabled>
+      <button class="button primary" id="merge-btn" disabled>
         Merge Accounts
       </button>
-      <button class="button secondary" onclick="cancelMerge()">
+      <button class="button secondary" id="cancel-btn">
         Cancel
       </button>
     </div>
@@ -2452,6 +2452,9 @@ router.get('/account-merge', async (req, res) => {
   
   <script>
     let selectedAccount = null;
+    
+    // Test if JavaScript is working
+    console.log('🔧 JavaScript loaded successfully');
     
     // Add click handlers when page loads
     document.addEventListener('DOMContentLoaded', function() {
@@ -2487,7 +2490,7 @@ router.get('/account-merge', async (req, res) => {
       }
       
       // And cancel button
-      const cancelBtn = document.querySelector('.button.secondary');
+      const cancelBtn = document.getElementById('cancel-btn');
       if (cancelBtn) {
         cancelBtn.addEventListener('click', function(e) {
           console.log('❌ Cancel button clicked');
@@ -2496,10 +2499,16 @@ router.get('/account-merge', async (req, res) => {
         console.log('✅ Cancel button handler added');
       }
       
+      // Add a simple test click handler to see if ANY clicks work
+      document.body.addEventListener('click', function(e) {
+        console.log('🖱️ BODY CLICK DETECTED on:', e.target.tagName, e.target.className, e.target.id);
+      });
+      
       console.log('🎯 All click handlers ready');
     });
     
-    function selectAccount(account) {
+    // Make functions global for debugging
+    window.selectAccount = function selectAccount(account) {
       console.log('🎯 CLICK DETECTED! Selecting account:', account);
       selectedAccount = account;
       
@@ -2526,7 +2535,7 @@ router.get('/account-merge', async (req, res) => {
       console.log('🎯 Account selection COMPLETE:', account);
     }
     
-    async function confirmMerge() {
+    window.confirmMerge = async function confirmMerge() {
       console.log('🚀 Confirm merge clicked! Selected account:', selectedAccount);
       if (!selectedAccount) {
         console.log('❌ No account selected, aborting');
@@ -2850,7 +2859,8 @@ router.get('/merge-confirmation', async (req, res) => {
             }
           }
           
-          function cancelMerge() {
+          window.cancelMerge = function cancelMerge() {
+            console.log('❌ Cancel merge called');
             window.location.href = 'mixtape://auth/cancelled';
           }
         </script>
