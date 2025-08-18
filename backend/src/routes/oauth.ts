@@ -2300,12 +2300,224 @@ router.get('/account-merge', async (req, res) => {
     
     const { currentUser, existingUser, platform } = mergeData;
     
-    const html = `<!DOCTYPE html>
+    const html = `
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>🟢 SIMPLE MERGE PAGE</title>
+  <title>ULTRA SIMPLE TEST</title>
+</head>
+<body style="background: yellow; padding: 50px; text-align: center; font-family: Arial;">
+  
+  <h1>🔥 ULTIMATE SIMPLE TEST</h1>
+  <p>Click buttons below - they should show alerts!</p>
+  
+  <button onclick="alert('Account 1 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightblue;">
+    ACCOUNT 1 (${currentUser.displayName})
+  </button>
+  
+  <button onclick="alert('Account 2 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightgreen;">
+    ACCOUNT 2 (${existingUser.displayName})
+  </button>
+  
+  <br><br>
+  
+  <button onclick="alert('MERGE WORKS!'); window.location.href='mixtape://auth/success?platform=${platform}&merged=true'" 
+          style="padding: 20px; margin: 10px; font-size: 18px; background: orange;">
+    MERGE ACCOUNTS
+  </button>
+  
+  <button onclick="alert('CANCEL WORKS!'); window.location.href='mixtape://auth/cancelled'" 
+          style="padding: 20px; margin: 10px; font-size: 18px; background: red;">
+    CANCEL
+  </button>
+
+</body>
+</html>`;
+    
+    res.send(html);
+  } catch (error) {
+    console.error('Account merge page error:', error);
+    res.status(500).send('Failed to load merge page');
+  }
+});
+
+// Handle merge confirmation
+router.post('/confirm-merge', async (req, res) => {
+  try {
+    const { state, primaryAccount } = req.body;
+    
+    const mergeData = await OAuthSessionService.getMergeData(state);
+    if (!mergeData) {
+      return res.status(400).json({ error: 'Invalid or expired merge session' });
+    }
+    
+    const { currentUser, existingUser, platform, tokenData } = mergeData;
+    
+    // Determine which user should be primary based on selection
+    const primaryUserId = primaryAccount === 'current' ? currentUser.id : existingUser.id;
+    const secondaryUserId = primaryAccount === 'current' ? existingUser.id : currentUser.id;
+    
+    console.log('🔄 Starting merge process:', { primaryUserId, secondaryUserId, primaryAccount });
+    
+    // Save the music account to the primary user
+    const existingAccount = await UserMusicAccount.findFirst({
+      where: {
+        userId: existingUser.id,
+        platform: platform,
+      },
+    });
+    
+    if (existingAccount) {
+      await UserMusicAccount.upsert({
+        where: {
+          userId_platform: {
+            userId: primaryUserId,
+            platform: platform,
+          },
+        },
+        create: {
+          userId: primaryUserId,
+          platform: platform,
+          accessToken: tokenData.accessToken,
+          refreshToken: tokenData.refreshToken,
+          expiresAt: tokenData.expiresAt ? new Date(tokenData.expiresAt) : null,
+        },
+        update: {
+          accessToken: tokenData.accessToken,
+          refreshToken: tokenData.refreshToken,
+          expiresAt: tokenData.expiresAt ? new Date(tokenData.expiresAt) : null,
+        },
+      });
+    }
+    
+    // Clean up the merge session
+    await OAuthSessionService.completeMerge(state);
+    
+    console.log('✅ Merge completed successfully');
+    
+    res.json({ success: true, primaryUserId });
+  } catch (error) {
+    console.error('Account merge error:', error);
+    res.status(500).json({ error: 'Failed to merge accounts' });
+  }
+});
+
+// Create an account
+router.post('/create-account', async (req, res) => {
+  try {
+    const { email, displayName, password } = req.body;
+    
+    if (!email || !displayName) {
+      return res.status(400).json({ error: 'Email and display name are required' });
+    }
+    
+    // Check if user already exists
+    const existingUser = await User.findUnique({
+      where: { email },
+    });
+    
+    if (existingUser) {
+      return res.status(409).json({ error: 'User with this email already exists' });
+    }
+    
+    // Create new user
+    const user = await User.create({
+      data: {
+        email,
+        displayName,
+      },
+    });
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    );
+    
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('Create account error:', error);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+});
+
+// Login with email
+router.post('/login', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Find user by email
+    const user = await User.findUnique({
+      where: { email },
+      include: {
+        musicAccounts: true,
+      },
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    );
+    
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        musicAccounts: user.musicAccounts,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// Check if token is valid
+router.get('/check-token/:state', async (req, res) => {
+  try {
+    const { state } = req.params;
+    
+    const session = await OAuthSessionService.getSession(state);
+    if (!session || !session.tokenData) {
+      return res.json({ success: false });
+    }
+    
+    res.json({ 
+      success: true, 
+      token: session.tokenData.accessToken,
+      platform: session.platform,
+      message: session.tokenData.linked ? `${session.platform} account linked successfully` : `${session.platform} authentication completed`
+    });
+  } catch (error) {
+    console.error('Check token error:', error);
+    res.json({ success: false });
+  }
+});
+
+export default router;
   <style>
     body { 
       font-family: Arial, sans-serif; 
