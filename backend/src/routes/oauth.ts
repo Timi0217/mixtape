@@ -2316,9 +2316,11 @@ router.get('/account-merge', async (req, res) => {
     }
     
     .container {
-      background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px);
+      background: white;
       border-radius: 16px; padding: 32px 24px; max-width: 375px; width: 100%;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12); text-align: center;
+      pointer-events: auto;
+      z-index: 5;
     }
     
     .icon { 
@@ -2339,11 +2341,15 @@ router.get('/account-merge', async (req, res) => {
     }
     
     .account-option {
-      background: rgba(255, 255, 255, 0.9); border-radius: 12px; 
-      padding: 16px; margin-bottom: 12px; border: 1.5px solid rgba(0, 0, 0, 0.04); 
-      cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
-      text-align: left; position: relative; backdrop-filter: blur(10px);
-      -webkit-tap-highlight-color: rgba(0,0,0,0.1); pointer-events: auto;
+      background: white; border-radius: 12px; 
+      padding: 16px; margin-bottom: 12px; border: 1.5px solid rgba(0, 0, 0, 0.1); 
+      cursor: pointer; transition: background-color 0.2s ease;
+      text-align: left; position: relative;
+      pointer-events: auto !important;
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: rgba(0, 122, 255, 0.3);
+      z-index: 10;
     }
     
     .account-option:active { transform: scale(0.98); }
@@ -2392,7 +2398,11 @@ router.get('/account-merge', async (req, res) => {
     .button {
       border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
       padding: 16px 24px; width: 100%; margin-bottom: 12px; font-family: inherit;
-      transition: all 0.2s cubic-bezier(0.2, 0, 0, 1); letter-spacing: -0.2px;
+      transition: background-color 0.2s ease; letter-spacing: -0.2px;
+      pointer-events: auto !important;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(0, 122, 255, 0.3);
+      z-index: 10;
     }
     .primary { 
       background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%); 
