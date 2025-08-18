@@ -2366,14 +2366,14 @@ router.get('/account-merge', async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <div class="warning">👤</div>
+    <div class="warning">👥</div>
     <h1>Account Found</h1>
-    <p class="subtitle">Choose which account should be your primary profile.</p>
+    <p class="subtitle">Choose which should be your primary account.</p>
     
     <div class="account" id="current" onclick="selectAccount('current')">
       <div class="account-info">
         <div class="icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify-icon' : 'apple-icon'}">
-          ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? '♫' : '🍎'}
+          ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? '♪' : '🎵'}
         </div>
         <div>
           <div class="name">${currentUser.displayName || 'Current Account'}</div>
@@ -2387,7 +2387,7 @@ router.get('/account-merge', async (req, res) => {
     <div class="account" id="existing" onclick="selectAccount('existing')">
       <div class="account-info">
         <div class="icon ${platform === 'spotify' ? 'spotify-icon' : 'apple-icon'}">
-          ${platform === 'spotify' ? '♫' : '🍎'}
+          ${platform === 'spotify' ? '♪' : '🎵'}
         </div>
         <div>
           <div class="name">${existingUser.displayName || 'Existing Account'}</div>
