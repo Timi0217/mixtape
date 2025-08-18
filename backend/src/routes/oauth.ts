@@ -2340,22 +2340,32 @@ router.get('/account-merge', async (req, res) => {
   <h1>🔥 ULTIMATE SIMPLE TEST</h1>
   <p>Click buttons below - they should show alerts!</p>
   
-  <button onclick="alert('Account 1 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightblue;">
+  <script>
+    console.log('🟡 JavaScript is working!');
+    alert('JavaScript Test - If you see this, JS works!');
+    
+    function testClick(message) {
+      console.log('Button clicked:', message);
+      alert(message);
+    }
+  </script>
+  
+  <button onclick="testClick('Account 1 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightblue;">
     ACCOUNT 1 (${currentUser.displayName})
   </button>
   
-  <button onclick="alert('Account 2 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightgreen;">
+  <button onclick="testClick('Account 2 clicked!')" style="padding: 20px; margin: 10px; font-size: 18px; background: lightgreen;">
     ACCOUNT 2 (${existingUser.displayName})
   </button>
   
   <br><br>
   
-  <button onclick="alert('MERGE WORKS!'); window.location.href='mixtape://auth/success?platform=${platform}&merged=true'" 
+  <button onclick="testClick('MERGE WORKS!'); window.location.href='mixtape://auth/success?platform=${platform}&merged=true'" 
           style="padding: 20px; margin: 10px; font-size: 18px; background: orange;">
     MERGE ACCOUNTS
   </button>
   
-  <button onclick="alert('CANCEL WORKS!'); window.location.href='mixtape://auth/cancelled'" 
+  <button onclick="testClick('CANCEL WORKS!'); window.location.href='mixtape://auth/cancelled'" 
           style="padding: 20px; margin: 10px; font-size: 18px; background: red;">
     CANCEL
   </button>
