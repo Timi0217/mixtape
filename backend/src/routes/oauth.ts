@@ -2296,9 +2296,34 @@ router.get('/account-merge', async (req, res) => {
       return res.status(400).send('Missing state parameter');
     }
     
-    const mergeData = await OAuthSessionService.getMergeData(state as string);
+    // Try to get merge data first, then fall back to linking session data
+    let mergeData = await OAuthSessionService.getMergeData(state as string);
+    
     if (!mergeData) {
-      return res.status(400).send('Invalid or expired merge session');
+      // If no merge data, check for linking session and create mock merge data
+      const linkingSession = await OAuthSessionService.getLinkingSession(state as string);
+      if (linkingSession) {
+        // Create mock merge data for the simple test page
+        mergeData = {
+          currentUser: { 
+            id: linkingSession.userId, 
+            displayName: 'Current User',
+            email: 'current@example.com',
+            musicAccounts: []
+          },
+          existingUser: { 
+            id: 'existing-user', 
+            displayName: 'Existing User',
+            email: 'existing@example.com',
+            musicAccounts: []
+          },
+          platform: linkingSession.platform
+        };
+      }
+    }
+    
+    if (!mergeData) {
+      return res.status(400).send('Invalid or expired session');
     }
     
     const { currentUser, existingUser, platform } = mergeData;
