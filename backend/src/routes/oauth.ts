@@ -2304,155 +2304,187 @@ router.get('/account-merge', async (req, res) => {
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Merge Accounts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Account Found - Mixtape</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; 
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh; padding: 20px; display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 16px;
     }
+    
     .container {
-      background: white; border-radius: 20px; padding: 40px 30px; max-width: 400px; width: 100%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2); text-align: center;
+      background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px);
+      border-radius: 16px; padding: 32px 24px; max-width: 375px; width: 100%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12); text-align: center;
     }
-    .warning { font-size: 48px; margin-bottom: 20px; }
-    h1 { font-size: 24px; margin-bottom: 10px; color: #1D1D1F; }
-    .subtitle { color: #86868B; font-size: 16px; margin-bottom: 30px; line-height: 1.4; }
     
-    .account { 
-      background: #F8F9FA; border-radius: 16px; padding: 20px; margin: 15px 0; 
-      border: 3px solid transparent; cursor: pointer; position: relative; text-align: left;
-      transition: all 0.2s ease;
-    }
-    .account:hover { background: #E5E5EA; }
-    .account.selected { border-color: #007AFF; background: #E3F2FD; }
-    
-    .account-info { display: flex; align-items: center; }
     .icon { 
-      width: 40px; height: 40px; border-radius: 10px; margin-right: 15px;
-      display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;
-    }
-    .spotify-icon { background: #1DB954; }
-    .apple-icon { background: #FC3C44; }
-    .name { font-weight: 600; color: #1D1D1F; }
-    .email { font-size: 14px; color: #86868B; }
-    .platform { font-size: 14px; color: #86868B; margin-top: 5px; }
-    
-    .radio {
-      position: absolute; top: 20px; right: 20px; width: 20px; height: 20px;
-      border: 2px solid #C7C7CC; border-radius: 50%; background: white;
-    }
-    .account.selected .radio { border-color: #007AFF; background: #007AFF; }
-    .account.selected .radio::after {
-      content: '✓'; color: white; font-size: 12px; position: absolute;
-      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 64px; height: 64px; margin: 0 auto 16px; 
+      background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+      border-radius: 16px; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; box-shadow: 0 4px 16px rgba(0, 122, 255, 0.25);
     }
     
-    .merge-btn {
-      background: #007AFF; color: white; border: none; border-radius: 12px;
-      padding: 16px; width: 100%; font-size: 17px; font-weight: 600; margin-top: 20px;
-      cursor: pointer; transition: all 0.3s ease;
+    h1 { 
+      color: #1D1D1F; font-size: 22px; font-weight: 600; margin-bottom: 6px; 
+      letter-spacing: -0.3px;
     }
-    .merge-btn:disabled { background: #C7C7CC; cursor: not-allowed; opacity: 0.5; }
-    .merge-btn:hover:not(:disabled) { background: #0056CC; transform: translateY(-1px); }
-    .cancel-btn {
-      background: #F2F2F7; color: #007AFF; border: none; border-radius: 12px;
-      padding: 16px; width: 100%; font-size: 17px; font-weight: 600; margin-top: 10px;
-      cursor: pointer;
+    
+    .subtitle { 
+      color: #8E8E93; font-size: 15px; line-height: 1.3; margin-bottom: 32px; 
+      font-weight: 400;
+    }
+    
+    .account-option {
+      background: rgba(255, 255, 255, 0.9); border-radius: 12px; 
+      padding: 16px; margin-bottom: 12px; border: 1.5px solid rgba(0, 0, 0, 0.04); 
+      cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+      text-align: left; position: relative; backdrop-filter: blur(10px);
+      user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    
+    .account-option:active { transform: scale(0.98); }
+    .account-option.selected { 
+      border-color: #007AFF; background: rgba(0, 122, 255, 0.06);
+      box-shadow: 0 2px 12px rgba(0, 122, 255, 0.15);
+    }
+    
+    .account-header { display: flex; align-items: center; margin-bottom: 8px; }
+    
+    .platform-icon {
+      width: 44px; height: 44px; border-radius: 11px; margin-right: 12px;
+      display: flex; align-items: center; justify-content: center; 
+      color: white; font-weight: 600; font-size: 16px; 
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .spotify { background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); }
+    .apple { background: linear-gradient(135deg, #FF3B30 0%, #FF2D92 100%); }
+    
+    .account-details { flex: 1; }
+    .account-name { 
+      font-size: 16px; font-weight: 600; color: #1D1D1F; 
+      margin-bottom: 2px; letter-spacing: -0.2px;
+    }
+    .account-email { 
+      font-size: 13px; color: #8E8E93; font-weight: 400;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .account-platform { 
+      font-size: 12px; color: #8E8E93; margin-top: 4px; font-weight: 500;
+    }
+    
+    .radio { 
+      position: absolute; top: 16px; right: 16px; width: 20px; height: 20px;
+      border: 2px solid #D1D1D6; border-radius: 50%; background: white;
+      transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+    }
+    .account-option.selected .radio { 
+      border-color: #007AFF; background: #007AFF;
+    }
+    .account-option.selected .radio::after {
+      content: '✓'; color: white; font-size: 11px; font-weight: 700;
+    }
+    
+    .buttons { margin-top: 32px; }
+    .button {
+      border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
+      padding: 16px 24px; width: 100%; margin-bottom: 12px; font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.2, 0, 0, 1); letter-spacing: -0.2px;
+    }
+    .primary { 
+      background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%); 
+      color: white; box-shadow: 0 4px 16px rgba(0, 122, 255, 0.25);
+    }
+    .primary:active { transform: scale(0.98); }
+    .primary:disabled { 
+      background: #C7C7CC; cursor: not-allowed; transform: none;
+      box-shadow: none; opacity: 0.6;
+    }
+    .secondary { 
+      background: rgba(0, 122, 255, 0.08); color: #007AFF; 
+      border: 1px solid rgba(0, 122, 255, 0.2);
+    }
+    .secondary:active { 
+      background: rgba(0, 122, 255, 0.12); transform: scale(0.98);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="warning">👥</div>
+    <div class="icon">👥</div>
     <h1>Account Found</h1>
     <p class="subtitle">Choose which should be your primary account.</p>
     
-    <div class="account" id="current" onclick="selectAccount('current')">
-      <div class="account-info">
-        <div class="icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify-icon' : 'apple-icon'}">
+    <div class="account-option" id="current-account">
+      <div class="account-header">
+        <div class="platform-icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify' : 'apple'}">
           ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? '♪' : '🎵'}
         </div>
-        <div>
-          <div class="name">${currentUser.displayName || 'Current Account'}</div>
-          <div class="email">${currentUser.email}</div>
-          <div class="platform">Connected: ${currentUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
+        <div class="account-details">
+          <div class="account-name">${currentUser.displayName || 'Current Account'}</div>
+          <div class="account-email">${currentUser.email}</div>
         </div>
       </div>
+      <div class="account-platform">Connected: ${currentUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
       <div class="radio"></div>
     </div>
     
-    <div class="account" id="existing" onclick="selectAccount('existing')">
-      <div class="account-info">
-        <div class="icon ${platform === 'spotify' ? 'spotify-icon' : 'apple-icon'}">
+    <div class="account-option" id="existing-account">
+      <div class="account-header">
+        <div class="platform-icon ${platform === 'spotify' ? 'spotify' : 'apple'}">
           ${platform === 'spotify' ? '♪' : '🎵'}
         </div>
-        <div>
-          <div class="name">${existingUser.displayName || 'Existing Account'}</div>
-          <div class="email">${existingUser.email}</div>
-          <div class="platform">Connected: ${existingUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
+        <div class="account-details">
+          <div class="account-name">${existingUser.displayName || 'Existing Account'}</div>
+          <div class="account-email">${existingUser.email}</div>
         </div>
       </div>
+      <div class="account-platform">Connected: ${existingUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
       <div class="radio"></div>
     </div>
     
-    <button class="merge-btn" id="mergeBtn" onclick="confirmMerge()" disabled>Merge Accounts</button>
-    <button class="cancel-btn" onclick="cancel()">Cancel</button>
+    <div class="buttons">
+      <button class="button primary" id="merge-btn" onclick="confirmMerge()" disabled>
+        Merge Accounts
+      </button>
+      <button class="button secondary" onclick="cancelMerge()">
+        Cancel
+      </button>
+    </div>
   </div>
   
   <script>
     let selectedAccount = null;
     
+    // Add click handlers when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('current-account').addEventListener('click', () => selectAccount('current'));
+      document.getElementById('existing-account').addEventListener('click', () => selectAccount('existing'));
+    });
+    
     function selectAccount(account) {
       console.log('🎯 CLICK DETECTED! Selecting account:', account);
       selectedAccount = account;
       
-      // Clear all selections with explicit styling
-      document.querySelectorAll('.account').forEach(el => {
+      // Clear all selections
+      document.querySelectorAll('.account-option').forEach(el => {
         el.classList.remove('selected');
-        el.style.backgroundColor = '#F8F9FA';
-        el.style.borderColor = 'transparent';
-        el.style.transform = 'scale(1)';
-        el.style.color = '#1D1D1F';
-        
-        // Reset text colors
-        const nameEl = el.querySelector('.name');
-        const emailEl = el.querySelector('.email');
-        const platformEl = el.querySelector('.platform');
-        if (nameEl) nameEl.style.color = '#1D1D1F';
-        if (emailEl) emailEl.style.color = '#6B7280';
-        if (platformEl) platformEl.style.color = '#6B7280';
       });
       
-      // Select the chosen account with BOLD BLUE styling
-      const selectedEl = document.getElementById(account);
+      // Select the chosen account
+      const selectedEl = document.getElementById(account + '-account');
       if (selectedEl) {
         selectedEl.classList.add('selected');
-        selectedEl.style.backgroundColor = '#007AFF';
-        selectedEl.style.borderColor = '#007AFF';
-        selectedEl.style.color = 'white';
-        selectedEl.style.transform = 'scale(1.05)';
-        selectedEl.style.boxShadow = '0 4px 20px rgba(0, 122, 255, 0.3)';
-        
-        // Make ALL text white when selected
-        const nameEl = selectedEl.querySelector('.name');
-        const emailEl = selectedEl.querySelector('.email');
-        const platformEl = selectedEl.querySelector('.platform');
-        if (nameEl) nameEl.style.color = 'white';
-        if (emailEl) emailEl.style.color = 'rgba(255,255,255,0.8)';
-        if (platformEl) platformEl.style.color = 'rgba(255,255,255,0.8)';
-        
-        console.log('✅ Account styled with BOLD BLUE');
+        console.log('✅ Account selected');
       }
       
-      // Enable merge button with green styling
-      const mergeBtn = document.getElementById('mergeBtn');
+      // Enable merge button
+      const mergeBtn = document.getElementById('merge-btn');
       if (mergeBtn) {
         mergeBtn.disabled = false;
-        mergeBtn.style.opacity = '1';
-        mergeBtn.style.backgroundColor = '#10B981';
         mergeBtn.style.cursor = 'pointer';
         console.log('✅ Merge button ENABLED');
       }
@@ -2460,25 +2492,10 @@ router.get('/account-merge', async (req, res) => {
       console.log('🎯 Account selection COMPLETE:', account);
     }
     
-    // Add backup click handlers when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('🔧 Adding backup click handlers...');
-      
-      document.querySelectorAll('.account').forEach((account, index) => {
-        const accountId = index === 0 ? 'current' : 'existing';
-        account.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('💥 BACKUP CLICK HANDLER triggered for:', accountId);
-          selectAccount(accountId);
-        });
-      });
-    });
-    
     async function confirmMerge() {
       if (!selectedAccount) return;
       
-      const btn = document.getElementById('mergeBtn');
+      const btn = document.getElementById('merge-btn');
       btn.disabled = true;
       btn.textContent = 'Merging...';
       
