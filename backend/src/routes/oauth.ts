@@ -2343,7 +2343,7 @@ router.get('/account-merge', async (req, res) => {
       padding: 16px; margin-bottom: 12px; border: 1.5px solid rgba(0, 0, 0, 0.04); 
       cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
       text-align: left; position: relative; backdrop-filter: blur(10px);
-      user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+      -webkit-tap-highlight-color: rgba(0,0,0,0.1); pointer-events: auto;
     }
     
     .account-option:active { transform: scale(0.98); }
@@ -2456,56 +2456,43 @@ router.get('/account-merge', async (req, res) => {
     // Test if JavaScript is working
     console.log('🔧 JavaScript loaded successfully');
     
-    // Add click handlers when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('🔧 Setting up click handlers...');
+    // Immediate setup - no waiting for DOMContentLoaded
+    setTimeout(function() {
+      console.log('🔧 FORCE Setting up click handlers...');
       
-      const currentAccount = document.getElementById('current-account');
-      const existingAccount = document.getElementById('existing-account');
+      // FORCE select current account
+      document.getElementById('current-account').onclick = function() {
+        console.log('CURRENT CLICKED');
+        selectedAccount = 'current';
+        document.querySelectorAll('.account-option').forEach(el => el.classList.remove('selected'));
+        document.getElementById('current-account').classList.add('selected');
+        document.getElementById('merge-btn').disabled = false;
+      };
       
-      if (currentAccount) {
-        currentAccount.addEventListener('click', function(e) {
-          console.log('🖱️ Current account clicked');
-          selectAccount('current');
-        });
-        console.log('✅ Current account handler added');
-      }
+      // FORCE select existing account  
+      document.getElementById('existing-account').onclick = function() {
+        console.log('EXISTING CLICKED');
+        selectedAccount = 'existing';
+        document.querySelectorAll('.account-option').forEach(el => el.classList.remove('selected'));
+        document.getElementById('existing-account').classList.add('selected');
+        document.getElementById('merge-btn').disabled = false;
+      };
       
-      if (existingAccount) {
-        existingAccount.addEventListener('click', function(e) {
-          console.log('🖱️ Existing account clicked');
-          selectAccount('existing');
-        });
-        console.log('✅ Existing account handler added');
-      }
+      // FORCE merge button
+      document.getElementById('merge-btn').onclick = function() {
+        console.log('MERGE CLICKED');
+        if (!selectedAccount) return;
+        window.location.href = '/api/oauth/confirm-merge?state=${state}&primaryAccount=' + selectedAccount;
+      };
       
-      // Also add backup handler for merge button
-      const mergeBtn = document.getElementById('merge-btn');
-      if (mergeBtn) {
-        mergeBtn.addEventListener('click', function(e) {
-          console.log('🚀 Merge button clicked via event listener');
-          confirmMerge();
-        });
-        console.log('✅ Merge button handler added');
-      }
+      // FORCE cancel button
+      document.getElementById('cancel-btn').onclick = function() {
+        console.log('CANCEL CLICKED');
+        window.location.href = 'mixtape://auth/cancelled';
+      };
       
-      // And cancel button
-      const cancelBtn = document.getElementById('cancel-btn');
-      if (cancelBtn) {
-        cancelBtn.addEventListener('click', function(e) {
-          console.log('❌ Cancel button clicked');
-          cancelMerge();
-        });
-        console.log('✅ Cancel button handler added');
-      }
-      
-      // Add a simple test click handler to see if ANY clicks work
-      document.body.addEventListener('click', function(e) {
-        console.log('🖱️ BODY CLICK DETECTED on:', e.target.tagName, e.target.className, e.target.id);
-      });
-      
-      console.log('🎯 All click handlers ready');
-    });
+      console.log('FORCE HANDLERS READY');
+    }, 100);
     
     // Make functions global for debugging
     window.selectAccount = function selectAccount(account) {
