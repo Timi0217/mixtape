@@ -2355,25 +2355,25 @@ router.get('/account-merge', async (req, res) => {
     .account-header { display: flex; align-items: center; margin-bottom: 8px; }
     
     .platform-icon {
-      width: 44px; height: 44px; border-radius: 11px; margin-right: 12px;
-      display: flex; align-items: center; justify-content: center; 
-      color: white; font-weight: 600; font-size: 16px; 
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      width: 16px; height: 16px; border-radius: 50%; margin-right: 12px;
+      flex-shrink: 0;
     }
-    .spotify { background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); }
-    .apple { background: linear-gradient(135deg, #FF3B30 0%, #FF2D92 100%); }
+    .spotify { 
+      background: #1DB954; 
+      box-shadow: 0 0 12px rgba(29, 185, 84, 0.6), 0 0 24px rgba(29, 185, 84, 0.3);
+    }
+    .apple { 
+      background: #FF3B30; 
+      box-shadow: 0 0 12px rgba(255, 59, 48, 0.6), 0 0 24px rgba(255, 59, 48, 0.3);
+    }
     
     .account-details { flex: 1; }
     .account-name { 
       font-size: 16px; font-weight: 600; color: #1D1D1F; 
       margin-bottom: 2px; letter-spacing: -0.2px;
     }
-    .account-email { 
-      font-size: 13px; color: #8E8E93; font-weight: 400;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
     .account-platform { 
-      font-size: 12px; color: #8E8E93; margin-top: 4px; font-weight: 500;
+      font-size: 13px; color: #8E8E93; font-weight: 400;
     }
     
     .radio { 
@@ -2420,29 +2420,23 @@ router.get('/account-merge', async (req, res) => {
     
     <div class="account-option" id="current-account">
       <div class="account-header">
-        <div class="platform-icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify' : 'apple'}">
-          ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? '♪' : '🎵'}
-        </div>
+        <div class="platform-icon ${currentUser.musicAccounts?.[0]?.platform === 'spotify' ? 'spotify' : 'apple'}"></div>
         <div class="account-details">
           <div class="account-name">${currentUser.displayName || 'Current Account'}</div>
-          <div class="account-email">${currentUser.email}</div>
+          <div class="account-platform">Connected: ${currentUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
         </div>
       </div>
-      <div class="account-platform">Connected: ${currentUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
       <div class="radio"></div>
     </div>
     
     <div class="account-option" id="existing-account">
       <div class="account-header">
-        <div class="platform-icon ${platform === 'spotify' ? 'spotify' : 'apple'}">
-          ${platform === 'spotify' ? '♪' : '🎵'}
-        </div>
+        <div class="platform-icon ${platform === 'spotify' ? 'spotify' : 'apple'}"></div>
         <div class="account-details">
           <div class="account-name">${existingUser.displayName || 'Existing Account'}</div>
-          <div class="account-email">${existingUser.email}</div>
+          <div class="account-platform">Connected: ${existingUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
         </div>
       </div>
-      <div class="account-platform">Connected: ${existingUser.musicAccounts?.map(acc => acc.platform === 'spotify' ? 'Spotify' : 'Apple Music').join(', ') || 'None'}</div>
       <div class="radio"></div>
     </div>
     
