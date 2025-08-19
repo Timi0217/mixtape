@@ -639,14 +639,30 @@ router.get('/spotify/link-callback',
       // Get user profile
       const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
       
-      // Link to existing user (may throw MergeRequiredError)
+      // Simply add Spotify account to existing user
       try {
-        await oauthService.linkMusicAccountToUser(
-          linkingSession.userId,
-          'spotify',
-          userProfile,
-          tokenData
-        );
+        await prisma.userMusicAccount.upsert({
+          where: {
+            userId_platform: {
+              userId: linkingSession.userId,
+              platform: 'spotify'
+            }
+          },
+          update: {
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+          },
+          create: {
+            userId: linkingSession.userId,
+            platform: 'spotify',
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+          }
+        });
+        
+        console.log(`✅ Successfully added Spotify account to user ${linkingSession.userId}`);
       } catch (error) {
         // MergeRequiredError no longer thrown - auto-merge happens in service
         console.error('Spotify linking error:', error);
