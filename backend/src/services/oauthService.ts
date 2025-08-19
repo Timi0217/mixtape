@@ -341,7 +341,7 @@ class OAuthService {
   }
 
   // Merge two user profiles when linking accounts
-  private async mergeMusicProfiles(
+  async mergeMusicProfiles(
     primaryUserId: string,
     secondaryUser: any,
     platform: 'spotify' | 'apple-music',
