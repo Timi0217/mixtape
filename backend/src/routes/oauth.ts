@@ -835,9 +835,9 @@ router.get('/spotify/callback',
               <p>Your Spotify account has been successfully linked to Mixtape.</p>
             </div>
             <script>
-              // Auto-redirect to app after 2 seconds
+              // Auto-redirect to app immediately - same as login
               setTimeout(() => {
-                window.location.href = 'mixtape://auth/success?platform=spotify&linked=true';
+                window.location.href = 'mixtape://auth/success?platform=spotify';
               }, 2000);
             </script>
           </body>
