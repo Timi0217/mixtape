@@ -788,6 +788,13 @@ router.get('/spotify/callback',
           tokenData
         );
         
+        // Store success token data for polling (same as login)
+        await OAuthSessionService.storeTokenData(state as string, { 
+          success: true, 
+          platform: 'spotify',
+          linked: true 
+        }, 'spotify');
+        
         // Clean up linking session
         await OAuthSessionService.deleteLinkingSession(state as string);
         

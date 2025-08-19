@@ -182,7 +182,7 @@ export default function MusicSettingsScreen({ onClose }) {
 
   const connectSpotifyWithAuthSession = async () => {
     try {
-      // Get auth URL from backend (no custom redirect URI needed)
+      // Get auth URL from backend - same as login flow
       const response = await api.post('/music/auth/spotify', {});
       
       console.log('🎵 Backend response:', response.data);
@@ -191,21 +191,74 @@ export default function MusicSettingsScreen({ onClose }) {
         throw new Error('No auth URL received from server');
       }
 
-      const { authUrl } = response.data;
-      console.log('🎵 Opening Spotify auth URL in browser:', authUrl);
+      const { authUrl, state } = response.data;
+      console.log('🎵 Opening Spotify auth URL:', authUrl);
+      console.log('🔗 OAuth state for linking:', state);
 
-      // Open the auth URL in browser - the backend will handle the callback and redirect to app
-      await WebBrowser.openBrowserAsync(authUrl);
+      // Open OAuth flow in browser with same options as login
+      const browserTask = WebBrowser.openBrowserAsync(authUrl, {
+        dismissButtonStyle: 'close',
+        presentationStyle: 'pageSheet',
+      });
       
-      // The browser will redirect to the app via deep link when done
-      // The useEffect listener will handle reloading the settings
-      setLoading(false);
+      // Start polling for completion like login flow does
+      console.log('Starting polling for linking completion');
+      startLinkingPolling(state, 'spotify', browserTask);
+      
+      // Handle browser close events
+      browserTask.then((result) => {
+        if (result.type === 'cancel') {
+          console.log('User cancelled linking flow');
+          setLoading(false);
+        }
+      });
       
     } catch (error) {
       console.error('❌ Spotify connection error:', error);
       setLoading(false);
       Alert.alert('Error', error.message || 'Failed to connect Spotify account');
     }
+  };
+
+  const startLinkingPolling = (tokenId, platform, browserTask) => {
+    console.log('Starting linking polling for:', tokenId);
+    let attempts = 0;
+    const maxAttempts = 60; // Poll for up to 5 minutes
+    
+    const interval = setInterval(async () => {
+      attempts++;
+      console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} for linking completion`);
+      
+      try {
+        // Check if linking is complete - use same endpoint as login
+        const response = await api.get(`/oauth/check-token/${tokenId}`);
+        
+        if (response.data.success) {
+          console.log('✅ Linking completed successfully!');
+          clearInterval(interval);
+          
+          // Auto-dismiss browser
+          if (browserTask) {
+            WebBrowser.dismissBrowser();
+          }
+          
+          // Reload accounts to show new connection
+          await loadSettings();
+          setLoading(false);
+          
+          Alert.alert('Success', 'Spotify account connected successfully!');
+        }
+      } catch (error) {
+        console.log('Polling error (expected during auth):', error.message);
+      }
+      
+      if (attempts >= maxAttempts) {
+        console.log('❌ Polling timeout - stopping');
+        clearInterval(interval);
+        setLoading(false);
+        Alert.alert('Timeout', 'Authentication took too long. Please try again.');
+      }
+    }, 3000); // Poll every 3 seconds
   };
 
   const showAccountMergeModal = (platform, mergeInfo) => {
