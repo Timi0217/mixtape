@@ -221,7 +221,9 @@ export default function MusicSettingsScreen({ onClose }) {
   };
 
   const startLinkingPolling = (tokenId, platform, browserTask) => {
-    console.log('Starting linking polling for:', tokenId);
+    console.log('🚀 Starting linking polling for:', tokenId);
+    console.log('🚀 Platform:', platform);
+    console.log('🚀 Browser task:', !!browserTask);
     let attempts = 0;
     const maxAttempts = 60; // Poll for up to 5 minutes
     
@@ -231,7 +233,10 @@ export default function MusicSettingsScreen({ onClose }) {
       
       try {
         // Check if linking is complete - use same endpoint as login
-        const response = await api.get(`/oauth/check-token/${tokenId}`);
+        const checkUrl = `/oauth/check-token/${tokenId}`;
+        console.log(`🔍 Polling URL: ${checkUrl}`);
+        const response = await api.get(checkUrl);
+        console.log(`🔍 Polling response:`, response.data);
         
         if (response.data.success) {
           console.log('✅ Linking completed successfully!');
