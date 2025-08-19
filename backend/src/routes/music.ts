@@ -323,20 +323,14 @@ router.post('/auth/:platform', authenticateToken, async (req: AuthRequest, res) 
     console.log(`🔗 User ${userId} requesting to connect ${platform} account`);
     
     if (platform === 'spotify') {
-      // Store the current user ID in session so callback knows which user to add Spotify to
+      // Use exact same flow as login - just redirect to login
       const { oauthService } = await import('../services/oauthService');
       const { OAuthSessionService } = await import('../services/oauthSessionService');
       
-      console.log(`🎵 Setting up Spotify connection for existing user ${userId}`);
-      
       const state = oauthService.generateState();
+      await OAuthSessionService.storeState(state, 'spotify');
       
-      // Store user ID with the state so callback knows which user to update
-      await OAuthSessionService.storeLinkingState(state, 'spotify', userId);
-      
-      const authUrl = oauthService.getSpotifyAuthUrl(state, true);
-      
-      console.log(`🎵 Generated auth URL: ${authUrl}`);
+      const authUrl = oauthService.getSpotifyAuthUrl(state, false);
       
       res.json({
         authUrl,
