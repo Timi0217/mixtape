@@ -810,8 +810,30 @@ router.get('/spotify/callback',
         // Clean up linking session
         await OAuthSessionService.deleteLinkingSession(state as string);
         
-        // Redirect to success
-        return res.redirect('mixtape://auth/success?platform=spotify&linked=true');
+        // Create success page that redirects to app instead of direct redirect
+        const successHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Spotify Connected - Mixtape</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 40px; background: #1DB954; color: white;">
+            <h1>✅ Spotify Connected!</h1>
+            <p>Your Spotify account has been successfully connected to Mixtape.</p>
+            <p>Redirecting back to app...</p>
+            <script>
+              console.log('Redirecting to: mixtape://auth/success?platform=spotify&linked=true');
+              setTimeout(() => {
+                window.location.href = 'mixtape://auth/success?platform=spotify&linked=true';
+              }, 2000);
+            </script>
+          </body>
+          </html>
+        `;
+        
+        return res.send(successHtml);
       }
       
       console.log('🚫 No linking session found, proceeding with regular OAuth flow');
