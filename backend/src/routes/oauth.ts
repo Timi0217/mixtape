@@ -140,20 +140,8 @@ router.post('/spotify/link-exchange',
           tokenData
         );
       } catch (error) {
-        if (error instanceof MergeRequiredError) {
-          // Store merge data and redirect to confirmation page
-          await OAuthSessionService.storeMergeData(state, {
-            ...error.mergeData,
-            linkingSession
-          });
-          
-          return res.json({
-            success: false,
-            requiresMerge: true,
-            mergeUrl: `/api/oauth/account-merge?state=${state}`,
-            message: 'Account merge required'
-          });
-        }
+        // MergeRequiredError no longer thrown - auto-merge happens in service
+        console.error('OAuth error:', error);
         throw error;
       }
 
@@ -660,15 +648,8 @@ router.get('/spotify/link-callback',
           tokenData
         );
       } catch (error) {
-        if (error instanceof MergeRequiredError) {
-          // Store merge data and redirect to confirmation page
-          await OAuthSessionService.storeMergeData(state as string, {
-            ...error.mergeData,
-            linkingSession
-          });
-          
-          return res.redirect(`/api/oauth/account-merge?state=${state}`);
-        }
+        // MergeRequiredError no longer thrown - auto-merge happens in service
+        console.error('Spotify linking error:', error);
         throw error;
       }
 
@@ -767,9 +748,8 @@ router.get('/spotify/callback',
       console.log(`🔍 Linking session result:`, linkingSession);
       
       if (linkingSession && linkingSession.platform === 'spotify') {
-        console.log('🔗 Detected linking session, redirecting to merge page...');
-        // Redirect to our simple merge page
-        return res.redirect(`/api/oauth/account-merge?state=${state}`);
+        console.log('🔗 Detected linking session, proceeding with auto-merge...');
+        // Auto-merge will happen in the service, proceed normally
       } else {
         console.log('🚫 No linking session found, proceeding with regular OAuth flow');
       }
@@ -2326,48 +2306,18 @@ router.get('/account-merge', async (req, res) => {
       return res.status(400).send('Invalid or expired session');
     }
     
-    const { currentUser, existingUser, platform } = mergeData;
+    // Add state to merge data for frontend
+    const mergeDataWithState = {
+      ...mergeData,
+      state: state as string
+    };
     
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>🟢 NO JS VERSION</title>
-</head>
-<body style="background: lime; padding: 50px; text-align: center; font-family: Arial;">
-  
-  <h1>🚀 NO JAVASCRIPT - PURE HTML</h1>
-  <p>Choose account with working buttons (no JS needed):</p>
-  
-  <form method="GET" action="/api/oauth/merge-result" style="margin: 20px;">
-    <input type="hidden" name="state" value="${state}">
-    <input type="hidden" name="selected" value="current">
-    <button type="submit" style="padding: 20px; margin: 10px; font-size: 18px; background: lightblue; border: none; cursor: pointer;">
-      SELECT ACCOUNT 1: ${currentUser.displayName}
-    </button>
-  </form>
-  
-  <form method="GET" action="/api/oauth/merge-result" style="margin: 20px;">
-    <input type="hidden" name="state" value="${state}">
-    <input type="hidden" name="selected" value="existing">
-    <button type="submit" style="padding: 20px; margin: 10px; font-size: 18px; background: lightgreen; border: none; cursor: pointer;">
-      SELECT ACCOUNT 2: ${existingUser.displayName}
-    </button>
-  </form>
-  
-  <br>
-  
-  <form method="GET" action="mixtape://auth/cancelled" style="margin: 20px;">
-    <button type="submit" style="padding: 20px; margin: 10px; font-size: 18px; background: red; border: none; cursor: pointer; color: white;">
-      CANCEL
-    </button>
-  </form>
-
-</body>
-</html>`;
+    // Redirect to mobile app with merge data
+    const mergeDataEncoded = encodeURIComponent(JSON.stringify(mergeDataWithState));
+    const redirectUrl = `mixtape://auth/merge?data=${mergeDataEncoded}`;
     
-    res.send(html);
+    console.log('🔀 Redirecting to mobile app for account merge:', redirectUrl);
+    res.redirect(redirectUrl);
   } catch (error) {
     console.error('Account merge page error:', error);
     res.status(500).send('Failed to load merge page');
@@ -2553,6 +2503,54 @@ router.get('/check-token/:state', async (req, res) => {
   } catch (error) {
     console.error('Check token error:', error);
     res.json({ success: false });
+  }
+});
+
+// Handle merge decision from in-app modal
+router.post('/merge-decision', async (req, res) => {
+  try {
+    const { state, selectedAccount } = req.body;
+    
+    if (!state || !selectedAccount) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'State and selected account are required' 
+      });
+    }
+    
+    console.log(`🔀 Processing merge decision: ${selectedAccount} for state: ${state}`);
+    
+    // Get the OAuth session data
+    const session = await OAuthSessionService.getSession(state);
+    if (!session || !session.tokenData) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid session or no token data' 
+      });
+    }
+    
+    // Process the merge based on user selection
+    const result = await oauthService.handleMergeDecision(
+      session.tokenData, 
+      selectedAccount, 
+      session.platform
+    );
+    
+    // Clean up the session
+    await OAuthSessionService.clearSession(state);
+    
+    res.json({
+      success: true,
+      message: `Account ${selectedAccount} selected and merged successfully`,
+      platform: session.platform
+    });
+    
+  } catch (error) {
+    console.error('Merge decision error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process merge decision' 
+    });
   }
 });
 

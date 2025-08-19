@@ -251,15 +251,12 @@ class OAuthService {
     }
 
     if (existingUserWithPlatform && existingUserWithPlatform.id !== userId) {
-      console.log(`⚠️ Account ${platformEmail} is already linked to another user (${existingUserWithPlatform.id}). Merge required.`);
+      console.log(`🔄 Account ${platformEmail} is already linked to another user (${existingUserWithPlatform.id}). Auto-merging accounts...`);
       
-      // Return merge info instead of auto-merging
-      throw new MergeRequiredError({
-        currentUser: user,
-        existingUser: existingUserWithPlatform,
-        platform,
-        tokenData
-      });
+      // Auto-merge: keep current user as primary, merge existing user's data
+      await this.mergeUsers(user.id, existingUserWithPlatform.id, platform);
+      
+      console.log(`✅ Auto-merged accounts successfully. Primary user: ${user.id}`);
     } else {
       // Normal case - either no existing account or same user
       // Check if this platform is already linked to current user
@@ -594,6 +591,93 @@ class OAuthService {
     } catch (error) {
       throw new Error('Invalid token');
     }
+  }
+
+  // Handle merge decision from in-app modal
+  async handleMergeDecision(tokenData: any, selectedAccount: string, platform: string) {
+    try {
+      console.log(`🔀 Handling merge decision: ${selectedAccount} for platform: ${platform}`);
+      
+      if (selectedAccount === 'current') {
+        // User chose to keep current account, link new music account to it
+        return await this.linkAccountToCurrent(tokenData, platform);
+      } else if (selectedAccount === 'existing') {
+        // User chose existing account, merge current user into it
+        return await this.mergeToExisting(tokenData, platform);
+      } else {
+        throw new Error('Invalid account selection');
+      }
+    } catch (error) {
+      console.error('Merge decision error:', error);
+      throw error;
+    }
+  }
+
+  // Link music account to current user
+  private async linkAccountToCurrent(tokenData: any, platform: string) {
+    const { profile, tokens } = tokenData;
+    
+    // Find current user from session or JWT context
+    // For now, create/update the music account for the user
+    const user = await prisma.user.findUnique({
+      where: { email: profile.email },
+      include: { musicAccounts: true }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Create or update music account
+    await prisma.userMusicAccount.upsert({
+      where: {
+        userId_platform: {
+          userId: user.id,
+          platform: platform
+        }
+      },
+      update: {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+      },
+      create: {
+        userId: user.id,
+        platform: platform,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+      }
+    });
+
+    return { success: true, action: 'linked' };
+  }
+
+  // Merge current user to existing account
+  private async mergeToExisting(tokenData: any, platform: string) {
+    const { profile, tokens } = tokenData;
+    
+    // Find existing user with this music account
+    const existingAccount = await prisma.userMusicAccount.findFirst({
+      where: { platform: platform },
+      include: { user: true }
+    });
+
+    if (!existingAccount) {
+      throw new Error('Existing account not found');
+    }
+
+    // Update the existing music account with new tokens
+    await prisma.userMusicAccount.update({
+      where: { id: existingAccount.id },
+      data: {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+      }
+    });
+
+    return { success: true, action: 'merged', userId: existingAccount.user.id };
   }
 }
 

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Switch,
   Linking,
+  Modal,
 } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -49,7 +50,7 @@ const theme = {
 };
 
 export default function MusicSettingsScreen({ onClose }) {
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [platforms, setPlatforms] = useState([]);
   const [connectedAccounts, setConnectedAccounts] = useState([]);
@@ -59,6 +60,8 @@ export default function MusicSettingsScreen({ onClose }) {
     highQualityOnly: false,
     explicitContentFilter: false,
   });
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeData, setMergeData] = useState(null);
 
   useEffect(() => {
     loadMusicSettings();
@@ -94,6 +97,25 @@ export default function MusicSettingsScreen({ onClose }) {
           await refreshUser();
           setLoading(false);
         }, 1000);
+      } else if (url.includes('mixtape://auth/merge')) {
+        console.log('🔀 Account merge needed, showing modal...');
+        
+        // Parse merge data from URL
+        const urlParts = url.split('?');
+        const queryString = urlParts[1] || '';
+        const params = new URLSearchParams(queryString);
+        
+        try {
+          const mergeDataEncoded = params.get('data');
+          if (mergeDataEncoded) {
+            const mergeInfo = JSON.parse(decodeURIComponent(mergeDataEncoded));
+            showAccountMergeModal({ id: mergeInfo.platform }, mergeInfo);
+          }
+        } catch (error) {
+          console.error('Failed to parse merge data:', error);
+          Alert.alert('Error', 'Failed to load account merge information');
+        }
+        setLoading(false);
       } else if (url.includes('mixtape://auth/error')) {
         console.log('❌ OAuth error detected');
         const urlParts = url.split('?');
@@ -182,6 +204,42 @@ export default function MusicSettingsScreen({ onClose }) {
     }
   };
 
+  const showAccountMergeModal = (platform, mergeInfo) => {
+    // Use real merge data from OAuth flow
+    setMergeData(mergeInfo);
+    setShowMergeModal(true);
+  };
+
+  const handleMergeSelection = async (selectedAccount) => {
+    try {
+      setShowMergeModal(false);
+      setLoading(true);
+      
+      console.log('🔀 User selected account:', selectedAccount);
+      
+      // Start the proper linking flow
+      try {
+        const response = await api.post(`/music/auth/${mergeData.platform}`, {});
+        
+        if (response.data.authUrl) {
+          console.log('🔗 Starting linking flow via browser...');
+          await WebBrowser.openBrowserAsync(response.data.authUrl);
+        } else {
+          throw new Error('No auth URL received');
+        }
+      } catch (apiError) {
+        console.error('Failed to start linking flow:', apiError);
+        Alert.alert('Error', 'Failed to connect account. Please try again.');
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Merge error:', error);
+      setLoading(false);
+      Alert.alert('Error', 'Failed to connect account. Please try again.');
+    }
+  };
+
   const handleConnectPlatform = async (platform) => {
     try {
       if (platform.id === 'apple-music') {
@@ -220,14 +278,26 @@ export default function MusicSettingsScreen({ onClose }) {
           Alert.alert('Error', 'Failed to connect to Apple Music. Please try again.');
         }
       } else if (platform.id === 'spotify') {
-        // Start Spotify OAuth flow using Expo AuthSession
+        // Start Spotify linking flow - will auto-merge if needed
         setLoading(true);
         try {
-          await connectSpotifyWithAuthSession();
-        } catch (error) {
-          console.error('Failed to initiate Spotify connection:', error);
+          const response = await api.post('/music/auth/spotify', {});
+          
+          if (!response.data.authUrl) {
+            throw new Error('No auth URL received from server');
+          }
+
+          const { authUrl } = response.data;
+          console.log('🎵 Opening Spotify auth URL:', authUrl);
+
+          // Open auth URL - backend will auto-merge accounts
+          await WebBrowser.openBrowserAsync(authUrl);
           setLoading(false);
-          Alert.alert('Error', 'Failed to connect to Spotify. Please try again.');
+          
+        } catch (error) {
+          console.error('❌ Spotify connection error:', error);
+          setLoading(false);
+          Alert.alert('Error', error.message || 'Failed to connect Spotify account');
         }
       } else {
         Alert.alert('Error', 'Platform not supported yet.');
@@ -479,6 +549,69 @@ export default function MusicSettingsScreen({ onClose }) {
           {renderDataUsage()}
         </ScrollView>
       )}
+      
+      {/* In-App Account Merge Modal */}
+      <Modal
+        visible={showMergeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowMergeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Account Found</Text>
+              <TouchableOpacity 
+                onPress={() => setShowMergeModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSubtitle}>
+              We found an existing {mergeData?.platform === 'spotify' ? 'Spotify' : mergeData?.platform === 'apple-music' ? 'Apple Music' : ''} account. Choose your primary account.
+            </Text>
+            
+            {mergeData && (
+              <>
+                <TouchableOpacity 
+                  style={styles.accountOption}
+                  onPress={() => handleMergeSelection('current')}
+                >
+                  <View style={styles.accountHeader}>
+                    <View style={[styles.platformIcon, { backgroundColor: '#6B7280' }]} />
+                    <View style={styles.accountDetails}>
+                      <Text style={styles.accountName}>{mergeData.currentUser.displayName}</Text>
+                      <Text style={styles.accountEmail}>Current Account</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.accountOption}
+                  onPress={() => handleMergeSelection('existing')}
+                >
+                  <View style={styles.accountHeader}>
+                    <View style={[styles.platformIcon, { backgroundColor: mergeData.platform === 'spotify' ? '#1DB954' : '#FF3B30' }]} />
+                    <View style={styles.accountDetails}>
+                      <Text style={styles.accountName}>{mergeData.existingUser.displayName}</Text>
+                      <Text style={styles.accountEmail}>{mergeData.platform === 'spotify' ? 'Spotify Account' : 'Apple Music Account'}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.cancelButton}
+                  onPress={() => setShowMergeModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -714,5 +847,93 @@ const styles = StyleSheet.create({
   },
   dangerButtonText: {
     color: 'white',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+  },
+  modalContainer: {
+    backgroundColor: theme.colors.surfaceWhite,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+  modalCloseButton: {
+    padding: theme.spacing.sm,
+  },
+  modalCloseText: {
+    fontSize: 20,
+    color: theme.colors.textSecondary,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: theme.spacing.lg,
+    textAlign: 'center',
+  },
+  accountOption: {
+    backgroundColor: theme.colors.surfaceWhite,
+    borderWidth: 1.5,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+  },
+  accountHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  platformIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: theme.spacing.md,
+  },
+  accountDetails: {
+    flex: 1,
+  },
+  accountName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  accountEmail: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  cancelButton: {
+    backgroundColor: theme.colors.secondaryButton,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
 });

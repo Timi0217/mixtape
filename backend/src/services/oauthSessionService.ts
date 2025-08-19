@@ -328,6 +328,40 @@ export class OAuthSessionService {
   }
 
   /**
+   * Get session by state
+   */
+  static async getSession(state: string): Promise<any | null> {
+    try {
+      const session = await prisma.oAuthSession.findUnique({
+        where: { sessionId: state },
+      });
+
+      if (!session || session.expiresAt < new Date()) {
+        return null;
+      }
+
+      return session;
+    } catch (error) {
+      console.error('Error getting session:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear/delete session by state
+   */
+  static async clearSession(state: string): Promise<void> {
+    try {
+      await prisma.oAuthSession.delete({
+        where: { sessionId: state },
+      });
+    } catch (error) {
+      console.error('Error clearing session:', error);
+      // Don't throw, just log the error
+    }
+  }
+
+  /**
    * Clean up expired sessions
    */
   static async cleanupExpiredSessions(): Promise<number> {
