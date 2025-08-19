@@ -93,8 +93,10 @@ export default function MusicSettingsScreen({ onClose }) {
         
         setTimeout(async () => {
           console.log('🔄 Reloading music settings and user data...');
+          console.log('🔄 Before reload - current connected accounts:', connectedAccounts.length);
           await loadMusicSettings();
           await refreshUser();
+          console.log('🔄 After reload - current connected accounts:', connectedAccounts.length);
           setLoading(false);
         }, 1000);
       } else if (url.includes('mixtape://auth/merge')) {
@@ -152,9 +154,11 @@ export default function MusicSettingsScreen({ onClose }) {
         const accountsResponse = await api.get('/music/accounts');
         console.log('📱 Connected accounts from API:', accountsResponse.data);
         console.log('📱 Individual accounts:', accountsResponse.data.accounts);
+        console.log('📱 Number of accounts:', accountsResponse.data.accounts?.length || 0);
         setConnectedAccounts(accountsResponse.data.accounts || []);
       } catch (accountError) {
         console.error('Failed to load accounts:', accountError);
+        console.log('📱 Setting empty accounts array due to error');
         setConnectedAccounts([]);
       }
       
