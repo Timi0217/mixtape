@@ -324,21 +324,19 @@ router.post('/auth/:platform', authenticateToken, async (req: AuthRequest, res) 
     console.log(`🔗 User ${userId} requesting to link ${platform} account`);
     
     if (platform === 'spotify') {
-      // Generate state and create auth URL for Expo AuthSession
+      // Use simple OAuth flow (same as login) instead of complex linking
       const { oauthService } = await import('../services/oauthService');
       const { OAuthSessionService } = await import('../services/oauthSessionService');
       
-      console.log(`🎵 Using registered Spotify callback for linking`);
+      console.log(`🎵 Using simple Spotify OAuth flow for account connection`);
       
       const state = oauthService.generateState();
       
-      // Store linking state
-      await OAuthSessionService.storeLinkingState(state, 'spotify', userId);
+      // Store simple OAuth state (no linking session)
+      await OAuthSessionService.storeState(state, 'spotify');
       
-      // For Expo apps, we need to use the web callback and have it redirect to the app
-      // Don't use the Expo redirect URI directly with Spotify
-      console.log(`🎵 About to call getSpotifyAuthUrl with state: ${state}, isLinking: true`);
-      const authUrl = oauthService.getSpotifyAuthUrl(state, true);
+      // Use regular OAuth URL (not linking)
+      const authUrl = oauthService.getSpotifyAuthUrl(state, false);
       
       console.log(`🎵 Generated auth URL: ${authUrl}`);
       
