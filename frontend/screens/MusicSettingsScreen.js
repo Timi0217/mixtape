@@ -182,9 +182,12 @@ export default function MusicSettingsScreen({ onClose }) {
 
   const connectSpotifyWithAuthSession = async () => {
     try {
+      console.log('🚀 Starting connectSpotifyWithAuthSession');
       // Get auth URL from backend - same as login flow
+      console.log('📡 Making request to /music/auth/spotify');
       const response = await api.post('/music/auth/spotify', {});
       
+      console.log('🎵 Backend response status:', response.status);
       console.log('🎵 Backend response:', response.data);
       
       if (!response.data.authUrl) {
