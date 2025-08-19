@@ -85,81 +85,7 @@ router.post('/spotify/exchange',
   }
 );
 
-// Start Spotify OAuth flow for account linking (authenticated users)
-router.get('/spotify/link', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user!.id;
-    const state = oauthService.generateState();
-    const authUrl = oauthService.getSpotifyAuthUrl(state, true); // true for linking
-    
-    // Store state with user context for linking
-    await OAuthSessionService.storeLinkingState(state, 'spotify', userId);
-    
-    res.json({
-      authUrl,
-      state,
-      tokenId: state,
-    });
-    
-  } catch (error) {
-    console.error('Spotify OAuth linking error:', error);
-    res.status(500).json({ error: 'Failed to initiate Spotify account linking' });
-  }
-});
-
-// Exchange Spotify code for token (for account linking)
-router.post('/spotify/link-exchange',
-  [
-    body('code').notEmpty().withMessage('Authorization code is required'),
-    body('redirectUri').notEmpty().withMessage('Redirect URI is required'),
-    body('state').notEmpty().withMessage('State parameter is required'),
-  ],
-  validateRequest,
-  async (req, res) => {
-    try {
-      const { code, redirectUri, state } = req.body;
-
-      // Validate state and get user context
-      const linkingSession = await OAuthSessionService.getLinkingSession(state);
-      if (!linkingSession || linkingSession.platform !== 'spotify') {
-        return res.status(400).json({ error: 'Invalid linking session' });
-      }
-
-      // Exchange code for tokens using the provided redirect URI
-      const tokenData = await oauthService.exchangeSpotifyCodeWithUri(code, redirectUri);
-      
-      // Get user profile
-      const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
-      
-      // Link to existing user instead of creating new one
-      try {
-        await oauthService.linkMusicAccountToUser(
-          linkingSession.userId,
-          'spotify',
-          userProfile,
-          tokenData
-        );
-      } catch (error) {
-        // MergeRequiredError no longer thrown - auto-merge happens in service
-        console.error('OAuth error:', error);
-        throw error;
-      }
-
-      // Clean up linking session
-      await OAuthSessionService.deleteLinkingSession(state);
-
-      res.json({
-        success: true,
-        platform: 'spotify',
-        message: 'Spotify account linked successfully',
-      });
-      
-    } catch (error) {
-      console.error('Spotify account linking error:', error);
-      res.status(500).json({ error: 'Failed to link Spotify account' });
-    }
-  }
-);
+// Account linking routes removed - simplified to login-only approach
 
 // Handle webhook.site callback
 router.get('/webhook/spotify',
@@ -597,8 +523,8 @@ router.get('/callback',
   }
 );
 
-// Handle Spotify OAuth callback for linking
-router.get('/spotify/link-callback',
+// Complex linking route removed - simplified to login-only approach
+// router.get('/spotify/link-callback',
   async (req, res) => {
     try {
       const { code, state, error } = req.query;
@@ -771,50 +697,7 @@ router.get('/spotify/callback',
         return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=missing_state`);
       }
 
-      // Check if this is account linking or regular login
-      const linkingSession = await OAuthSessionService.getLinkingSession(state as string);
-      
-      if (linkingSession) {
-        // This is account linking - link to existing user
-        console.log(`🔗 Account linking for user ${linkingSession.userId}`);
-        
-        const tokenData = await oauthService.exchangeSpotifyCode(code as string);
-        const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
-        
-        await oauthService.linkMusicAccountToUser(
-          linkingSession.userId,
-          'spotify',
-          userProfile,
-          tokenData
-        );
-        
-        // Store success token data for polling
-        await OAuthSessionService.storeTokenData(state as string, { 
-          success: true, 
-          platform: 'spotify',
-          linked: true 
-        }, 'spotify');
-        
-        // Clean up linking session
-        await OAuthSessionService.deleteLinkingSession(state as string);
-        
-        console.log(`✅ Account linked successfully for user ${linkingSession.userId}`);
-        
-        // Simple success message - polling will handle the app redirect
-        return res.send(`
-          <!DOCTYPE html>
-          <html>
-          <head><title>Success</title></head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 40px; background: #1DB954; color: white;">
-            <h1>✅ Success!</h1>
-            <p>Spotify account linked successfully.</p>
-            <p>You can close this window.</p>
-          </body>
-          </html>
-        `);
-      }
-      
-      // This is regular login - verify state and proceed
+      // Simple login flow only - no account linking complexity
       const isValidState = await OAuthSessionService.verifyState(state as string, 'spotify');
       
       if (!isValidState) {

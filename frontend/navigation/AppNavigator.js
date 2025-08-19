@@ -6,7 +6,6 @@ import MusicSearchScreen from '../screens/MusicSearchScreen';
 import GroupCreateScreen from '../screens/GroupCreateScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import JoinGroupScreen from '../screens/JoinGroupScreen';
-import MusicSettingsScreen from '../screens/MusicSettingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import AboutScreen from '../screens/AboutScreen';
 import GroupSettingsScreen from '../screens/GroupSettingsScreen';
@@ -415,7 +414,6 @@ const AppNavigator = () => {
   const [showGroupCreate, setShowGroupCreate] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showJoinGroup, setShowJoinGroup] = useState(false);
-  const [showMusicSettings, setShowMusicSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
@@ -1380,12 +1378,6 @@ const AppNavigator = () => {
 
         <View style={styles.profileActions}>
           <Button
-            title="🎵 Music Settings"
-            onPress={() => setShowMusicSettings(true)}
-            variant="secondary"
-            style={styles.profileActionButton}
-          />
-          <Button
             title="🔔 Notifications"
             onPress={() => setShowNotifications(true)}
             variant="secondary"
@@ -1483,12 +1475,6 @@ const AppNavigator = () => {
         />
       </Modal>
 
-      {/* Music Settings Modal */}
-      <Modal visible={showMusicSettings} animationType="slide">
-        <MusicSettingsScreen
-          onClose={() => setShowMusicSettings(false)}
-        />
-      </Modal>
 
       {/* Notifications Modal */}
       <Modal visible={showNotifications} animationType="slide">
