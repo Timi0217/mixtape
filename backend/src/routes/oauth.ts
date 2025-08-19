@@ -783,29 +783,55 @@ router.get('/spotify/callback',
         const tokenData = await oauthService.exchangeSpotifyCode(code as string);
         const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
         
-        // Simply add Spotify account to existing user
-        await prisma.userMusicAccount.upsert({
-          where: {
-            userId_platform: {
-              userId: linkingSession.userId,
-              platform: 'spotify'
-            }
-          },
-          update: {
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
-          },
-          create: {
-            userId: linkingSession.userId,
-            platform: 'spotify',
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+        // Check if there's an existing user with this Spotify email
+        const existingSpotifyUser = await prisma.user.findUnique({
+          where: { email: userProfile.email },
+          include: { 
+            musicAccounts: true,
+            groupMemberships: true,
+            adminGroups: true,
+            submissions: true,
+            votes: true
           }
         });
         
-        console.log(`✅ Successfully added Spotify account to user ${linkingSession.userId}`);
+        if (existingSpotifyUser && existingSpotifyUser.id !== linkingSession.userId) {
+          console.log(`🔄 Found existing Spotify user ${existingSpotifyUser.id}, merging into ${linkingSession.userId}`);
+          
+          // Merge the existing Spotify user into the current user
+          await oauthService.mergeMusicProfiles(
+            linkingSession.userId, // primary (Apple Music user)
+            existingSpotifyUser,   // secondary (Spotify user to merge)
+            'spotify',
+            tokenData
+          );
+          
+          console.log(`✅ Successfully merged Spotify user ${existingSpotifyUser.id} into ${linkingSession.userId}`);
+        } else {
+          // No existing user, just add the Spotify account
+          await prisma.userMusicAccount.upsert({
+            where: {
+              userId_platform: {
+                userId: linkingSession.userId,
+                platform: 'spotify'
+              }
+            },
+            update: {
+              accessToken: tokenData.access_token,
+              refreshToken: tokenData.refresh_token,
+              expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+            },
+            create: {
+              userId: linkingSession.userId,
+              platform: 'spotify',
+              accessToken: tokenData.access_token,
+              refreshToken: tokenData.refresh_token,
+              expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+            }
+          });
+          
+          console.log(`✅ Successfully added Spotify account to user ${linkingSession.userId}`);
+        }
         
         // Clean up linking session
         await OAuthSessionService.deleteLinkingSession(state as string);
