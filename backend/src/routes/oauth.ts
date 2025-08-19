@@ -771,7 +771,83 @@ router.get('/spotify/callback',
         return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=missing_state`);
       }
 
-      // Use the exact same flow as login - simple and proven
+      // Check if this is a linking request or login request
+      const linkingSession = await OAuthSessionService.getLinkingSession(state as string);
+      
+      if (linkingSession) {
+        // This is account linking - link to existing user
+        console.log(`🔗 Spotify account linking for user ${linkingSession.userId}`);
+        
+        const tokenData = await oauthService.exchangeSpotifyCode(code as string);
+        const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
+        
+        await oauthService.linkMusicAccountToUser(
+          linkingSession.userId,
+          'spotify',
+          userProfile,
+          tokenData
+        );
+        
+        // Clean up linking session
+        await OAuthSessionService.deleteLinkingSession(state as string);
+        
+        // Show success page for linking
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Account Linked - Mixtape</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .container {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(20px);
+                border-radius: 24px;
+                padding: 60px 40px;
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+              }
+              .success-icon {
+                width: 80px; height: 80px; background: #34C759; border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                margin: 0 auto 24px; color: white; font-size: 36px; font-weight: bold;
+              }
+              h1 { color: #1d1d1f; font-size: 32px; font-weight: 700; margin-bottom: 12px; }
+              p { color: #86868b; font-size: 17px; line-height: 1.4; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">✓</div>
+              <h1>Account Linked!</h1>
+              <p>Your Spotify account has been successfully linked to Mixtape.</p>
+            </div>
+            <script>
+              // Auto-redirect to app after 2 seconds
+              setTimeout(() => {
+                window.location.href = 'mixtape://auth/success?platform=spotify&linked=true';
+              }, 2000);
+            </script>
+          </body>
+          </html>
+        `;
+        
+        return res.send(html);
+      }
+      
+      // This is a regular login - verify state and proceed
       const isValidState = await OAuthSessionService.verifyState(state as string, 'spotify');
       
       if (!isValidState) {
