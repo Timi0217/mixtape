@@ -254,9 +254,19 @@ class OAuthService {
       console.log(`🔄 Account ${platformEmail} is already linked to another user (${existingUserWithPlatform.id}). Auto-merging accounts...`);
       
       // Auto-merge: keep current user as primary, merge existing user's data
-      await this.mergeUsers(user.id, existingUserWithPlatform.id, platform);
+      await this.mergeMusicProfiles(user.id, existingUserWithPlatform, platform, tokenData);
       
       console.log(`✅ Auto-merged accounts successfully. Primary user: ${user.id}`);
+      
+      // Account is now merged, return the updated user account
+      return await prisma.userMusicAccount.findUnique({
+        where: {
+          userId_platform: {
+            userId: user.id,
+            platform: platform
+          }
+        }
+      });
     } else {
       // Normal case - either no existing account or same user
       // Check if this platform is already linked to current user
