@@ -194,6 +194,11 @@ export default function MusicSettingsScreen({ onClose }) {
       const { authUrl, state } = response.data;
       console.log('🎵 Opening Spotify auth URL:', authUrl);
       console.log('🔗 OAuth state for linking:', state);
+      console.log('🔗 Full response data:', response.data);
+
+      if (!state) {
+        throw new Error('No state received from backend');
+      }
 
       // Open OAuth flow in browser with same options as login
       const browserTask = WebBrowser.openBrowserAsync(authUrl, {
@@ -203,7 +208,13 @@ export default function MusicSettingsScreen({ onClose }) {
       
       // Start polling for completion like login flow does
       console.log('Starting polling for linking completion');
-      startLinkingPolling(state, 'spotify', browserTask);
+      try {
+        startLinkingPolling(state, 'spotify', browserTask);
+      } catch (pollingError) {
+        console.error('❌ Polling setup error:', pollingError);
+        setLoading(false);
+        Alert.alert('Error', 'Failed to setup polling: ' + pollingError.message);
+      }
       
       // Handle browser close events
       browserTask.then((result) => {
@@ -211,6 +222,9 @@ export default function MusicSettingsScreen({ onClose }) {
           console.log('User cancelled linking flow');
           setLoading(false);
         }
+      }).catch((browserError) => {
+        console.error('❌ Browser error:', browserError);
+        setLoading(false);
       });
       
     } catch (error) {
