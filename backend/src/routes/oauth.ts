@@ -758,20 +758,7 @@ router.get('/spotify/callback',
       
       console.log(`🎵 Spotify callback received: code=${!!code}, state=${state}, error=${error}`);
       
-      // Check if this is a linking session first
-      console.log(`🔍 Checking for linking session with state: ${state}`);
-      const linkingSession = await OAuthSessionService.getLinkingSession(state as string);
-      console.log(`🔍 Linking session result:`, linkingSession);
-      
-      if (linkingSession && linkingSession.platform === 'spotify') {
-        console.log('🔗 Detected linking session, proceeding with auto-merge...');
-        // Auto-merge will happen in the service, proceed normally
-      } else {
-        console.log('🚫 No linking session found, proceeding with regular OAuth flow');
-      }
-      
-
-      // Check for OAuth error
+      // Check for OAuth error first
       if (error) {
         return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=${error}`);
       }
@@ -784,6 +771,52 @@ router.get('/spotify/callback',
         return res.redirect(`${process.env.FRONTEND_URL}auth/error?error=missing_state`);
       }
 
+      // Check if this is a linking session first
+      console.log(`🔍 Checking for linking session with state: ${state}`);
+      const linkingSession = await OAuthSessionService.getLinkingSession(state as string);
+      console.log(`🔍 Linking session result:`, linkingSession);
+      
+      if (linkingSession && linkingSession.platform === 'spotify') {
+        console.log('🔗 Detected linking session, handling account addition...');
+        
+        // Handle linking flow - add Spotify to existing user
+        const tokenData = await oauthService.exchangeSpotifyCode(code as string);
+        const userProfile = await oauthService.getSpotifyUserProfile(tokenData.access_token);
+        
+        // Simply add Spotify account to existing user
+        await prisma.userMusicAccount.upsert({
+          where: {
+            userId_platform: {
+              userId: linkingSession.userId,
+              platform: 'spotify'
+            }
+          },
+          update: {
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+          },
+          create: {
+            userId: linkingSession.userId,
+            platform: 'spotify',
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
+          }
+        });
+        
+        console.log(`✅ Successfully added Spotify account to user ${linkingSession.userId}`);
+        
+        // Clean up linking session
+        await OAuthSessionService.deleteLinkingSession(state as string);
+        
+        // Redirect to success
+        return res.redirect('mixtape://auth/success?platform=spotify&linked=true');
+      }
+      
+      console.log('🚫 No linking session found, proceeding with regular OAuth flow');
+
+      // Regular OAuth flow - validate state and create/update user
       const isValidState = await OAuthSessionService.verifyState(state as string, 'spotify');
       
       if (!isValidState) {
