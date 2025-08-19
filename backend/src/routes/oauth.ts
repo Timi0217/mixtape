@@ -851,9 +851,21 @@ router.get('/spotify/callback',
             <p>Redirecting back to app...</p>
             <script>
               console.log('Redirecting to: mixtape://auth/success?platform=spotify&linked=true');
-              setTimeout(() => {
-                window.location.href = 'mixtape://auth/success?platform=spotify&linked=true';
-              }, 2000);
+              
+              function redirectToApp() {
+                try {
+                  window.location.href = 'mixtape://auth/success?platform=spotify&linked=true';
+                  // Fallback: if deep link doesn't work, show manual button
+                  setTimeout(() => {
+                    document.body.innerHTML += '<br><a href="mixtape://auth/success?platform=spotify&linked=true" style="color: white; font-size: 18px; text-decoration: underline;">Tap here to return to app</a>';
+                  }, 3000);
+                } catch (error) {
+                  console.error('Redirect failed:', error);
+                  document.body.innerHTML += '<br><a href="mixtape://auth/success?platform=spotify&linked=true" style="color: white; font-size: 18px; text-decoration: underline;">Tap here to return to app</a>';
+                }
+              }
+              
+              setTimeout(redirectToApp, 2000);
             </script>
           </body>
           </html>
