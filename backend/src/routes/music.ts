@@ -323,12 +323,14 @@ router.post('/auth/:platform', authenticateToken, async (req: AuthRequest, res) 
     console.log(`🔗 User ${userId} requesting to connect ${platform} account`);
     
     if (platform === 'spotify') {
-      // Use exact same flow as login - regular state, not linking state
+      // Store user context so callback knows this is account linking
       const { oauthService } = await import('../services/oauthService');
       const { OAuthSessionService } = await import('../services/oauthSessionService');
       
       const state = oauthService.generateState();
+      // Store both regular state AND linking context
       await OAuthSessionService.storeState(state, 'spotify');
+      await OAuthSessionService.storeLinkingState(state, 'spotify', userId);
       
       const authUrl = oauthService.getSpotifyAuthUrl(state);
       
