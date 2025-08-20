@@ -545,6 +545,100 @@ class OAuthService {
     };
   }
 
+  // Create or update user from Apple Music authentication with proper MusicKit integration
+  async createOrUpdateUserFromAppleMusic(musicUserToken: string, userInfo?: any): Promise<{ user: any, token: string }> {
+    try {
+      console.log('🍎 Creating/updating Apple Music user with MusicKit token');
+      
+      // Validate the Music User Token first
+      const isValid = await this.validateAppleMusicUserToken(musicUserToken);
+      if (!isValid) {
+        throw new Error('Invalid Apple Music user token - please ensure this is a Music User Token from MusicKit, not an Apple ID token');
+      }
+
+      // Extract user information or create default
+      let email: string;
+      let displayName: string;
+      let appleMusicUserId: string;
+
+      if (userInfo && userInfo.id) {
+        // Use provided user info if available
+        appleMusicUserId = userInfo.id;
+        email = userInfo.email || `apple_music_${appleMusicUserId}@mixtape.internal`;
+        displayName = userInfo.name || userInfo.displayName || 'Apple Music User';
+      } else {
+        // Create unique identifier from token or timestamp
+        appleMusicUserId = `apple_music_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        email = `apple_music_${appleMusicUserId}@mixtape.internal`;
+        displayName = 'Apple Music User';
+      }
+
+      console.log('🎵 Apple Music user details:', { appleMusicUserId, email, displayName });
+
+      // Find existing user by email or create new one
+      let user = await prisma.user.findUnique({
+        where: { email },
+        include: { musicAccounts: true }
+      });
+
+      if (!user) {
+        console.log('👤 Creating new user for Apple Music');
+        user = await prisma.user.create({
+          data: {
+            email,
+            displayName,
+          },
+          include: { musicAccounts: true }
+        });
+      } else {
+        console.log('✅ Found existing user for Apple Music');
+      }
+
+      // Store the Music User Token (this is the key difference from Apple ID tokens)
+      await prisma.userMusicAccount.upsert({
+        where: {
+          userId_platform: {
+            userId: user.id,
+            platform: 'apple-music',
+          },
+        },
+        update: {
+          accessToken: musicUserToken, // Real Music User Token for API calls
+          refreshToken: null, // Apple Music doesn't provide refresh tokens
+          expiresAt: null, // Music User Tokens don't have traditional expiry
+        },
+        create: {
+          userId: user.id,
+          platform: 'apple-music',
+          accessToken: musicUserToken, // Real Music User Token for API calls
+          refreshToken: null,
+          expiresAt: null,
+        },
+      });
+
+      console.log('🔐 Stored Music User Token for playlist creation');
+
+      // Generate JWT token for our app
+      const jwtToken = jwt.sign(
+        {
+          userId: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        },
+        config.jwt.secret,
+        { expiresIn: '7d' }
+      );
+
+      return {
+        user,
+        token: jwtToken,
+      };
+    } catch (error) {
+      console.error('❌ Apple Music user creation error:', error);
+      throw new Error(`Failed to create/update Apple Music user: ${error.message}`);
+    }
+  }
+
   // Get user's music account tokens
   async getUserMusicAccount(userId: string, platform: string) {
     const account = await prisma.userMusicAccount.findUnique({

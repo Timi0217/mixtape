@@ -14,7 +14,7 @@ export class GroupPlaylistService {
    * Create or get existing group playlists for all platforms used by group members
    * Now with proper race condition handling and atomic operations
    */
-  static async ensureGroupPlaylists(groupId: string): Promise<GroupPlaylistManager[]> {
+  static async ensureGroupPlaylists(groupId: string, requestingUserId?: string): Promise<GroupPlaylistManager[]> {
     console.log(`🎵 Ensuring group playlists exist for group: ${groupId}`);
 
     const group = await prisma.group.findUnique({
@@ -38,14 +38,21 @@ export class GroupPlaylistService {
       throw new Error('Group not found');
     }
 
-    // Determine which platforms are used by group members
-    const platformsInUse = this.getPlatformsUsedByGroup(group.members);
-    console.log(`📱 Platforms used by group: ${platformsInUse.join(', ')}`);
+    let platformsToCreate: string[] = [];
+    
+    // Create playlists for all platforms used by group members
+    // Admin can create them, but playlists should exist for all platforms in the group
+    platformsToCreate = this.getPlatformsUsedByGroup(group.members);
+    console.log(`📱 Creating playlists for all group platforms: ${platformsToCreate.join(', ')}`);
+    
+    if (requestingUserId) {
+      console.log(`👑 Admin ${requestingUserId} creating playlists for group`);
+    }
 
     const groupPlaylists: GroupPlaylistManager[] = [];
 
     // Process platforms sequentially to avoid race conditions
-    for (const platform of platformsInUse) {
+    for (const platform of platformsToCreate) {
       try {
         let groupPlaylist = group.groupPlaylists.find(gp => gp.platform === platform && gp.isActive);
 
@@ -55,7 +62,8 @@ export class GroupPlaylistService {
             // Try to create playlist atomically
             groupPlaylist = await this.createPlatformPlaylistAtomic(
               group,
-              platform
+              platform,
+              requestingUserId
             );
           } catch (error) {
             // If creation fails due to duplicate, try to fetch existing
@@ -581,6 +589,7 @@ export class GroupPlaylistService {
       const groupPlaylist = await prisma.groupPlaylist.create({
         data: {
           groupId,
+          userId: user.id,
           platform,
           platformPlaylistId: playlistResult.playlistId,
           playlistName,
@@ -616,7 +625,7 @@ export class GroupPlaylistService {
       // Create playlist
       const playlistResponse = await axios.post(`${spotifyApi}/users/${userId}/playlists`, {
         name,
-        description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
+        description: 'Automatically updated every morning at 8am with fresh submissions from your group',
         public: false,
         collaborative: false, // Keep it managed by the system
       }, {
@@ -648,35 +657,56 @@ export class GroupPlaylistService {
   }
 
   /**
-   * Create Apple Music group playlist
+   * Create Apple Music group playlist with real MusicKit integration
    */
-  private static async createAppleMusicGroupPlaylist(accessToken: string, name: string) {
+  private static async createAppleMusicGroupPlaylist(musicUserToken: string, name: string) {
     try {
-      console.log(`🍎 Creating Apple Music playlist "${name}"`);
+      console.log(`🍎 Creating Apple Music playlist "${name}" with MusicKit`);
+      
+      // Validate that this is a proper Music User Token
+      if (!musicUserToken || musicUserToken.trim() === '') {
+        throw new Error('Empty or missing Music User Token');
+      }
+      
+      // Check for obvious Apple ID tokens and reject them
+      if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0') || musicUserToken.startsWith('eyJhbGciOiJSUzI1NiI')) {
+        throw new Error('Invalid token: This appears to be an Apple ID token. Please provide a Music User Token from MusicKit.js authorization.');
+      }
+      
+      console.log(`🔑 Using Music User Token for playlist creation (length: ${musicUserToken.length})`);
       
       const { appleMusicService } = await import('./appleMusicService');
       
-      const playlist = await appleMusicService.createPlaylist(accessToken, {
+      const playlist = await appleMusicService.createPlaylist(musicUserToken, {
         name,
-        description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
+        description: 'Automatically updated every morning at 8am with fresh submissions from your group',
         songs: [], // Start empty
       });
       
-      console.log(`✅ Created Apple Music playlist: ${playlist.id}`);
+      console.log(`✅ Successfully created Apple Music playlist:`, {
+        id: playlist.id,
+        name: playlist.attributes?.name || name
+      });
       
       return {
         playlistId: playlist.id,
-        playlistUrl: `https://music.apple.com/playlist/${playlist.id}`,
+        playlistUrl: `https://music.apple.com/library/playlist/${playlist.id}`,
       };
     } catch (error) {
-      console.error(`❌ Apple Music playlist creation failed:`, error.message);
+      console.error(`❌ Apple Music playlist creation failed:`, {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       
       if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
-        throw new Error('Apple Music token is invalid or expired. Please reconnect your Apple Music account.');
+        throw new Error('Apple Music authentication failed. Please ensure you have a valid Music User Token from MusicKit.js and proper playlist permissions.');
       } else if (error.message?.includes('403') || error.message?.includes('forbidden')) {
-        throw new Error('Insufficient Apple Music permissions. Please reconnect your Apple Music account with playlist creation permissions.');
+        throw new Error('Insufficient Apple Music permissions. Please grant playlist creation permissions in MusicKit authorization.');
+      } else if (error.message?.includes('Invalid token')) {
+        throw error; // Re-throw our token validation errors
       } else {
-        throw new Error(`Failed to create Apple Music playlist: ${error.message}`);
+        throw new Error(`Apple Music playlist creation failed: ${error.message}`);
       }
     }
   }
@@ -714,7 +744,7 @@ export class GroupPlaylistService {
       
       const response = await axios.put(`${spotifyApi}/playlists/${playlistId}`, {
         name,
-        description: 'Automatically updated every morning at 8:30am with fresh submissions from your group',
+        description: 'Automatically updated every morning at 8am with fresh submissions from your group',
       }, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -858,8 +888,16 @@ export class GroupPlaylistService {
   /**
    * Find a user who can manage the playlist for a specific platform
    */
-  static async findPlaylistManager(group: any, platform: string) {
-    // Try admin first
+  static async findPlaylistManager(group: any, platform: string, requestingUserId?: string) {
+    // Priority: requesting user > admin > any member
+    
+    // Try requesting user first if provided
+    if (requestingUserId) {
+      const requestingUser = await this.findUserWithPlatform(requestingUserId, platform);
+      if (requestingUser) return requestingUser;
+    }
+    
+    // Try admin next
     const admin = await this.findUserWithPlatform(group.adminUserId, platform);
     if (admin) return admin;
 
@@ -893,16 +931,23 @@ export class GroupPlaylistService {
    */
   private static async createPlatformPlaylistAtomic(
     group: any,
-    platform: string
+    platform: string,
+    requestingUserId?: string
   ) {
     console.log(`🆕 Creating new ${platform} playlist for group ${group.name}`);
     
     // Find a group member with this platform to create the playlist
-    const adminUser = await this.findUserWithPlatform(group.adminUserId, platform);
-    let creatorUser = adminUser;
+    // Priority: requesting user > admin > any member
+    let creatorUser = null;
     
-    if (!adminUser) {
-      console.log(`⚠️ Admin doesn't have ${platform} account, finding another member...`);
+    // Find the best user to create playlist for this platform
+    // Priority: admin first, then any group member with the platform
+    console.log(`🔍 Finding user with ${platform} account for playlist creation`);
+    creatorUser = await this.findUserWithPlatform(group.adminUserId, platform);
+    
+    if (!creatorUser) {
+      // Admin doesn't have this platform, find any group member who does
+      console.log(`⚠️ Admin doesn't have ${platform} account, finding group member...`);
       const memberWithPlatform = group.members.find((member: any) => 
         member.user.musicAccounts.some((account: any) => account.platform === platform)
       );
@@ -912,18 +957,22 @@ export class GroupPlaylistService {
       }
       
       creatorUser = memberWithPlatform.user;
+      console.log(`✅ Using group member ${creatorUser.displayName}'s ${platform} account`);
+    } else {
+      console.log(`✅ Using admin's ${platform} account for playlist creation`);
     }
     
-    if (!creatorUser) {
-      throw new Error(`No user found with ${platform} account`);
-    }
-    
-    // Check if we should create a mock playlist for development
+    // Get user's music account token and create real playlist
     const { musicService } = await import('./musicService');
     const freshToken = await musicService.getValidUserToken(creatorUser.id, platform);
     
-    if (!freshToken || freshToken.startsWith('fake_')) {
-      console.log(`⚠️ No valid token or fake token detected for ${platform}. Creating mock playlist for development.`);
+    if (!freshToken) {
+      throw new Error(`No valid ${platform} token available for user ${creatorUser.displayName}. Please reconnect your ${platform} account.`);
+    }
+    
+    // For development, still allow fake tokens for non-Apple Music platforms
+    if (freshToken.startsWith('fake_') && platform !== 'apple-music') {
+      console.log(`⚠️ Fake token detected for ${platform}. Creating mock playlist for development.`);
       return await this.createMockPlatformPlaylist(
         creatorUser,
         platform,
@@ -931,6 +980,13 @@ export class GroupPlaylistService {
         group.id
       );
     }
+    
+    // For Apple Music, reject any demo/fake tokens - we want real integration only
+    if (platform === 'apple-music' && (freshToken.startsWith('demo_') || freshToken.startsWith('fake_'))) {
+      throw new Error('Apple Music requires a real Music User Token from MusicKit. Please authenticate with MusicKit.js to create playlists.');
+    }
+    
+    console.log(`🎵 Creating real ${platform} playlist for ${creatorUser.displayName}`);
     
     // Create the real playlist
     return await this.createPlatformPlaylist(
@@ -994,6 +1050,136 @@ export class GroupPlaylistService {
   }
 
   /**
+   * Delete all playlists for a group when the group is being deleted
+   */
+  static async deleteAllGroupPlaylists(groupId: string): Promise<void> {
+    console.log(`🗑️ Deleting all playlists for group: ${groupId}`);
+
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        groupPlaylists: {
+          where: { isActive: true }
+        },
+        members: {
+          include: {
+            user: {
+              include: {
+                musicAccounts: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!group || group.groupPlaylists.length === 0) {
+      console.log('ℹ️ No playlists found to delete');
+      return;
+    }
+
+    // Delete playlists from each platform
+    for (const playlist of group.groupPlaylists) {
+      try {
+        console.log(`🗑️ Deleting ${playlist.platform} playlist: ${playlist.playlistName} (ID: ${playlist.platformPlaylistId})`);
+        
+        // Skip deletion for mock playlists
+        if (playlist.platformPlaylistId.startsWith('mock_')) {
+          console.log(`⚠️ Skipping deletion of mock playlist: ${playlist.platformPlaylistId}`);
+        } else {
+          const playlistManager = await this.findPlaylistManager(group, playlist.platform);
+          if (!playlistManager) {
+            console.log(`⚠️ No playlist manager found for ${playlist.platform}, skipping platform deletion`);
+          } else {
+            const { musicService } = await import('./musicService');
+            const freshToken = await musicService.getValidUserToken(playlistManager.id, playlist.platform);
+            if (!freshToken) {
+              console.log(`⚠️ No valid token for ${playlist.platform}, skipping platform deletion`);
+            } else {
+              // Delete from platform
+              if (playlist.platform === 'spotify') {
+                await this.deleteSpotifyPlaylist(freshToken, playlist.platformPlaylistId);
+              } else if (playlist.platform === 'apple-music') {
+                await this.deleteAppleMusicPlaylist(freshToken, playlist.platformPlaylistId);
+              }
+              console.log(`✅ Deleted ${playlist.platform} playlist from platform`);
+            }
+          }
+        }
+
+        // Mark as inactive in database
+        await prisma.groupPlaylist.update({
+          where: { id: playlist.id },
+          data: { isActive: false },
+        });
+
+      } catch (error) {
+        console.error(`❌ Failed to delete ${playlist.platform} playlist:`, error);
+        // Continue with other playlists even if one fails
+      }
+    }
+
+    console.log(`✅ Finished deleting all playlists for group ${groupId}`);
+  }
+
+  /**
+   * Delete Spotify playlist
+   */
+  private static async deleteSpotifyPlaylist(accessToken: string, playlistId: string): Promise<void> {
+    const spotifyApi = 'https://api.spotify.com/v1';
+
+    try {
+      console.log(`🎵 Deleting Spotify playlist: ${playlistId}`);
+      
+      // Note: Spotify doesn't allow playlist deletion via API, but we can unfollow it
+      // This effectively removes it from the user's playlists
+      await axios.delete(`${spotifyApi}/playlists/${playlistId}/followers`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      
+      console.log(`✅ Successfully unfollowed Spotify playlist: ${playlistId}`);
+    } catch (error) {
+      console.error('❌ Failed to delete Spotify playlist:', {
+        playlistId,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        console.log(`ℹ️ Spotify playlist ${playlistId} already deleted or not found`);
+      } else if (error.response?.status === 401) {
+        throw new Error(`Spotify token expired or invalid`);
+      } else if (error.response?.status === 403) {
+        throw new Error(`Insufficient permissions to delete Spotify playlist`);
+      } else {
+        throw new Error(`Failed to delete Spotify playlist: ${error.response?.data?.error?.message || error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Delete Apple Music playlist
+   */
+  private static async deleteAppleMusicPlaylist(accessToken: string, playlistId: string): Promise<void> {
+    try {
+      console.log(`🍎 Attempting to delete Apple Music playlist: ${playlistId}`);
+      
+      // Apple Music API doesn't support playlist deletion through their service
+      // The playlist will remain but be marked as inactive in our database
+      console.log(`⚠️ Apple Music playlist deletion not implemented - playlist will remain on platform but be marked inactive in database`);
+      
+    } catch (error) {
+      console.error(`❌ Apple Music playlist deletion failed:`, error.message);
+      throw new Error(`Failed to delete Apple Music playlist: ${error.message}`);
+    }
+  }
+
+  /**
    * Create a mock playlist for development/testing when no valid tokens are available
    */
   private static async createMockPlatformPlaylist(
@@ -1002,26 +1188,33 @@ export class GroupPlaylistService {
     groupName: string,
     groupId: string
   ) {
-    console.log(`🎭 Creating MOCK ${platform} playlist for development`);
-
     const playlistName = `${groupName.toLowerCase()} mixtape`;
     const mockPlaylistId = `mock_${platform}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     let playlistUrl;
-    if (platform === 'spotify') {
+    let logMessage;
+    
+    if (platform === 'apple-music') {
+      console.log(`🍎 Creating Apple Music demo playlist - authentication is connected but needs MusicKit integration`);
+      playlistUrl = `https://music.apple.com/library/playlist/${mockPlaylistId}`;
+      logMessage = `✅ Created Apple Music demo playlist. To create real playlists, please integrate MusicKit.js on the frontend.`;
+    } else if (platform === 'spotify') {
+      console.log(`🎭 Creating MOCK ${platform} playlist for development`);
       playlistUrl = `https://open.spotify.com/playlist/${mockPlaylistId}`;
-    } else if (platform === 'apple-music') {
-      playlistUrl = `https://music.apple.com/playlist/${mockPlaylistId}`;
+      logMessage = `✅ Successfully created mock ${platform} playlist for development`;
     } else {
+      console.log(`🎭 Creating MOCK ${platform} playlist for development`);
       playlistUrl = `https://example.com/${platform}/playlist/${mockPlaylistId}`;
+      logMessage = `✅ Successfully created mock ${platform} playlist for development`;
     }
 
-    console.log(`💾 Saving mock playlist to database: ${mockPlaylistId}`);
+    console.log(`💾 Saving playlist to database: ${mockPlaylistId}`);
     
     // Save to database
     const groupPlaylist = await prisma.groupPlaylist.create({
       data: {
         groupId,
+        userId: user.id,
         platform,
         platformPlaylistId: mockPlaylistId,
         playlistName,
@@ -1029,9 +1222,140 @@ export class GroupPlaylistService {
       },
     });
 
-    console.log(`✅ Successfully created mock ${platform} playlist for development`);
-    console.log(`⚠️ This is a MOCK playlist. Connect real music accounts to create actual playlists.`);
+    console.log(logMessage);
     
+    if (platform !== 'apple-music') {
+      console.log(`⚠️ This is a MOCK playlist. Connect real music accounts to create actual playlists.`);
+    }
+    
+    return groupPlaylist;
+  }
+
+  /**
+   * Create individual playlists for all group members (NEW SYSTEM)
+   */
+  static async createIndividualGroupPlaylists(groupId: string): Promise<any[]> {
+    console.log(`🎵 Creating individual playlists for all group members: ${groupId}`);
+
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        members: {
+          include: {
+            user: {
+              include: {
+                musicAccounts: true,
+                groupPlaylists: {
+                  where: { groupId, isActive: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    const createdPlaylists: any[] = [];
+
+    // Create individual playlists for each group member in their own accounts
+    for (const member of group.members) {
+      const user = member.user;
+      console.log(`👤 Processing playlists for user: ${user.displayName}`);
+
+      // Create playlist for each platform the user has connected
+      for (const musicAccount of user.musicAccounts) {
+        const platform = musicAccount.platform;
+        
+        // Check if user already has a playlist for this group on this platform
+        const existingPlaylist = user.groupPlaylists.find(
+          gp => gp.groupId === groupId && gp.platform === platform && gp.isActive
+        );
+
+        if (existingPlaylist) {
+          console.log(`✅ ${user.displayName} already has ${platform} playlist: ${existingPlaylist.playlistName}`);
+          createdPlaylists.push({
+            groupId,
+            platform: existingPlaylist.platform as 'spotify' | 'apple-music',
+            playlistId: existingPlaylist.platformPlaylistId,
+            playlistUrl: existingPlaylist.playlistUrl,
+          });
+          continue;
+        }
+
+        // Create new playlist for this user
+        try {
+          console.log(`🆕 Creating ${platform} playlist for ${user.displayName}`);
+          console.log(`🔑 User ${user.displayName} music accounts:`, user.musicAccounts.map(acc => ({ platform: acc.platform, hasToken: !!acc.accessToken })));
+          
+          const newPlaylist = await this.createUserPlaylist(user, group, platform);
+          
+          console.log(`✅ Successfully created ${platform} playlist for ${user.displayName}: ${newPlaylist.playlistName}`);
+          
+          createdPlaylists.push({
+            groupId,
+            platform: newPlaylist.platform as 'spotify' | 'apple-music',
+            playlistId: newPlaylist.platformPlaylistId,
+            playlistUrl: newPlaylist.playlistUrl,
+          });
+        } catch (error) {
+          console.error(`❌ Failed to create ${platform} playlist for ${user.displayName}:`, error);
+          console.error(`❌ Error details:`, {
+            message: error.message,
+            platform,
+            userId: user.id,
+            userName: user.displayName,
+            userMusicAccounts: user.musicAccounts.length
+          });
+          // Continue with other users/platforms even if one fails
+        }
+      }
+    }
+
+    console.log(`✅ Created ${createdPlaylists.length} individual playlists for group members`);
+    return createdPlaylists;
+  }
+
+  /**
+   * Create individual playlist for a user in their account
+   */
+  private static async createUserPlaylist(user: any, group: any, platform: string) {
+    console.log(`🆕 Creating ${platform} playlist for ${user.displayName} in group ${group.name}`);
+
+    const playlistName = `${group.name.toLowerCase()} mixtape`;
+    const { musicService } = await import('./musicService');
+    
+    // Get fresh token for the user
+    const freshToken = await musicService.getValidUserToken(user.id, platform);
+    if (!freshToken) {
+      throw new Error(`No valid ${platform} token for user ${user.displayName}`);
+    }
+
+    let playlistResult;
+    if (platform === 'spotify') {
+      playlistResult = await this.createSpotifyGroupPlaylist(freshToken, playlistName);
+    } else if (platform === 'apple-music') {
+      playlistResult = await this.createAppleMusicGroupPlaylist(freshToken, playlistName);
+    } else {
+      throw new Error(`Unsupported platform: ${platform}`);
+    }
+
+    // Save to database with userId
+    const groupPlaylist = await prisma.groupPlaylist.create({
+      data: {
+        groupId: group.id,
+        userId: user.id,
+        platform,
+        platformPlaylistId: playlistResult.playlistId,
+        playlistName,
+        playlistUrl: playlistResult.playlistUrl,
+      },
+    });
+
+    console.log(`✅ Created ${platform} playlist for ${user.displayName}: ${playlistName}`);
     return groupPlaylist;
   }
 }

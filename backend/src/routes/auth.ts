@@ -3,6 +3,8 @@ import { body } from 'express-validator';
 import { UserService } from '../services/userService';
 import { generateTokens, verifyRefreshToken } from '../utils/jwt';
 import { validateRequest } from '../utils/validation';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { prisma } from '../config/database';
 
 const router = express.Router();
 
@@ -103,7 +105,75 @@ router.post('/refresh',
   }
 );
 
+// Get current user's profile and music accounts
+router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        musicAccounts: {
+          select: {
+            id: true,
+            platform: true,
+            createdAt: true,
+            expiresAt: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        musicAccounts: user.musicAccounts,
+      },
+    });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
+  }
+});
+
+// Delete a music account
+router.delete('/me/music/:platform', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    const platform = req.params.platform;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const deletedAccount = await prisma.userMusicAccount.deleteMany({
+      where: {
+        userId,
+        platform,
+      },
+    });
+
+    if (deletedAccount.count === 0) {
+      return res.status(404).json({ error: `No ${platform} account found` });
+    }
+
+    res.json({ message: `${platform} account disconnected successfully` });
+  } catch (error) {
+    console.error('Delete music account error:', error);
+    res.status(500).json({ error: 'Failed to disconnect music account' });
+  }
+});
+
 // OAuth endpoints have been moved to /routes/oauth.ts
-// This file now only handles JWT token refresh
 
 export default router;

@@ -23,6 +23,7 @@ model User {
   notificationSettings  UserNotificationSettings?
   musicPreferences      UserMusicPreferences?
   emailAliases          UserEmailAlias[]
+  groupPlaylists        GroupPlaylist[]
   
   @@map("users")
 }
@@ -204,6 +205,7 @@ model OAuthSession {
 model GroupPlaylist {
   id                   String   @id @default(cuid())
   groupId              String   @map("group_id")
+  userId               String   @map("user_id")
   platform             String   // 'spotify' or 'apple-music'
   platformPlaylistId   String   @map("platform_playlist_id")
   playlistName         String   @map("playlist_name")
@@ -214,8 +216,9 @@ model GroupPlaylist {
   updatedAt            DateTime @updatedAt @map("updated_at")
   
   group                Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  @@unique([groupId, platform])
+  @@unique([groupId, userId, platform])
   @@map("group_playlists")
 }
 

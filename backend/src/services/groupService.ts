@@ -8,6 +8,8 @@ export interface CreateGroupData {
   adminUserId: string;
   maxMembers?: number;
   isPublic?: boolean;
+  emoji?: string;
+  backgroundColor?: string;
 }
 
 export interface UpdateGroupData {
@@ -30,6 +32,8 @@ export class GroupService {
           inviteCode,
           maxMembers: groupData.maxMembers || 8,
           isPublic: groupData.isPublic || false,
+          emoji: groupData.emoji || '👥',
+          backgroundColor: groupData.backgroundColor || '#8B5CF6',
         },
         include: {
           admin: {
@@ -192,6 +196,15 @@ export class GroupService {
 
         if (memberCount > 1) {
           throw new Error('Cannot leave group as admin. Transfer ownership first.');
+        }
+        
+        // Delete all group playlists from Spotify/Apple Music before deleting the group
+        try {
+          const { GroupPlaylistService } = await import('./groupPlaylistService');
+          await GroupPlaylistService.deleteAllGroupPlaylists(groupId);
+        } catch (playlistError) {
+          console.error('❌ Failed to delete group playlists:', playlistError);
+          // Continue with group deletion even if playlist deletion fails
         }
         
         await tx.group.delete({

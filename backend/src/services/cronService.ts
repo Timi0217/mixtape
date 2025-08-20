@@ -66,7 +66,7 @@ export class CronService {
 
   /**
    * Process completed rounds and update group playlists
-   * This runs at 8:30 AM UTC to update persistent group playlists with today's submissions
+   * This runs at 8 AM UTC to update persistent group playlists with today's submissions
    */
   static async processCompletedRounds() {
     console.log('🎵 Processing completed rounds...');
@@ -204,8 +204,8 @@ export class CronService {
       timezone: "UTC"
     });
 
-    // Process completed rounds at 8:30 AM UTC  
-    cron.schedule('30 8 * * *', () => {
+    // Process completed rounds at 8 AM UTC  
+    cron.schedule('0 8 * * *', () => {
       console.log('⏰ Running group playlist update job');
       this.processCompletedRounds();
     }, {

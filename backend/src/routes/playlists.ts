@@ -64,6 +64,45 @@ router.get('/:id',
   }
 );
 
+// Test Apple Music authentication status
+router.get('/test-apple-music/:userId',
+  authenticateToken,
+  [
+    param('userId').isString(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { musicAccounts: true }
+      });
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const appleMusicAccount = user.musicAccounts.find(acc => acc.platform === 'apple-music');
+      
+      res.json({
+        userId: user.id,
+        displayName: user.displayName,
+        hasAppleMusicAccount: !!appleMusicAccount,
+        appleMusicToken: appleMusicAccount ? {
+          exists: !!appleMusicAccount.accessToken,
+          isDemo: appleMusicAccount.accessToken?.startsWith('demo_'),
+          tokenPreview: appleMusicAccount.accessToken?.substring(0, 20) + '...'
+        } : null
+      });
+    } catch (error) {
+      console.error('Test Apple Music error:', error);
+      res.status(500).json({ error: 'Test failed' });
+    }
+  }
+);
+
 // Create group playlists for a group (admin only)
 router.post('/group/:groupId/create',
   authenticateToken,
@@ -133,9 +172,19 @@ router.post('/group/:groupId/create',
         });
       }
 
-      // Create group playlists
-      console.log(`🚀 Calling GroupPlaylistService.ensureGroupPlaylists(${groupId})`);
-      const groupPlaylists = await GroupPlaylistService.ensureGroupPlaylists(groupId);
+      // Check if admin has any music accounts (since only admin can create playlists)
+      const adminMember = group.members.find(member => member.user.id === group.adminUserId);
+      if (!adminMember || !adminMember.user.musicAccounts || adminMember.user.musicAccounts.length === 0) {
+        console.log('❌ Admin has no connected music accounts');
+        return res.status(400).json({
+          error: 'Admin has no music accounts',
+          message: 'Only the group admin can create playlists, and the admin needs to have connected music accounts (Spotify or Apple Music).'
+        });
+      }
+
+      // Create individual playlists for all group members
+      console.log(`🚀 Creating individual playlists for all group members in group ${groupId}`);
+      const groupPlaylists = await GroupPlaylistService.createIndividualGroupPlaylists(groupId);
 
       console.log(`✅ Successfully created/ensured ${groupPlaylists.length} group playlists`);
 

@@ -1578,7 +1578,7 @@ router.post('/apple/simulate-callback', async (req, res) => {
     };
     
     const tokenData = {
-      access_token: 'demo_apple_music_token_' + Date.now(),
+      access_token: 'simulated_apple_music_token_' + Date.now(),
       expires_in: 3600,
     };
     
@@ -1637,37 +1637,14 @@ router.post('/apple/music-auth', async (req, res) => {
       },
     };
     
-    // Create token data with music permissions automatically granted
-    const tokenData = {
-      access_token: appleCredential.identityToken || `apple_music_${Date.now()}`,
-      expires_in: 3600 * 24 * 30, // 30 days
-      music_access: true, // Auto-granted
-    };
-    
-    // Create or update user immediately
-    const { user, token } = await oauthService.createOrUpdateUser(
-      'apple-music',
-      userProfile,
-      tokenData
-    );
-    
-    console.log('✅ Apple Music auth completed automatically:', {
-      userId: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      musicAccess: true,
-    });
-    
-    // Return success directly (no browser redirect needed)
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      },
-      platform: 'apple-music',
+    // NOTE: This route is deprecated - use /apple-music/exchange for real MusicKit integration
+    return res.status(410).json({
+      error: 'Deprecated authentication method',
+      message: 'This Apple Music authentication method is deprecated. Please use /api/oauth/apple-music/login and /api/oauth/apple-music/exchange for proper MusicKit integration.',
+      recommendedEndpoints: {
+        login: '/api/oauth/apple-music/login',
+        exchange: '/api/oauth/apple-music/exchange'
+      }
     });
     
   } catch (error) {
@@ -1711,116 +1688,15 @@ router.post('/apple/complete-music-auth', express.urlencoded({ extended: true })
       },
     };
     
-    // Create token data (now with music permissions)
-    const tokenData = {
-      access_token: appleCredential.identityToken || `apple_music_${Date.now()}`,
-      expires_in: 3600 * 24 * 30, // 30 days
-      music_access: true, // Flag indicating music permissions granted
-    };
-    
-    // Create or update user
-    const { user, token } = await oauthService.createOrUpdateUser(
-      'apple-music',
-      userProfile,
-      tokenData
-    );
-    
-    // Store token data for polling
-    await OAuthSessionService.storeTokenData(state, { token, platform: 'apple-music' }, 'apple-music');
-    
-    console.log('✅ Apple Music auth completed with permissions:', {
-      userId: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      musicAccess: true,
+    // NOTE: This route is deprecated - use /apple-music/exchange for real MusicKit integration
+    return res.status(410).json({
+      error: 'Deprecated authentication method',
+      message: 'This Apple Music authentication method is deprecated. Please use /api/oauth/apple-music/login and /api/oauth/apple-music/exchange for proper MusicKit integration.',
+      recommendedEndpoints: {
+        login: '/api/oauth/apple-music/login',
+        exchange: '/api/oauth/apple-music/exchange'
+      }
     });
-    
-    // Check if this is a form submission (fallback method)
-    const isFormSubmission = req.get('Content-Type')?.includes('application/x-www-form-urlencoded');
-    
-    if (isFormSubmission) {
-      // For form submissions, redirect with success page
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Apple Music Connected</title>
-          <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-              background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0;
-            }
-            .container {
-              background: rgba(255, 255, 255, 0.98);
-              border-radius: 20px;
-              padding: 48px 32px;
-              text-align: center;
-              max-width: 380px;
-              width: 90%;
-              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-            }
-            .success-icon {
-              width: 72px;
-              height: 72px;
-              background: #30D158;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0 auto 20px;
-              color: white;
-              font-size: 32px;
-              font-weight: bold;
-            }
-            h1 {
-              color: #1D1D1F;
-              font-size: 28px;
-              font-weight: 600;
-              margin-bottom: 8px;
-              letter-spacing: -0.5px;
-            }
-            p {
-              color: #86868B;
-              font-size: 17px;
-              line-height: 1.4;
-              margin-bottom: 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="success-icon">✓</div>
-            <h1>All Set!</h1>
-            <p>Apple Music is now connected to Mixtape. You can start sharing songs!</p>
-          </div>
-          <script>
-            setTimeout(() => {
-              window.location.href = 'mixtape://auth/success?platform=apple-music&token=${encodeURIComponent(token)}';
-            }, 2000);
-          </script>
-        </body>
-        </html>
-      `);
-    } else {
-      // For JSON requests, return JSON response
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-        },
-        platform: 'apple-music',
-      });
-    }
     
   } catch (error) {
     console.error('❌ Complete Apple Music auth error:', error);
@@ -1854,9 +1730,10 @@ router.post('/apple/native-callback', async (req, res) => {
       },
     };
     
-    // Create token data
+    // NOTE: This route is for Apple Sign In only, not Apple Music
+    // For Apple Music playlist access, use /api/oauth/apple-music/login and /api/oauth/apple-music/exchange
     const tokenData = {
-      access_token: appleCredential.identityToken || `apple_native_${Date.now()}`,
+      access_token: `apple_signin_${Date.now()}`, // Apple Sign In token (not for music)
       expires_in: 3600 * 24 * 30, // 30 days for Apple Sign In
     };
     
@@ -2329,6 +2206,134 @@ router.post('/merge-decision', async (req, res) => {
       success: false, 
       error: 'Failed to process merge decision' 
     });
+  }
+});
+
+// Apple Music MusicKit authorization (separate from Apple ID)
+router.get('/apple-music/login', async (req, res) => {
+  try {
+    const state = oauthService.generateState();
+    await OAuthSessionService.storeState(state, 'apple-music');
+    
+    // Get Apple Music developer token for MusicKit configuration
+    const { appleMusicService } = await import('../services/appleMusicService');
+    let developerToken;
+    
+    try {
+      developerToken = await appleMusicService.getDeveloperToken();
+    } catch (tokenError) {
+      console.error('Failed to generate Apple Music developer token:', tokenError);
+      return res.status(503).json({ 
+        error: 'Apple Music service unavailable',
+        message: 'Apple Music configuration is incomplete. Please check server configuration.'
+      });
+    }
+    
+    // Return MusicKit configuration for frontend
+    res.json({
+      state,
+      musicKitConfig: {
+        developerToken,
+        app: {
+          name: 'Mixtape',
+          build: '1.0.0'
+        }
+      },
+      instructions: 'Use MusicKit.js with the provided configuration to authorize and get musicUserToken'
+    });
+  } catch (error) {
+    console.error('Apple Music OAuth initiation error:', error);
+    res.status(500).json({ error: 'Failed to initiate Apple Music authentication' });
+  }
+});
+
+// Apple Music token exchange - for real MusicKit integration
+router.post('/apple-music/exchange', 
+  [
+    body('musicUserToken').notEmpty().withMessage('Music User Token is required'),
+    body('userInfo').optional().isObject(),
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { musicUserToken, userInfo } = req.body;
+      
+      console.log('🍎 Received Apple Music token exchange request');
+      console.log('🔑 Token preview:', musicUserToken.substring(0, 20) + '...');
+      
+      // Validate that this looks like a real Music User Token, not an Apple ID token
+      if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0')) {
+        console.error('❌ Received Apple ID token instead of Music User Token');
+        return res.status(400).json({ 
+          error: 'Invalid token type',
+          message: 'This appears to be an Apple ID token. Please provide a Music User Token from MusicKit.js authorization.'
+        });
+      }
+      
+      // Use the enhanced Apple Music user creation function
+      const { user, token } = await oauthService.createOrUpdateUserFromAppleMusic(musicUserToken, userInfo);
+
+      console.log('✅ Apple Music authentication successful for user:', user.displayName);
+
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        },
+        platform: 'apple-music',
+      });
+      
+    } catch (error) {
+      console.error('❌ Apple Music token exchange error:', error);
+      res.status(500).json({ 
+        error: 'Failed to exchange Apple Music token',
+        details: error.message
+      });
+    }
+  }
+);
+
+// Get current user's profile (used by frontend for token verification)
+router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        musicAccounts: {
+          select: {
+            id: true,
+            platform: true,
+            createdAt: true,
+            expiresAt: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        musicAccounts: user.musicAccounts,
+      },
+    });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
   }
 });
 

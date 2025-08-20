@@ -13,17 +13,21 @@ router.post('/',
     body('name').trim().isLength({ min: 1, max: 100 }),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
     body('isPublic').optional().isBoolean(),
+    body('emoji').optional().isString().isLength({ min: 1, max: 10 }),
+    body('backgroundColor').optional().isString().matches(/^#[0-9A-Fa-f]{6}$/),
   ],
   validateRequest,
   async (req: AuthRequest, res) => {
     try {
-      const { name, maxMembers, isPublic } = req.body;
+      const { name, maxMembers, isPublic, emoji, backgroundColor } = req.body;
 
       const group = await GroupService.createGroup({
         name,
         adminUserId: req.user!.id,
         maxMembers,
         isPublic,
+        emoji,
+        backgroundColor,
       });
 
       res.status(201).json({ group });
