@@ -19,51 +19,91 @@ import {
 } from 'react-native';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import appleUpgradeService from '../services/appleUpgradeService';
 
-// Comprehensive emoji collection organized by categories
+// Apple-level extensive emoji collection with iOS categories
 const EMOJI_CATEGORIES = {
-  'Music & Entertainment': [
-    '🎵', '🎶', '🎧', '🎤', '🎸', '🎹', '🥁', '🎺', '🎷', '🎻', '🎼', '🎪', '🎭', '🎬', '🎮', '🕹️',
-    '🎯', '🎲', '🃏', '🎨', '🖌️', '🖍️', '📚', '📖', '📝', '✏️', '📺', '📻', '🎙️', '📹', '📷', '📸'
+  '😀': [
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '🫠', '😉', '😊', '😇', '🥰', '😍',
+    '🤩', '😘', '😗', '☺️', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🫢',
+    '🫣', '🤫', '🤔', '🫡', '🤐', '🤨', '😐', '😑', '😶', '🫥', '😶‍🌫️', '😏', '😒', '🙄', '😬', '😮‍💨',
+    '🤥', '🫨', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴',
+    '😵', '😵‍💫', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐', '😕', '🫤', '😟', '🙁', '☹️', '😮', '😯',
+    '😲', '😳', '🥺', '🥹', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓',
+    '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
+    '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'
   ],
-  'Food & Drinks': [
-    '🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🥙', '🍿', '🧂', '🥓', '🍳', '🧇', '🥞', '🧈', '🍞',
-    '🥯', '🥨', '🧀', '🥗', '🥘', '🍲', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍙', '🍘', '🍱',
-    '🎂', '🍰', '🧁', '🥧', '🍮', '🍭', '🍬', '🍫', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛', '☕', '🍵',
-    '🧃', '🥤', '🧋', '🍶', '🍾', '🥂', '🍷', '🍸', '🍹', '🍺', '🍻', '🥃', '🧊', '🥥', '🥭', '🍎'
-  ],
-  'Nature & Weather': [
-    '🌞', '☀️', '🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨',
-    '🌊', '💧', '💦', '☔', '☂️', '🌈', '🌍', '🌎', '🌏', '🪐', '🌌', '⭐', '🌟', '✨', '💫', '☄️',
-    '🌙', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌳', '🌲', '🌴', '🌵'
-  ],
-  'Animals & Creatures': [
-    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵',
+  
+  '🐶': [
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵',
     '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗',
-    '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🪰', '🪲', '🪳', '🦟', '🦗', '🕷️', '🕸️',
-    '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳'
+    '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🪰', '🪲', '🪳', '🦟', '🦗', '🕷️', '🦂',
+    '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋',
+    '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🦣', '🐘', '🦏', '🦛', '🐪', '🐫', '🦒', '🦘', '🦬',
+    '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛',
+    '🪶', '🐓', '🦃', '🦤', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦫', '🦦', '🦥',
+    '🐁', '🐀', '🐿️', '🦔', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄', '🌾', '💐', '🌷', '🌹', '🥀', '🌺'
   ],
-  'Hearts & Love': [
-    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
-    '💘', '💝', '💟', '♥️', '💌', '💋', '💍', '💎', '🌹', '🌷', '🌺', '🌸', '🌼', '🌻', '💐', '🎀'
+  
+  '🍎': [
+    '🍎', '🍏', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝',
+    '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐',
+    '🥖', '🍞', '🥨', '🥯', '🧇', '🥞', '🧈', '🍯', '🥜', '🌰', '🍳', '🥚', '🧀', '🥓', '🥩', '🍗',
+    '🍖', '🦴', '🌭', '🍔', '🍟', '🍕', '🫓', '🥪', '🥙', '🧆', '🌮', '🌯', '🫔', '🥗', '🥘', '🫕',
+    '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🥮', '🍢',
+    '🍡', '🍧', '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰',
+    '🥛', '🍼', '🫖', '☕', '🍵', '🧃', '🥤', '🧋', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹',
+    '🧊', '🥄', '🍴', '🍽️', '🥣', '🥡', '🥢', '🧂'
   ],
-  'Symbols & Objects': [
-    '⚡', '🔥', '💧', '❄️', '💨', '💥', '💢', '💫', '💦', '💨', '🕳️', '💣', '💤', '👁️', '🗨️', '💭',
-    '🗯️', '💬', '🔮', '🎯', '🎲', '🎪', '🎭', '🎨', '🎬', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '👑',
-    '⭐', '🌟', '✨', '💫', '🔸', '🔹', '💠', '🔶', '🔷', '🔺', '🔻', '💎', '🔱', '⚜️', '🔰', '⭕'
-  ],
-  'Activities & Sports': [
+  
+  '⚽': [
     '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍',
-    '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿'
+    '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿',
+    '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', '🤾', '🏌️', '🏇', '🧘', '🏃', '🚶', '🧎', '🧍',
+    '🎪', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🥇', '🥈', '🥉', '🏆', '🏅', '🎖️',
+    '🎗️', '🎫', '🎟️', '🎪', '🤹', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🎯', '🎲',
+    '🎮', '🕹️', '🎳', '♠️', '♥️', '♦️', '♣️', '♟️', '🃏', '🀄', '🎴'
   ],
-  'Travel & Places': [
+  
+  '🚗': [
     '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍️', '🛵',
-    '🚲', '🛴', '🛺', '🚁', '🛸', '✈️', '🛩️', '🛫', '🛬', '🪂', '💺', '🚀', '🛰️', '🚢', '⛵', '🚤',
-    '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩'
+    '🚲', '🛴', '🛹', '🛼', '🚁', '🛸', '✈️', '🛩️', '🪂', '💺', '🚀', '🛰️', '🚊', '🚉', '🚞', '🚝',
+    '🚄', '🚅', '🚈', '🚂', '🚆', '🚇', '🚃', '🚋', '🚟', '🚠', '🚡', '⛴️', '🛥️', '🚤', '⛵', '🛶',
+    '🚢', '⚓', '🪝', '⛽', '🚧', '🚨', '🚥', '🚦', '🛑', '🚏', '🗺️', '🗿', '🗽', '🗼', '🏰', '🏯',
+    '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🛖',
+    '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩',
+    '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '🕋', '⛩️', '🛤️', '🛣️', '🗾', '🎑', '🏞️', '🌅', '🌄', '🌠',
+    '🎇', '🎆', '🌇', '🌆', '🏙️', '🌃', '🌌', '🌉', '🌁'
   ],
-  'Tech & Gaming': [
-    '📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🖲️', '💽', '💾', '💿', '📀', '🧮', '📷', '📸', '📹', '📼',
-    '🎮', '🕹️', '👾', '🤖', '🎯', '🎲', '🃏', '🎴', '🀄', '🎰', '🧩', '🪀', '🎊', '🎉', '🎈', '🎁'
+  
+  '📱': [
+    '⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '🗜️', '💽', '💾', '💿', '📀', '📼',
+    '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭',
+    '⏱️', '⏲️', '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🪫', '🔌', '💡', '🔦', '🕯️', '🪔', '🧯', '🛢️',
+    '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒️',
+    '🛠️', '⛏️', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡️', '⚔️',
+    '🛡️', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳️', '🩹', '🩺',
+    '💊', '💉', '🩸', '🧬', '🦠', '🧫', '🧪', '🌡️', '🧹', '🪣', '🧽', '🧴', '🛎️', '🔑', '🗝️', '🚪',
+    '🪑', '🛋️', '🛏️', '🛌', '🧸', '🪆', '🖼️', '🪞', '🪟', '🛍️', '🎁', '🎈', '🎏', '🎀', '🪄', '🪅'
+  ],
+  
+  '❤️': [
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓',
+    '💗', '💖', '💘', '💝', '💟', '♥️', '💌', '💋', '💍', '💎', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️',
+    '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓',
+    '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐',
+    '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔',
+    '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️',
+    '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎',
+    '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹'
+  ],
+  
+  '🎨': [
+    '🎨', '🖌️', '🖍️', '✏️', '✒️', '🖊️', '🖋️', '✂️', '📐', '📏', '📌', '📍', '📎', '🖇️', '📂', '📁',
+    '📄', '📃', '📑', '📊', '📈', '📉', '📜', '📋', '📅', '📆', '🗓️', '📇', '🗃️', '🗳️', '🗄️', '📗',
+    '📘', '📙', '📓', '📔', '📒', '📚', '📖', '🔖', '🧷', '🔗', '📰', '🗞️', '📺', '📻', '🎭', '🎪',
+    '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🎸', '🥁', '🎹', '🎺', '🎷', '🎻', '🪕', '🥀', '🌹',
+    '🌺', '🌸', '🌼', '🌻', '💐', '🎈', '🎉', '🎊', '🎁', '🎀', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️'
   ]
 };
 
@@ -214,10 +254,18 @@ const GroupPlaylistsSection = ({ groupId }) => {
       const response = await api.post(`/playlists/group/${groupId}/create`);
       
       if (response.data.success) {
-        Alert.alert(
-          'Success!', 
-          `Created ${response.data.groupPlaylists?.length || 0} group playlists successfully!\n\nPlaylists will be updated daily at 8:30am with fresh submissions.`
-        );
+        const playlistCount = response.data.groupPlaylists?.length || 0;
+        if (playlistCount > 0) {
+          Alert.alert(
+            'Success!', 
+            `Created ${playlistCount} group playlists successfully!\n\nPlaylists will be updated daily at 8am with fresh submissions.`
+          );
+        } else {
+          Alert.alert(
+            'No Playlists Created', 
+            'No playlists were created. Make sure you have connected your music accounts (Spotify or Apple Music) before creating playlists.'
+          );
+        }
         await loadGroupPlaylists(); // Reload to show new playlists
       } else {
         throw new Error(response.data.error || 'Unknown error occurred');
@@ -230,7 +278,35 @@ const GroupPlaylistsSection = ({ groupId }) => {
       if (error.response?.status === 403) {
         errorMessage = error.response.data?.message || 'You must be the group admin to create playlists.';
       } else if (error.response?.status === 400) {
-        errorMessage = error.response.data?.message || 'Make sure you have connected music accounts (Spotify or Apple Music) to create playlists.';
+        const backendMessage = error.response.data?.message || '';
+        
+        // Check if it's the specific "Admin has no music accounts" error
+        if (backendMessage.includes('admin needs to have connected music accounts')) {
+          // Offer Apple Music upgrade for Apple-authenticated users
+          Alert.alert(
+            'Connect Apple Music',
+            'To create playlists, you need to connect your Apple Music account. Would you like to upgrade your Apple account now?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Connect Apple Music',
+                onPress: async () => {
+                  try {
+                    await appleUpgradeService.completeUpgradeFlow();
+                    // If successful, try creating playlists again
+                    createGroupPlaylists();
+                  } catch (upgradeError) {
+                    console.error('Apple Music upgrade failed:', upgradeError);
+                    // Error already shown by upgrade service
+                  }
+                }
+              }
+            ]
+          );
+          return;
+        }
+        
+        errorMessage = backendMessage || 'Make sure you have connected music accounts (Spotify or Apple Music) to create playlists.';
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
         if (error.response.data.message) {
@@ -360,7 +436,7 @@ const GroupPlaylistsSection = ({ groupId }) => {
   return (
     <View style={styles.playlistsCard}>
       <Text style={styles.playlistsDescription}>
-        Your group's daily playlist is automatically updated every morning at 8:30am.
+        Daily playlists update at 8 AM.
       </Text>
       
       {playlists.length === 0 ? (
@@ -368,9 +444,9 @@ const GroupPlaylistsSection = ({ groupId }) => {
           <View style={styles.emptyPlaylistIcon}>
             <Text style={styles.emptyPlaylistIconText}>🎵</Text>
           </View>
-          <Text style={styles.emptyPlaylistsTitle}>No Playlists Yet</Text>
+          <Text style={styles.emptyPlaylistsTitle}>No Playlists</Text>
           <Text style={styles.emptyPlaylistsText}>
-            Create persistent playlists that will be updated daily with your group's submissions.
+            Create playlists that update daily with group songs.
           </Text>
           <TouchableOpacity
             style={styles.createPlaylistButton}
@@ -384,7 +460,7 @@ const GroupPlaylistsSection = ({ groupId }) => {
               ) : (
                 <>
                   <Text style={styles.createPlaylistIcon}>+</Text>
-                  <Text style={styles.createPlaylistButtonText}>Create Group Playlists</Text>
+                  <Text style={styles.createPlaylistButtonText}>Create Playlists</Text>
                 </>
               )}
             </View>
@@ -515,7 +591,7 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
   const [isEditing, setIsEditing] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('Music & Entertainment');
+  const [selectedCategory, setSelectedCategory] = useState('😀');
 
   const isAdmin = groupData?.adminUserId === user?.id;
 
@@ -712,10 +788,11 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
           onPress: async () => {
             try {
               await api.post(`/groups/${group.id}/leave`);
+              // Close modal immediately after successful deletion to prevent rendering errors
+              onClose();
               Alert.alert(
                 'Left Group', 
-                isAdmin ? 'Group has been deleted.' : 'You have left the group.',
-                [{ text: 'OK', onPress: onClose }]
+                isAdmin ? 'Group has been deleted.' : 'You have left the group.'
               );
             } catch (error) {
               Alert.alert('Error', 'Failed to leave group. Please try again.');
@@ -994,8 +1071,6 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
       <Modal
         visible={showEmojiPicker}
         animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowEmojiPicker(false)}
       >
         <SafeAreaView style={styles.emojiPickerContainer}>
           <View style={styles.emojiPickerHeader}>
@@ -1045,7 +1120,7 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
           </View>
           
           {/* Category Tabs */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryTabs}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryTabs}>
             {Object.keys(EMOJI_CATEGORIES).map((category) => (
               <TouchableOpacity
                 key={category}
@@ -1477,25 +1552,32 @@ const styles = StyleSheet.create({
   categoryTabs: {
     paddingHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+    paddingVertical: theme.spacing.md,
   },
   categoryTab: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    marginRight: theme.spacing.sm,
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.surfaceWhite,
+    width: 50,
+    height: 50,
+    marginRight: theme.spacing.md,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.bgPrimary,
   },
   categoryTabActive: {
-    backgroundColor: theme.colors.primaryButton,
+    backgroundColor: theme.colors.primaryButton + '20',
+    borderWidth: 2,
+    borderColor: theme.colors.primaryButton,
   },
   categoryTabText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 24,
+    color: theme.colors.textPrimary,
   },
   categoryTabTextActive: {
-    color: 'white',
-    fontWeight: '600',
+    fontSize: 24,
+    color: theme.colors.textPrimary,
   },
   emojiGrid: {
     padding: theme.spacing.lg,
@@ -1545,36 +1627,36 @@ const styles = StyleSheet.create({
   },
   emptyPlaylistsState: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl * 2,
+    paddingVertical: theme.spacing.lg,
   },
   emptyPlaylistIcon: {
-    width: 80,
-    height: 80,
+    width: 56,
+    height: 56,
     backgroundColor: theme.colors.primaryButton + '15',
-    borderRadius: 40,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   emptyPlaylistIconText: {
-    fontSize: 36,
+    fontSize: 28,
     color: theme.colors.primaryButton,
   },
   emptyPlaylistsTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '600',
     color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.sm,
-    letterSpacing: -0.2,
+    marginBottom: theme.spacing.xs,
+    letterSpacing: -0.1,
   },
   emptyPlaylistsText: {
-    fontSize: 17,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: theme.spacing.xl,
+    lineHeight: 20,
+    marginBottom: theme.spacing.lg,
     fontWeight: '400',
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
   },
   createPlaylistButton: {
     backgroundColor: theme.colors.primaryButton,

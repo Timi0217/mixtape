@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, Modal, Animated, Dimensions, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, Modal, Animated, Easing, Dimensions, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import MusicSearchScreen from '../screens/MusicSearchScreen';
@@ -284,7 +284,7 @@ function CountdownTimer({ targetDate, label = "TIME LEFT TO SUBMIT" }) {
   );
 }
 
-// Button Component with micro-interactions
+// Button Component with Apple-style micro-interactions
 function Button({ title, onPress, variant = 'primary', style }) {
   const scaleValue = useRef(new Animated.Value(1)).current;
   const opacityValue = useRef(new Animated.Value(1)).current;
@@ -316,32 +316,35 @@ function Button({ title, onPress, variant = 'primary', style }) {
   };
 
   const handlePressIn = () => {
-    // Scale down and opacity change
+    // Apple-style press down animation
     Animated.parallel([
-      Animated.timing(scaleValue, {
-        toValue: 0.96,
-        duration: 80,
+      Animated.spring(scaleValue, {
+        toValue: 0.95,
+        tension: 300,
+        friction: 10,
         useNativeDriver: true,
       }),
       Animated.timing(opacityValue, {
-        toValue: 0.8,
-        duration: 80,
+        toValue: 0.6,
+        duration: 50,
         useNativeDriver: true,
       })
     ]).start();
   };
 
   const handlePressOut = () => {
-    // Scale back up and reset opacity
+    // Apple-style spring back animation
     Animated.parallel([
-      Animated.timing(scaleValue, {
+      Animated.spring(scaleValue, {
         toValue: 1,
-        duration: 100,
+        tension: 300,
+        friction: 10,
         useNativeDriver: true,
       }),
-      Animated.timing(opacityValue, {
+      Animated.spring(opacityValue, {
         toValue: 1,
-        duration: 100,
+        tension: 300,
+        friction: 10,
         useNativeDriver: true,
       })
     ]).start();
@@ -389,12 +392,12 @@ const AppNavigator = () => {
     return deadline;
   };
 
-  // Create drop time for 8:30 AM tomorrow
+  // Create drop time for 8 AM tomorrow
   const getDropTime = () => {
     const now = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(8, 30, 0, 0); // 8:30 AM tomorrow
+    tomorrow.setHours(8, 0, 0, 0); // 8 AM tomorrow
     
     return tomorrow;
   };
@@ -428,6 +431,17 @@ const AppNavigator = () => {
   
   // Confetti animation state
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // Onboarding animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const featureAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+  const buttonAnim = useRef(new Animated.Value(0)).current;
   
   // Load user data on mount
   useEffect(() => {
@@ -459,6 +473,58 @@ const AppNavigator = () => {
       setLoading(false);
     }
   };
+
+  // Onboarding animation functions
+  const startOnboardingAnimations = () => {
+    // Main content fade in
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Stagger feature animations
+    featureAnims.forEach((anim, index) => {
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 600,
+        delay: 400 + (index * 150), // Stagger by 150ms
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+
+    // Button animation last
+    Animated.timing(buttonAnim, {
+      toValue: 1,
+      duration: 600,
+      delay: 1000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Trigger animations when onboarding loads
+  useEffect(() => {
+    if (userGroups.length === 0 && !loading) {
+      startOnboardingAnimations();
+    }
+  }, [userGroups.length, loading]);
 
   const loadCurrentRound = async (groupId) => {
     try {
@@ -759,6 +825,17 @@ const AppNavigator = () => {
       
       setUserGroups([...userGroups, newGroup]);
       setActiveGroup(newGroup);
+      
+      // Load round data for the new group (non-blocking for new groups)
+      try {
+        await loadCurrentRound(newGroup.id);
+        await loadYesterdayPlaylist(newGroup.id);
+        await loadYesterdayRound(newGroup.id);
+      } catch (roundError) {
+        console.log('Round data not available for new group (expected):', roundError);
+        // This is expected for new groups - no rounds exist yet
+      }
+      
       setShowGroupCreate(false);
       
       Alert.alert('Success!', `Group "${groupData.name}" created! 🎉`);
@@ -796,6 +873,15 @@ const AppNavigator = () => {
     }
   };
 
+  const handleGroupDeleted = async () => {
+    // Refresh the user's groups list after a group is deleted
+    try {
+      await loadUserData();
+    } catch (error) {
+      console.error('Failed to refresh groups after deletion:', error);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.safeArea, styles.centered]}>
@@ -804,6 +890,7 @@ const AppNavigator = () => {
       </SafeAreaView>
     );
   }
+
 
   // Show onboarding if user has no groups
   if (userGroups.length === 0) {
@@ -839,62 +926,138 @@ const AppNavigator = () => {
           showsVerticalScrollIndicator={false}
         >
           {/* Hero Section */}
-          <View style={styles.onboardingHero}>
-            <View style={styles.musicIcon}>
-              <Text style={styles.musicIconText}>🎵</Text>
+          <Animated.View 
+            style={[
+              styles.onboardingHero,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  { translateY: slideAnim },
+                  { scale: scaleAnim }
+                ]
+              }
+            ]}
+          >
+            <View style={styles.appIconContainer}>
+              <View style={styles.appIcon}>
+                <Text style={styles.appIconEmoji}>🎧</Text>
+              </View>
             </View>
-            <Text style={styles.onboardingTitle}>Welcome to Mixtape!</Text>
-            <Text style={styles.onboardingTagline}>Your daily music journey begins here</Text>
-          </View>
+            <Text style={styles.onboardingTitle}>Welcome to Mixtape</Text>
+            <Text style={styles.onboardingTagline}>Share music with friends daily.</Text>
+          </Animated.View>
 
-          {/* Features Section */}
-          <View style={styles.featuresSection}>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureEmoji}>👥</Text>
+          {/* Features Card */}
+          <View style={styles.featuresCard}>
+            <Animated.View 
+              style={[
+                styles.featureItem,
+                {
+                  opacity: featureAnims[0],
+                  transform: [{
+                    translateX: featureAnims[0].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0]
+                    })
+                  }]
+                }
+              ]}
+            >
+              <View style={styles.featureIconContainer}>
+                <Text style={styles.featureIcon}>👥</Text>
               </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>Create Groups</Text>
-                <Text style={styles.featureDescription}>Start music groups with friends and family</Text>
+              <View style={styles.featureTextContainer}>
+                <Text style={styles.featureTitle}>Create groups</Text>
+                <Text style={styles.featureDescription}>Start with friends and family</Text>
               </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureEmoji}>🎶</Text>
-              </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>Share Daily Songs</Text>
-                <Text style={styles.featureDescription}>Add one song each day by 11 PM</Text>
-              </View>
-            </View>
+            <Animated.View 
+              style={[
+                styles.featureDivider,
+                { opacity: featureAnims[0] }
+              ]} 
+            />
 
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureEmoji}>📱</Text>
+            <Animated.View 
+              style={[
+                styles.featureItem,
+                {
+                  opacity: featureAnims[1],
+                  transform: [{
+                    translateX: featureAnims[1].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0]
+                    })
+                  }]
+                }
+              ]}
+            >
+              <View style={styles.featureIconContainer}>
+                <Text style={styles.featureIcon}>🎶</Text>
               </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>Get Playlists</Text>
-                <Text style={styles.featureDescription}>Wake up to fresh mixtapes at 8 AM</Text>
+              <View style={styles.featureTextContainer}>
+                <Text style={styles.featureTitle}>Share daily</Text>
+                <Text style={styles.featureDescription}>Add songs by 11 PM each day</Text>
               </View>
-            </View>
+            </Animated.View>
+
+            <Animated.View 
+              style={[
+                styles.featureDivider,
+                { opacity: featureAnims[1] }
+              ]} 
+            />
+
+            <Animated.View 
+              style={[
+                styles.featureItem,
+                {
+                  opacity: featureAnims[2],
+                  transform: [{
+                    translateX: featureAnims[2].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0]
+                    })
+                  }]
+                }
+              ]}
+            >
+              <View style={styles.featureIconContainer}>
+                <Text style={styles.featureIcon}>📱</Text>
+              </View>
+              <View style={styles.featureTextContainer}>
+                <Text style={styles.featureTitle}>Get playlists</Text>
+                <Text style={styles.featureDescription}>Fresh mixtapes at 8 AM daily</Text>
+              </View>
+            </Animated.View>
           </View>
 
           {/* Call to Action */}
-          <View style={styles.onboardingCTA}>
-            <Text style={styles.onboardingSubtitle}>
-              Ready to start sharing music with friends?
-            </Text>
+          <Animated.View 
+            style={[
+              styles.onboardingCTA,
+              {
+                opacity: buttonAnim,
+                transform: [{
+                  translateY: buttonAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0]
+                  })
+                }]
+              }
+            ]}
+          >
             <Button
-              title="Create Your First Group"
+              title="Create your first group"
               onPress={() => setShowGroupCreate(true)}
               variant="primary"
-              style={styles.onboardingButton}
+              style={styles.onboardingPrimaryButton}
             />
             <Text style={styles.onboardingHint}>
-              You can invite friends after creating your group
+              You can invite friends after creating.
             </Text>
-          </View>
+          </Animated.View>
         </ScrollView>
         
         <Modal visible={showGroupCreate} animationType="slide">
@@ -1496,6 +1659,7 @@ const AppNavigator = () => {
           onClose={() => {
             setShowGroupSettings(false);
             setSelectedGroupForSettings(null);
+            handleGroupDeleted(); // Refresh groups list in case a group was deleted
           }}
           group={selectedGroupForSettings}
           onGroupUpdated={handleGroupUpdated}
@@ -2166,7 +2330,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: theme.spacing.md,
   },
-  // Apple-standard onboarding styles
+  // Apple-style onboarding design
   onboardingSafeArea: {
     flex: 1,
     backgroundColor: '#F2F2F7', // iOS system background
@@ -2175,132 +2339,135 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   onboardingContent: {
-    paddingHorizontal: theme.spacing.xl,
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: 20,
+    paddingBottom: 34, // iOS safe area bottom
     justifyContent: 'space-between',
     minHeight: '100%',
   },
   onboardingHero: {
     alignItems: 'center',
-    paddingTop: theme.spacing.xl * 2,
-    paddingBottom: theme.spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 40,
     flex: 1,
     justifyContent: 'center',
   },
-  musicIcon: {
-    width: 120,
-    height: 120,
-    backgroundColor: theme.colors.primaryButton,
-    borderRadius: 60,
+  appIconContainer: {
+    marginBottom: 32,
+  },
+  appIcon: {
+    width: 90,
+    height: 90,
+    backgroundColor: '#007AFF', // iOS blue
+    borderRadius: 20, // iOS app icon corner radius
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.xl * 1.5,
-    shadowColor: theme.colors.primaryButton,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 12,
-    // Apple-style depth
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  musicIconText: {
-    fontSize: 48,
-    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+  appIconEmoji: {
+    fontSize: 36,
+    color: 'white',
+    fontWeight: '600',
   },
   onboardingTitle: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
+    fontSize: 34,
+    fontWeight: '700', // iOS Large Title Bold
+    color: '#000000',
     textAlign: 'center',
-    marginBottom: theme.spacing.md,
-    letterSpacing: -1.2,
-    lineHeight: 48,
+    marginBottom: 8,
+    letterSpacing: -0.41, // iOS Large Title tracking
+    lineHeight: 41,
+    fontFamily: 'System', // iOS San Francisco
   },
   onboardingTagline: {
-    fontSize: 19,
-    color: theme.colors.textSecondary,
+    fontSize: 17,
+    color: '#6D6D80', // iOS secondary label
     textAlign: 'center',
-    fontWeight: '400',
-    lineHeight: 24,
-    letterSpacing: -0.2,
+    fontWeight: '400', // iOS Body Regular
+    lineHeight: 22,
+    letterSpacing: -0.41, // iOS Body tracking
+    fontFamily: 'System',
   },
-  featuresSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+  featuresCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16, // iOS card corner radius
+    marginHorizontal: 0,
+    marginBottom: 32,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
     borderWidth: 0.33,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
-    overflow: 'hidden',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    backgroundColor: theme.colors.bgPrimary,
-    borderRadius: 24,
+  featureIconContainer: {
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
+    marginRight: 12,
   },
-  featureEmoji: {
-    fontSize: 20,
+  featureIcon: {
+    fontSize: 18,
   },
-  featureContent: {
+  featureTextContainer: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 17,
+    fontWeight: '600', // iOS Body Semibold
+    color: '#000000',
+    marginBottom: 2,
+    letterSpacing: -0.41, // iOS Body tracking
+    fontFamily: 'System',
   },
   featureDescription: {
     fontSize: 15,
-    color: theme.colors.textSecondary,
-    lineHeight: 22,
+    color: '#6D6D80',
+    fontWeight: '400', // iOS Footnote Regular
+    letterSpacing: -0.24, // iOS Footnote tracking
+    lineHeight: 20,
+    fontFamily: 'System',
+  },
+  featureDivider: {
+    height: 0.33,
+    backgroundColor: 'rgba(60, 60, 67, 0.29)', // iOS separator
+    marginLeft: 60, // Align with text
   },
   onboardingCTA: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
-  onboardingSubtitle: {
-    fontSize: 18,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: theme.spacing.xl,
-    paddingHorizontal: theme.spacing.md,
-    fontWeight: '500',
-  },
-  onboardingButton: {
-    paddingHorizontal: theme.spacing.xl * 2,
-    minHeight: 56,
-    minWidth: 280,
-    shadowColor: theme.colors.primaryButton,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+  onboardingPrimaryButton: {
+    minHeight: 50, // iOS standard button height
+    minWidth: '100%',
+    borderRadius: 14, // iOS button corner radius
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
   onboardingHint: {
-    fontSize: 14,
-    color: theme.colors.textTertiary,
+    fontSize: 13,
+    color: '#8E8E93', // iOS tertiary label
     textAlign: 'center',
-    marginTop: theme.spacing.lg,
-    fontWeight: '500',
+    marginTop: 16,
+    fontWeight: '400', // iOS Caption Regular
+    lineHeight: 18,
+    letterSpacing: -0.08, // iOS Caption tracking
+    fontFamily: 'System',
   },
   onboardingHeader: {
     flexDirection: 'row',

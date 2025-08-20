@@ -64,7 +64,7 @@ const PlaylistsScreen = () => {
     if (playlist.playlistUrl) {
       Alert.alert(
         'Open Playlist',
-        `Open ${playlist.playlistName} in ${getPlatformName(playlist.platform)}?\n\nThis playlist is updated daily at 8:30am with fresh submissions from your group.`,
+        `Open ${playlist.playlistName} in ${getPlatformName(playlist.platform)}?\n\nThis playlist is updated daily at 8am with fresh submissions from your group.`,
         [
           { text: 'Cancel', style: 'cancel' },
           { 
@@ -138,7 +138,7 @@ const PlaylistsScreen = () => {
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>🎵 Daily Group Playlists</Text>
         <Text style={styles.infoText}>
-          These are persistent playlists that get updated every morning at 8:30am with fresh submissions from your groups. Same playlist, new songs daily!
+          These are persistent playlists that get updated every morning at 8am with fresh submissions from your groups. Same playlist, new songs daily!
         </Text>
         <Text style={styles.infoSubtext}>
           💡 If you don't see playlists for your groups, ask your group admin to create them in group settings.

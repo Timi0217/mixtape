@@ -2247,6 +2247,101 @@ router.get('/apple-music/login', async (req, res) => {
   }
 });
 
+// Upgrade Apple ID account to Apple Music account
+router.post('/apple-id/upgrade-to-music', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { musicUserToken } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    if (!musicUserToken) {
+      return res.status(400).json({ 
+        error: 'Music User Token required',
+        message: 'Please provide a valid Apple Music User Token'
+      });
+    }
+
+    console.log(`🔄 Upgrading user ${userId} from Apple ID to Apple Music account`);
+
+    // Get current user
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { musicAccounts: true }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user already has Apple Music account
+    const existingAppleMusicAccount = existingUser.musicAccounts.find(
+      account => account.platform === 'apple-music'
+    );
+
+    if (existingAppleMusicAccount) {
+      console.log(`✅ User ${userId} already has Apple Music account, updating token`);
+      
+      // Update existing Apple Music account with new token
+      await prisma.userMusicAccount.update({
+        where: { id: existingAppleMusicAccount.id },
+        data: {
+          accessToken: musicUserToken,
+          tokenType: 'music_user_token',
+          lastValidated: new Date()
+        }
+      });
+    } else {
+      console.log(`✅ Creating new Apple Music account for user ${userId}`);
+      
+      // Create new Apple Music account
+      await prisma.userMusicAccount.create({
+        data: {
+          userId: userId,
+          platform: 'apple-music',
+          platformUserId: `apple_music_${userId}`,
+          accessToken: musicUserToken,
+          tokenType: 'music_user_token',
+          displayName: existingUser.displayName || 'Apple Music User',
+          lastValidated: new Date()
+        }
+      });
+    }
+
+    // Get updated user with music accounts
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { musicAccounts: true }
+    });
+
+    console.log(`✅ Successfully upgraded user ${userId} to Apple Music`);
+
+    res.json({
+      success: true,
+      message: 'Successfully upgraded to Apple Music account',
+      user: {
+        id: updatedUser.id,
+        displayName: updatedUser.displayName,
+        email: updatedUser.email,
+        musicAccounts: updatedUser.musicAccounts.map(account => ({
+          platform: account.platform,
+          displayName: account.displayName,
+          hasValidToken: !!account.accessToken
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Apple ID to Apple Music upgrade failed:', error);
+    res.status(500).json({
+      error: 'Failed to upgrade to Apple Music',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Apple Music token exchange - for real MusicKit integration
 router.post('/apple-music/exchange', 
   [

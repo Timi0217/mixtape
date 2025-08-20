@@ -10,7 +10,112 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Switch,
+  Modal,
+  ScrollView,
+  FlatList,
 } from 'react-native';
+
+// Apple-level extensive emoji collection with iOS categories
+const EMOJI_CATEGORIES = {
+  '😀': [
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '🫠', '😉', '😊', '😇', '🥰', '😍',
+    '🤩', '😘', '😗', '☺️', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🫢',
+    '🫣', '🤫', '🤔', '🫡', '🤐', '🤨', '😐', '😑', '😶', '🫥', '😶‍🌫️', '😏', '😒', '🙄', '😬', '😮‍💨',
+    '🤥', '🫨', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴',
+    '😵', '😵‍💫', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐', '😕', '🫤', '😟', '🙁', '☹️', '😮', '😯',
+    '😲', '😳', '🥺', '🥹', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓',
+    '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
+    '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'
+  ],
+  
+  '🐶': [
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵',
+    '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗',
+    '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🪰', '🪲', '🪳', '🦟', '🦗', '🕷️', '🦂',
+    '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋',
+    '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🦣', '🐘', '🦏', '🦛', '🐪', '🐫', '🦒', '🦘', '🦬',
+    '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛',
+    '🪶', '🐓', '🦃', '🦤', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦫', '🦦', '🦥',
+    '🐁', '🐀', '🐿️', '🦔', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄', '🌾', '💐', '🌷', '🌹', '🥀', '🌺'
+  ],
+  
+  '🍎': [
+    '🍎', '🍏', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝',
+    '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐',
+    '🥖', '🍞', '🥨', '🥯', '🧇', '🥞', '🧈', '🍯', '🥜', '🌰', '🍳', '🥚', '🧀', '🥓', '🥩', '🍗',
+    '🍖', '🦴', '🌭', '🍔', '🍟', '🍕', '🫓', '🥪', '🥙', '🧆', '🌮', '🌯', '🫔', '🥗', '🥘', '🫕',
+    '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🥮', '🍢',
+    '🍡', '🍧', '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰',
+    '🥛', '🍼', '🫖', '☕', '🍵', '🧃', '🥤', '🧋', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹',
+    '🧊', '🥄', '🍴', '🍽️', '🥣', '🥡', '🥢', '🧂'
+  ],
+  
+  '⚽': [
+    '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍',
+    '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿',
+    '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', '🤾', '🏌️', '🏇', '🧘', '🏃', '🚶', '🧎', '🧍',
+    '🎪', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🥇', '🥈', '🥉', '🏆', '🏅', '🎖️',
+    '🎗️', '🎫', '🎟️', '🎪', '🤹', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🎯', '🎲',
+    '🎮', '🕹️', '🎳', '♠️', '♥️', '♦️', '♣️', '♟️', '🃏', '🀄', '🎴'
+  ],
+  
+  '🚗': [
+    '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍️', '🛵',
+    '🚲', '🛴', '🛹', '🛼', '🚁', '🛸', '✈️', '🛩️', '🪂', '💺', '🚀', '🛰️', '🚊', '🚉', '🚞', '🚝',
+    '🚄', '🚅', '🚈', '🚂', '🚆', '🚇', '🚃', '🚋', '🚟', '🚠', '🚡', '⛴️', '🛥️', '🚤', '⛵', '🛶',
+    '🚢', '⚓', '🪝', '⛽', '🚧', '🚨', '🚥', '🚦', '🛑', '🚏', '🗺️', '🗿', '🗽', '🗼', '🏰', '🏯',
+    '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🛖',
+    '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩',
+    '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '🕋', '⛩️', '🛤️', '🛣️', '🗾', '🎑', '🏞️', '🌅', '🌄', '🌠',
+    '🎇', '🎆', '🌇', '🌆', '🏙️', '🌃', '🌌', '🌉', '🌁'
+  ],
+  
+  '📱': [
+    '⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '🗜️', '💽', '💾', '💿', '📀', '📼',
+    '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭',
+    '⏱️', '⏲️', '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🪫', '🔌', '💡', '🔦', '🕯️', '🪔', '🧯', '🛢️',
+    '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒️',
+    '🛠️', '⛏️', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡️', '⚔️',
+    '🛡️', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳️', '🩹', '🩺',
+    '💊', '💉', '🩸', '🧬', '🦠', '🧫', '🧪', '🌡️', '🧹', '🪣', '🧽', '🧴', '🛎️', '🔑', '🗝️', '🚪',
+    '🪑', '🛋️', '🛏️', '🛌', '🧸', '🪆', '🖼️', '🪞', '🪟', '🛍️', '🎁', '🎈', '🎏', '🎀', '🪄', '🪅'
+  ],
+  
+  '❤️': [
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓',
+    '💗', '💖', '💘', '💝', '💟', '♥️', '💌', '💋', '💍', '💎', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️',
+    '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓',
+    '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐',
+    '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔',
+    '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️',
+    '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎',
+    '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹'
+  ],
+  
+  '🎨': [
+    '🎨', '🖌️', '🖍️', '✏️', '✒️', '🖊️', '🖋️', '✂️', '📐', '📏', '📌', '📍', '📎', '🖇️', '📂', '📁',
+    '📄', '📃', '📑', '📊', '📈', '📉', '📜', '📋', '📅', '📆', '🗓️', '📇', '🗃️', '🗳️', '🗄️', '📗',
+    '📘', '📙', '📓', '📔', '📒', '📚', '📖', '🔖', '🧷', '🔗', '📰', '🗞️', '📺', '📻', '🎭', '🎪',
+    '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🎸', '🥁', '🎹', '🎺', '🎷', '🎻', '🪕', '🥀', '🌹',
+    '🌺', '🌸', '🌼', '🌻', '💐', '🎈', '🎉', '🎊', '🎁', '🎀', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️'
+  ]
+};
+
+// Background color options
+const BACKGROUND_COLORS = [
+  { name: 'Purple', color: '#8B5CF6' },
+  { name: 'Blue', color: '#3B82F6' },
+  { name: 'Green', color: '#10B981' },
+  { name: 'Red', color: '#EF4444' },
+  { name: 'Orange', color: '#F97316' },
+  { name: 'Pink', color: '#EC4899' },
+  { name: 'Yellow', color: '#F59E0B' },
+  { name: 'Indigo', color: '#6366F1' },
+  { name: 'Teal', color: '#14B8A6' },
+  { name: 'Rose', color: '#F43F5E' },
+  { name: 'Gray', color: '#6B7280' },
+  { name: 'Black', color: '#1F2937' },
+];
 
 const theme = {
   colors: {
@@ -42,6 +147,12 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
   const [maxMembers, setMaxMembers] = useState('6');
   const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Emoji and color customization
+  const [emoji, setEmoji] = useState('👥');
+  const [backgroundColor, setBackgroundColor] = useState('#8B5CF6');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('😀');
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
@@ -61,6 +172,8 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
         name: groupName.trim(),
         maxMembers: maxMembersNum,
         isPublic: isPublic,
+        emoji: emoji,
+        backgroundColor: backgroundColor,
       });
     } catch (error) {
       console.error('Create group error:', error);
@@ -135,19 +248,116 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
           </View>
         </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>How Mixtape Works</Text>
-          <Text style={styles.infoText}>
-            • Everyone submits one song by 11pm daily
-          </Text>
-          <Text style={styles.infoText}>
-            • If anyone misses the deadline, no playlist is created
-          </Text>
-          <Text style={styles.infoText}>
-            • Successful groups get their playlist at 8am
-          </Text>
+        {/* Group Icon Section */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Group Icon</Text>
+          <TouchableOpacity
+            style={styles.emojiButton}
+            onPress={() => setShowEmojiPicker(true)}
+          >
+            <View style={[styles.emojiPreview, { backgroundColor }]}>
+              <Text style={styles.emojiButtonEmoji}>{emoji}</Text>
+            </View>
+            <View style={styles.emojiButtonContent}>
+              <Text style={styles.emojiButtonText}>Tap to change icon & color</Text>
+              <Text style={styles.emojiButtonSubtext}>
+                {BACKGROUND_COLORS.find(c => c.color === backgroundColor)?.name || 'Custom'}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
         </View>
+
+        {/* Emoji Picker Modal */}
+        <Modal visible={showEmojiPicker} animationType="slide">
+          <SafeAreaView style={styles.emojiPickerContainer}>
+            <View style={styles.emojiPickerHeader}>
+              <TouchableOpacity 
+                onPress={() => setShowEmojiPicker(false)}
+                style={styles.emojiPickerClose}
+              >
+                <Text style={styles.emojiPickerCloseText}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.emojiPickerTitle}>Choose Icon & Color</Text>
+              <TouchableOpacity 
+                onPress={() => setShowEmojiPicker(false)}
+                style={styles.emojiPickerDone}
+              >
+                <Text style={styles.emojiPickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Color Selection */}
+            <View style={styles.colorSection}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.colorsContainer}
+              >
+                {BACKGROUND_COLORS.map((color) => (
+                  <TouchableOpacity
+                    key={color.color}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color.color },
+                      backgroundColor === color.color && styles.colorOptionSelected
+                    ]}
+                    onPress={() => setBackgroundColor(color.color)}
+                  >
+                    {backgroundColor === color.color && (
+                      <Text style={styles.colorOptionCheck}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Category Tabs */}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryTabs}
+            >
+              {Object.keys(EMOJI_CATEGORIES).map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryTab,
+                    selectedCategory === category && styles.categoryTabActive
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <Text style={[
+                    styles.categoryTabText,
+                    selectedCategory === category && styles.categoryTabTextActive
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            
+            {/* Emoji Grid */}
+            <FlatList
+              data={EMOJI_CATEGORIES[selectedCategory]}
+              numColumns={8}
+              keyExtractor={(item, index) => `${selectedCategory}-${index}`}
+              contentContainerStyle={styles.emojiGrid}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.emojiItem,
+                    emoji === item && styles.emojiItemSelected
+                  ]}
+                  onPress={() => setEmoji(item)}
+                >
+                  <Text style={styles.emojiItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -245,5 +455,156 @@ const styles = StyleSheet.create({
   switchInfo: {
     flex: 1,
     marginRight: theme.spacing.md,
+  },
+  
+  // Emoji picker styles
+  emojiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceWhite,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  emojiPreview: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  emojiButtonEmoji: {
+    fontSize: 24,
+  },
+  emojiButtonContent: {
+    flex: 1,
+  },
+  emojiButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  emojiButtonSubtext: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  
+  // Modal styles
+  emojiPickerContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.bgPrimary,
+  },
+  emojiPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  emojiPickerClose: {
+    padding: theme.spacing.sm,
+  },
+  emojiPickerCloseText: {
+    fontSize: 20,
+    color: theme.colors.textSecondary,
+  },
+  emojiPickerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  emojiPickerDone: {
+    padding: theme.spacing.sm,
+  },
+  emojiPickerDoneText: {
+    fontSize: 16,
+    color: theme.colors.primaryButton,
+    fontWeight: '600',
+  },
+  
+  // Color picker styles
+  colorSection: {
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  colorsContainer: {
+    paddingHorizontal: theme.spacing.lg,
+  },
+  colorOption: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: theme.spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  colorOptionSelected: {
+    borderColor: '#000',
+    borderWidth: 3,
+  },
+  colorOptionCheck: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  
+  // Category tabs
+  categoryTabs: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  categoryTab: {
+    width: 50,
+    height: 50,
+    marginRight: theme.spacing.md,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.bgPrimary,
+  },
+  categoryTabActive: {
+    backgroundColor: theme.colors.primaryButton + '20',
+    borderWidth: 2,
+    borderColor: theme.colors.primaryButton,
+  },
+  categoryTabText: {
+    fontSize: 24,
+    color: theme.colors.textPrimary,
+  },
+  categoryTabTextActive: {
+    fontSize: 24,
+    color: theme.colors.textPrimary,
+  },
+  
+  // Emoji grid
+  emojiGrid: {
+    padding: theme.spacing.lg,
+  },
+  emojiItem: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 2,
+    borderRadius: theme.borderRadius.sm,
+  },
+  emojiItemSelected: {
+    backgroundColor: theme.colors.primaryButton,
+  },
+  emojiItemText: {
+    fontSize: 24,
   },
 });
