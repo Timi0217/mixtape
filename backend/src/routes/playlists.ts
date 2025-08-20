@@ -213,12 +213,11 @@ router.post('/group/:groupId/create',
         user: req.user,
       });
       
-      // Check for Apple ID token error and provide upgrade guidance
+      // Check for Apple ID token error (shouldn't happen with new auth flow)
       if (error.message?.includes('APPLE_ID_TOKEN_ERROR')) {
         return res.status(400).json({
-          error: 'Apple Music upgrade required',
-          message: 'Your account was created with Apple Sign In. To create playlists, please upgrade to Apple Music using the "Connect Apple Music" option in your group settings.',
-          upgradeRequired: true,
+          error: 'Invalid Apple Music token',
+          message: 'Your Apple Music authentication is invalid. Please log out and sign in again with Apple Music.',
           platform: 'apple-music'
         });
       }
