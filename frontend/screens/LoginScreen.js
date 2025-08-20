@@ -254,37 +254,24 @@ const LoginScreen = ({ onLoginSuccess }) => {
     try {
       console.log('🍎 Starting Apple Music authentication with MusicKit...');
       
-      // Use direct Apple Music authorization URL (more reliable than data URLs)
-      await musicKitService.initialize();
-      
-      console.log('🔗 Using direct Apple Music authorization URL...');
-      const authResult = await musicKitService.authenticateWithDirectURL();
-      
-      if (authResult.type === 'cancel') {
-        console.log('User cancelled Apple Music authorization');
-        setLoading(null);
-        return;
-      } else if (authResult.type === 'success' && authResult.url) {
-        // Extract music user token from URL
-        const urlObj = new URL(authResult.url);
-        const musicUserToken = urlObj.searchParams.get('music_user_token');
-        
-        if (musicUserToken) {
-          console.log('✅ Music User Token received from authorization');
-          
-          // Exchange with backend
-          const exchangeResult = await musicKitService.exchangeTokenWithBackend(musicUserToken);
-          await handleOAuthSuccess(exchangeResult.token, exchangeResult.platform);
-          return;
-        } else {
-          throw new Error('No Music User Token received from Apple Music authorization');
-        }
-      }
-      
-      console.log('🔄 Waiting for authentication completion...');
-      
-      // Clear loading state if we get here without success
+      // For now, show user that Apple Music requires native iOS implementation
       setLoading(null);
+      
+      Alert.alert(
+        'Apple Music Requires Native Setup',
+        'Apple Music authentication requires a native iOS app with MusicKit framework. For now, please use Spotify which works perfectly with Expo/React Native.',
+        [
+          {
+            text: 'Use Spotify Instead',
+            onPress: () => handleSpotifyLogin(),
+            style: 'default'
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
         
     } catch (error) {
       console.error('❌ Apple Music authentication failed:', error);
@@ -361,7 +348,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
               {loading === 'apple' || isAppleMusicAuthenticating ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.appleMusicButtonText}>Continue with Apple Music</Text>
+                <Text style={styles.appleMusicButtonText}>Apple Music (Requires Native iOS)</Text>
               )}
             </View>
           </TouchableOpacity>
