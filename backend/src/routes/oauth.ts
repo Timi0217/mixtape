@@ -2289,8 +2289,7 @@ router.post('/apple-id/upgrade-to-music', authenticateToken, async (req: AuthReq
         where: { id: existingAppleMusicAccount.id },
         data: {
           accessToken: musicUserToken,
-          tokenType: 'music_user_token',
-          lastValidated: new Date()
+          updatedAt: new Date()
         }
       });
     } else {
@@ -2301,11 +2300,7 @@ router.post('/apple-id/upgrade-to-music', authenticateToken, async (req: AuthReq
         data: {
           userId: userId,
           platform: 'apple-music',
-          platformUserId: `apple_music_${userId}`,
-          accessToken: musicUserToken,
-          tokenType: 'music_user_token',
-          displayName: existingUser.displayName || 'Apple Music User',
-          lastValidated: new Date()
+          accessToken: musicUserToken
         }
       });
     }
@@ -2327,8 +2322,8 @@ router.post('/apple-id/upgrade-to-music', authenticateToken, async (req: AuthReq
         email: updatedUser.email,
         musicAccounts: updatedUser.musicAccounts.map(account => ({
           platform: account.platform,
-          displayName: account.displayName,
-          hasValidToken: !!account.accessToken
+          hasValidToken: !!account.accessToken,
+          createdAt: account.createdAt
         }))
       }
     });
