@@ -668,9 +668,9 @@ export class GroupPlaylistService {
         throw new Error('Empty or missing Music User Token');
       }
       
-      // Check for obvious Apple ID tokens and reject them
-      if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0') || musicUserToken.startsWith('eyJhbGciOiJSUzI1NiI')) {
-        throw new Error('Invalid token: This appears to be an Apple ID token. Please provide a Music User Token from MusicKit.js authorization.');
+      // Check for obvious Apple ID tokens and provide helpful error
+      if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0') || musicUserToken.startsWith('eyJhbGciOiJSUzI1NiI') || musicUserToken.startsWith('apple_signin_')) {
+        throw new Error('APPLE_ID_TOKEN_ERROR: This account was created with Apple Sign In. To create playlists, please upgrade to Apple Music using the "Connect Apple Music" option in your group settings.');
       }
       
       console.log(`🔑 Using Music User Token for playlist creation (length: ${musicUserToken.length})`);

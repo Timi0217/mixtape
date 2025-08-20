@@ -280,12 +280,12 @@ const GroupPlaylistsSection = ({ groupId }) => {
       } else if (error.response?.status === 400) {
         const backendMessage = error.response.data?.message || '';
         
-        // Check if it's the specific "Admin has no music accounts" error
-        if (backendMessage.includes('admin needs to have connected music accounts')) {
+        // Check if it's an Apple Music upgrade required error
+        if (error.response.data?.upgradeRequired || backendMessage.includes('admin needs to have connected music accounts') || error.response.data?.error === 'Apple Music upgrade required') {
           // Offer Apple Music upgrade for Apple-authenticated users
           Alert.alert(
-            'Connect Apple Music',
-            'To create playlists, you need to connect your Apple Music account. Would you like to upgrade your Apple account now?',
+            'Apple Music Upgrade Required',
+            error.response.data?.message || 'To create playlists, you need to connect your Apple Music account. Would you like to upgrade your Apple account now?',
             [
               { text: 'Cancel', style: 'cancel' },
               {

@@ -213,6 +213,16 @@ router.post('/group/:groupId/create',
         user: req.user,
       });
       
+      // Check for Apple ID token error and provide upgrade guidance
+      if (error.message?.includes('APPLE_ID_TOKEN_ERROR')) {
+        return res.status(400).json({
+          error: 'Apple Music upgrade required',
+          message: 'Your account was created with Apple Sign In. To create playlists, please upgrade to Apple Music using the "Connect Apple Music" option in your group settings.',
+          upgradeRequired: true,
+          platform: 'apple-music'
+        });
+      }
+      
       res.status(500).json({ 
         error: 'Failed to create group playlists',
         details: process.env.NODE_ENV === 'development' ? {
