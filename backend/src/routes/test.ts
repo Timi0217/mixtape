@@ -59,9 +59,9 @@ router.get('/apple-music-token', async (req, res) => {
 
 // Test Apple Music playlist creation (bypass frontend authentication)
 router.post('/apple-music-playlist', async (req, res) => {
+  const { name, description, musicUserToken } = req.body;
+  
   try {
-    const { name, description, musicUserToken } = req.body;
-    
     console.log('🧪 Testing Apple Music playlist creation...');
     console.log('🔑 Music User Token:', musicUserToken ? 'Provided by user' : 'Using test token');
     
