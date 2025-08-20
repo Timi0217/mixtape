@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
-import * as AppleAuthentication from 'expo-apple-authentication';
+// Removed: Apple Sign In - now only using Apple Music MusicKit authentication
 import { setAuthToken } from '../services/api';
 import api from '../services/api';
 import musicKitService from '../services/musicKitService';
@@ -243,104 +243,24 @@ const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   const handleAppleMusicLogin = async () => {
-    // Stop any existing polling
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
-    }
+    // Apple Music requires Apple Developer account setup
+    // For now, show a helpful message and redirect to Spotify
     
-    setLoading('apple');
-    
-    try {
-      console.log('🍎 Starting Apple Music authentication with MusicKit...');
-      
-      // Try the direct URL approach first (most reliable)
-      try {
-        await musicKitService.initialize();
-        
-        const result = await musicKitService.authenticateWithDirectURL();
-        
-        if (result.type === 'success' && result.url) {
-          // Extract music user token from URL
-          const urlObj = new URL(result.url);
-          const musicUserToken = urlObj.searchParams.get('music_user_token');
-          
-          if (musicUserToken) {
-            console.log('✅ Music User Token received from direct URL');
-            
-            // Exchange with backend
-            const authResult = await musicKitService.exchangeTokenWithBackend(musicUserToken);
-            await handleOAuthSuccess(authResult.token, authResult.platform);
-            return;
-          }
-        } else if (result.type === 'cancel') {
-          console.log('User cancelled Apple Music authentication');
-          setLoading(null);
-          return;
+    Alert.alert(
+      'Apple Music Coming Soon',
+      'Apple Music authentication requires Apple Developer setup that is still in progress. Please use Spotify to create and share playlists.',
+      [
+        {
+          text: 'Use Spotify',
+          onPress: () => handleSpotifyLogin(),
+          style: 'default'
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
         }
-        
-        // If direct URL didn't work, try WebView approach
-        console.log('🌐 Direct URL failed, trying WebView approach...');
-        const webViewResult = await musicKitService.authenticateWithWebView();
-        
-        if (webViewResult.type === 'cancel') {
-          console.log('User cancelled MusicKit WebView authentication');
-          setLoading(null);
-          return;
-        }
-        
-        // For WebView, we rely on deep linking callback
-        console.log('🔄 Waiting for MusicKit callback via deep link...');
-        // The useAppleMusicAuth hook will handle the callback
-        
-      } catch (directError) {
-        console.error('❌ Direct Apple Music authentication failed:', directError);
-        
-        // Fallback: Show user a helpful message about Apple Music setup
-        Alert.alert(
-          'Apple Music Setup',
-          'Apple Music authentication requires specific setup. For now, please use Spotify to create and share playlists.\n\nApple Music support is coming soon!',
-          [
-            {
-              text: 'Use Spotify',
-              onPress: () => {
-                setLoading(null);
-                handleSpotifyLogin();
-              },
-              style: 'default'
-            },
-            {
-              text: 'Cancel',
-              onPress: () => setLoading(null),
-              style: 'cancel'
-            }
-          ]
-        );
-      }
-      
-    } catch (error) {
-      console.error('❌ Apple Music login error:', error);
-      
-      Alert.alert(
-        'Apple Music Not Available',
-        'Apple Music authentication is not yet fully supported. Please use Spotify to create and share playlists.',
-        [
-          {
-            text: 'Use Spotify',
-            onPress: () => {
-              setLoading(null);
-              handleSpotifyLogin();
-            },
-            style: 'default'
-          },
-          {
-            text: 'Cancel',
-            onPress: () => setLoading(null),
-            style: 'cancel'
-          }
-        ]
-      );
-    }
+      ]
+    );
   };
 
   return (
@@ -395,7 +315,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
               {loading === 'apple' || isAppleMusicAuthenticating ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.appleMusicButtonText}>Continue with Apple Music</Text>
+                <Text style={styles.appleMusicButtonText}>Apple Music (Coming Soon)</Text>
               )}
             </View>
           </TouchableOpacity>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Linking, Alert } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import musicKitService from '../services/musicKitService';
 
 export const useAppleMusicAuth = () => {
@@ -71,40 +70,9 @@ export const useAppleMusicAuth = () => {
     setAuthResult(null);
 
     try {
-      console.log('🍎 Starting Apple Music authentication flow...');
+      console.log('🍎 Starting Apple Music MusicKit authentication...');
       
-      // Step 1: Get Apple user info (optional)
-      let userInfo = null;
-      try {
-        const isAvailable = await AppleAuthentication.isAvailableAsync();
-        if (isAvailable) {
-          console.log('📱 Getting Apple user identity...');
-          const credential = await AppleAuthentication.signInAsync({
-            requestedScopes: [
-              AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-              AppleAuthentication.AppleAuthenticationScope.EMAIL,
-            ],
-          });
-          
-          userInfo = {
-            id: credential.user,
-            email: credential.email,
-            name: credential.fullName ? 
-              `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim() || 'Apple Music User' : 
-              'Apple Music User'
-          };
-          
-          console.log('✅ Apple user identity obtained:', userInfo.name);
-        }
-      } catch (identityError) {
-        if (identityError.code === 'ERR_CANCELED') {
-          setIsAuthenticating(false);
-          return { cancelled: true };
-        }
-        console.log('ℹ️ Continuing without Apple user identity:', identityError.message);
-      }
-      
-      // Step 2: Authenticate with MusicKit
+      // Direct MusicKit authentication (no Apple Sign In required)
       console.log('🎵 Opening MusicKit authorization...');
       const result = await musicKitService.authenticateWithWebView();
       

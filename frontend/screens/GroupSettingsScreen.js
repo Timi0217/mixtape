@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import appleUpgradeService from '../services/appleUpgradeService';
+// Removed: Apple upgrade service - now only using Apple Music MusicKit authentication
 
 // Apple-level extensive emoji collection with iOS categories
 const EMOJI_CATEGORIES = {
@@ -280,28 +280,12 @@ const GroupPlaylistsSection = ({ groupId }) => {
       } else if (error.response?.status === 400) {
         const backendMessage = error.response.data?.message || '';
         
-        // Check if it's an Apple Music upgrade required error
-        if (error.response.data?.upgradeRequired || backendMessage.includes('admin needs to have connected music accounts') || error.response.data?.error === 'Apple Music upgrade required') {
-          // Offer Apple Music upgrade for Apple-authenticated users
+        // Check if it's a music account connection error
+        if (backendMessage.includes('admin needs to have connected music accounts')) {
           Alert.alert(
-            'Apple Music Upgrade Required',
-            error.response.data?.message || 'To create playlists, you need to connect your Apple Music account. Would you like to upgrade your Apple account now?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Connect Apple Music',
-                onPress: async () => {
-                  try {
-                    await appleUpgradeService.completeUpgradeFlow();
-                    // If successful, try creating playlists again
-                    createGroupPlaylists();
-                  } catch (upgradeError) {
-                    console.error('Apple Music upgrade failed:', upgradeError);
-                    // Error already shown by upgrade service
-                  }
-                }
-              }
-            ]
+            'Music Account Required',
+            'To create playlists, you need to have connected music accounts (Spotify or Apple Music). Please log out and sign in with a music platform to create playlists.',
+            [{ text: 'OK' }]
           );
           return;
         }
