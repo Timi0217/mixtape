@@ -243,24 +243,72 @@ const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   const handleAppleMusicLogin = async () => {
-    // Apple Music requires Apple Developer account setup
-    // For now, show a helpful message and redirect to Spotify
+    // Stop any existing polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
     
-    Alert.alert(
-      'Apple Music Coming Soon',
-      'Apple Music authentication requires Apple Developer setup that is still in progress. Please use Spotify to create and share playlists.',
-      [
-        {
-          text: 'Use Spotify',
-          onPress: () => handleSpotifyLogin(),
-          style: 'default'
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel'
+    setLoading('apple');
+    
+    try {
+      console.log('🍎 Starting Apple Music authentication with MusicKit...');
+      
+      // Use WebView approach with MusicKit.js (most reliable for React Native)
+      await musicKitService.initialize();
+      
+      console.log('🌐 Using WebView MusicKit approach...');
+      const webViewResult = await musicKitService.authenticateWithWebView();
+      
+      if (webViewResult.type === 'cancel') {
+        console.log('User cancelled MusicKit WebView authentication');
+        setLoading(null);
+        return;
+      }
+      
+      // For WebView, we rely on deep linking callback
+      console.log('🔄 Waiting for MusicKit callback via deep link...');
+      
+      // Set a timeout to prevent infinite loading if callback fails
+      setTimeout(() => {
+        if (loading === 'apple') {
+          console.log('⏰ Apple Music authentication timeout reached');
+          setLoading(null);
+          Alert.alert(
+            'Authentication Timeout',
+            'Apple Music authentication took too long. Please try again or use Spotify.',
+            [
+              { text: 'Try Again', onPress: () => handleAppleMusicLogin() },
+              { text: 'Use Spotify', onPress: () => handleSpotifyLogin() },
+              { text: 'Cancel', style: 'cancel' }
+            ]
+          );
         }
-      ]
-    );
+      }, 30000); // 30 second timeout
+      
+      // The useAppleMusicAuth hook will handle the callback
+        
+    } catch (error) {
+      console.error('❌ Apple Music authentication failed:', error);
+      setLoading(null);
+      
+      // Fallback: Show user a helpful message about Apple Music setup
+      Alert.alert(
+        'Apple Music Setup',
+        'Apple Music authentication requires MusicKit to be enabled in Apple Developer Console. For now, please use Spotify to create and share playlists.',
+        [
+          {
+            text: 'Use Spotify',
+            onPress: () => handleSpotifyLogin(),
+            style: 'default'
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+    }
   };
 
   return (
@@ -315,7 +363,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
               {loading === 'apple' || isAppleMusicAuthenticating ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.appleMusicButtonText}>Apple Music (Coming Soon)</Text>
+                <Text style={styles.appleMusicButtonText}>Continue with Apple Music</Text>
               )}
             </View>
           </TouchableOpacity>
