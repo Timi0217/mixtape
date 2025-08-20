@@ -254,39 +254,37 @@ const LoginScreen = ({ onLoginSuccess }) => {
     try {
       console.log('🍎 Starting Apple Music authentication with MusicKit...');
       
-      // Use WebView approach with MusicKit.js (most reliable for React Native)
+      // Use direct Apple Music authorization URL (more reliable than data URLs)
       await musicKitService.initialize();
       
-      console.log('🌐 Using WebView MusicKit approach...');
-      const webViewResult = await musicKitService.authenticateWithWebView();
+      console.log('🔗 Using direct Apple Music authorization URL...');
+      const authResult = await musicKitService.authenticateWithDirectURL();
       
-      if (webViewResult.type === 'cancel') {
-        console.log('User cancelled MusicKit WebView authentication');
+      if (authResult.type === 'cancel') {
+        console.log('User cancelled Apple Music authorization');
         setLoading(null);
         return;
+      } else if (authResult.type === 'success' && authResult.url) {
+        // Extract music user token from URL
+        const urlObj = new URL(authResult.url);
+        const musicUserToken = urlObj.searchParams.get('music_user_token');
+        
+        if (musicUserToken) {
+          console.log('✅ Music User Token received from authorization');
+          
+          // Exchange with backend
+          const exchangeResult = await musicKitService.exchangeTokenWithBackend(musicUserToken);
+          await handleOAuthSuccess(exchangeResult.token, exchangeResult.platform);
+          return;
+        } else {
+          throw new Error('No Music User Token received from Apple Music authorization');
+        }
       }
       
-      // For WebView, we rely on deep linking callback
-      console.log('🔄 Waiting for MusicKit callback via deep link...');
+      console.log('🔄 Waiting for authentication completion...');
       
-      // Set a timeout to prevent infinite loading if callback fails
-      setTimeout(() => {
-        if (loading === 'apple') {
-          console.log('⏰ Apple Music authentication timeout reached');
-          setLoading(null);
-          Alert.alert(
-            'Authentication Timeout',
-            'Apple Music authentication took too long. Please try again or use Spotify.',
-            [
-              { text: 'Try Again', onPress: () => handleAppleMusicLogin() },
-              { text: 'Use Spotify', onPress: () => handleSpotifyLogin() },
-              { text: 'Cancel', style: 'cancel' }
-            ]
-          );
-        }
-      }, 30000); // 30 second timeout
-      
-      // The useAppleMusicAuth hook will handle the callback
+      // Clear loading state if we get here without success
+      setLoading(null);
         
     } catch (error) {
       console.error('❌ Apple Music authentication failed:', error);
