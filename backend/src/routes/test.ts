@@ -57,4 +57,84 @@ router.get('/apple-music-token', async (req, res) => {
   }
 });
 
+// Test Apple Music playlist creation (bypass frontend authentication)
+router.post('/apple-music-playlist', async (req, res) => {
+  try {
+    const { name, description, musicUserToken } = req.body;
+    
+    console.log('🧪 Testing Apple Music playlist creation...');
+    console.log('🔑 Music User Token:', musicUserToken ? 'Provided by user' : 'Using test token');
+    
+    // Test with provided token or simulate with test token
+    const tokenToUse = musicUserToken || 'test_music_user_token_for_backend_validation';
+    
+    console.log('🎵 Attempting to create Apple Music playlist...');
+    
+    // Test playlist creation
+    const playlist = await appleMusicService.createPlaylist(tokenToUse, {
+      name: name || 'Mixtape Backend Test',
+      description: description || 'Test playlist created directly through Mixtape backend to verify Apple Music integration is working',
+      songs: []
+    });
+    
+    console.log('✅ Apple Music playlist created successfully:', {
+      id: playlist.id,
+      name: playlist.attributes?.name,
+      url: playlist.attributes?.url
+    });
+    
+    res.json({
+      success: true,
+      playlist: {
+        id: playlist.id,
+        name: playlist.attributes?.name || name,
+        description: playlist.attributes?.description || description,
+        url: playlist.attributes?.url,
+        playParams: playlist.attributes?.playParams
+      },
+      message: 'SUCCESS! Apple Music playlist creation works perfectly. Backend integration is fully functional.',
+      note: 'This confirms your Apple Music API integration is working. The only limitation is frontend authentication with Expo.'
+    });
+    
+  } catch (error) {
+    console.error('❌ Apple Music playlist creation test failed:', error);
+    
+    // Analyze the error and provide specific guidance
+    let errorAnalysis = {
+      message: error.message,
+      likely_cause: 'unknown',
+      action_needed: 'check logs'
+    };
+    
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      errorAnalysis.likely_cause = 'invalid_music_user_token';
+      errorAnalysis.action_needed = 'Need a real Music User Token from Apple Music authorization';
+    } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+      errorAnalysis.likely_cause = 'musickit_not_enabled';
+      errorAnalysis.action_needed = 'Verify MusicKit is enabled in Apple Developer Console';
+    } else if (error.message?.includes('developer_token') || error.message?.includes('JWT')) {
+      errorAnalysis.likely_cause = 'invalid_developer_token';
+      errorAnalysis.action_needed = 'Check Apple Music API key configuration';
+    } else if (error.message?.includes('network') || error.message?.includes('ENOTFOUND')) {
+      errorAnalysis.likely_cause = 'network_connectivity';
+      errorAnalysis.action_needed = 'Check network connection to Apple Music API';
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      analysis: errorAnalysis,
+      testing_info: {
+        developer_token: 'Generated successfully (see /test/apple-music-token)',
+        music_user_token: musicUserToken ? 'User provided' : 'Test token used',
+        next_steps: {
+          if_401: 'Try with a real Music User Token from web browser MusicKit.js',
+          if_403: 'Check MusicKit is enabled in Apple Developer Console',
+          if_developer_token_error: 'Verify Apple Music API key environment variables'
+        }
+      }
+    });
+  }
+});
+
 export default router;
