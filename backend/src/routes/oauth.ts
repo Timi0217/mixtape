@@ -2116,8 +2116,8 @@ router.get('/apple/safari-auth', async (req, res) => {
             <div class="logo">🎵</div>
             <h1>Connecting to Apple Music</h1>
             <p class="subtitle">Authorizing your Apple Music account...</p>
-            <div id="status" class="status">🍎 Loading Apple Music...</div>
-            <button onclick="manualAuth()" class="btn" style="display: none;" id="authBtn">Authorize Apple Music</button>
+            <div id="status" class="status">🍎 Apple Music Ready</div>
+            <button onclick="manualAuth()" class="btn" id="authBtn">Authorize Apple Music</button>
           </div>
 
           <script>
@@ -2147,25 +2147,43 @@ router.get('/apple/safari-auth', async (req, res) => {
             function manualAuth() {
               console.log('🖱️ Manual authorization button clicked');
               document.getElementById('authBtn').style.display = 'none';
-              updateStatus('Requesting authorization...');
+              updateStatus('Opening Apple Music authorization...');
               
               if (window.MusicKit) {
                 const music = MusicKit.getInstance();
+                
+                // Add better error handling for the authorization
                 music.authorize().then(token => {
+                  console.log('🎵 Authorization response:', token);
                   if (token) {
-                    updateStatus('Success! Redirecting...');
-                    const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
-                    window.location.href = redirectUrl + '?token=' + encodeURIComponent(token);
+                    console.log('✅ Token received, redirecting...');
+                    updateStatus('Success! Redirecting back to app...');
+                    
+                    // Add delay before redirect to ensure token is valid
+                    setTimeout(() => {
+                      const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
+                      const finalUrl = redirectUrl + '?token=' + encodeURIComponent(token);
+                      console.log('🔗 Redirecting to:', finalUrl);
+                      window.location.href = finalUrl;
+                    }, 1000);
+                  } else {
+                    console.warn('⚠️ No token received');
+                    updateStatus('Authorization completed but no token received');
+                    document.getElementById('authBtn').style.display = 'block';
                   }
                 }).catch(error => {
-                  console.error('Manual auth failed:', error);
-                  updateStatus('Authorization failed: ' + error.message);
+                  console.error('❌ Manual auth failed:', error);
+                  updateStatus('Authorization failed. Please try again.');
+                  document.getElementById('authBtn').style.display = 'block';
                 });
+              } else {
+                console.error('❌ MusicKit not available');
+                updateStatus('MusicKit not loaded. Please refresh the page.');
               }
             }
             
 
-            // Try MusicKit auth
+            // Configure MusicKit when loaded
             document.addEventListener('musickitloaded', async () => {
               try {
                 console.log('🎵 MusicKit loaded event fired');
@@ -2178,7 +2196,6 @@ router.get('/apple/safari-auth', async (req, res) => {
                 });
 
                 console.log('✅ MusicKit configured successfully');
-                updateStatus('Requesting Apple Music authorization...');
                 
                 const music = MusicKit.getInstance();
                 console.log('🎵 MusicKit instance:', music);
@@ -2193,51 +2210,12 @@ router.get('/apple/safari-auth', async (req, res) => {
                   console.log('⚠️ Could not check music capabilities:', e.message);
                 }
                 
-                // Force reset authorization state
-                if (music.isAuthorized) {
-                  console.log('🔄 Clearing existing authorization...');
-                  await music.unauthorize();
-                }
+                // Show ready status and manual button
+                updateStatus('Ready! Click button to authorize Apple Music');
                 
-                console.log('🍎 Requesting Apple Music authorization...');
-                updateStatus('Please approve Apple Music access...');
-                
-                // Try authorization with user gesture
-                const userToken = await new Promise((resolve, reject) => {
-                  const timeout = setTimeout(() => {
-                    console.log('⏰ Authorization timeout - showing manual button');
-                    updateStatus('Apple Music authorization timed out. Please check:');
-                    document.getElementById('authBtn').style.display = 'block';
-                    reject(new Error('Authorization timeout - try manual button'));
-                  }, 10000);
-                  
-                  music.authorize().then(token => {
-                    clearTimeout(timeout);
-                    console.log('✅ Authorization successful, token received:', !!token);
-                    resolve(token);
-                  }).catch(error => {
-                    clearTimeout(timeout);
-                    console.error('❌ Authorization failed:', error);
-                    reject(error);
-                  });
-                });
-
-                if (userToken) {
-                  updateStatus('Success! Redirecting back to app...');
-                  
-                  // Redirect back to app with token
-                  const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
-                  if (redirectUrl.includes('mixtape://')) {
-                    window.location.href = redirectUrl + '?token=' + encodeURIComponent(userToken);
-                  } else {
-                    // Store token in local storage as fallback
-                    localStorage.setItem('appleMusicUserToken', userToken);
-                    updateStatus('Success! You can close this page.');
-                  }
-                }
               } catch (error) {
-                console.error('MusicKit error:', error);
-                updateStatus('❌ Apple Music authorization failed: ' + error.message);
+                console.error('MusicKit configuration error:', error);
+                updateStatus('❌ MusicKit configuration failed: ' + error.message);
               }
             });
 
