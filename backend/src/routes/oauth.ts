@@ -2193,7 +2193,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             // Fallback check if event doesn't fire but MusicKit is available
             setTimeout(() => {
               if (window.MusicKit && !document.getElementById('status').textContent.includes('Configuring')) {
-                console.log('🔄 MusicKit available but event didn\'t fire, trying directly...');
+                console.log('🔄 MusicKit available but event did not fire, trying directly...');
                 document.dispatchEvent(new Event('musickitloaded'));
               }
             }, 3000);
