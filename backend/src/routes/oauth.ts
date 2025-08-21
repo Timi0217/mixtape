@@ -2118,7 +2118,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             <p class="subtitle">Authorizing your Apple Music account...</p>
             <div id="status" class="status">🍎 Apple Music Ready</div>
             <button onclick="manualAuth()" class="btn" id="authBtn">Authorize Apple Music</button>
-            <button onclick="alternativeAuth()" class="btn" id="altBtn" style="display: none; background: #007AFF;">Try Alternative Method</button>
+            <button onclick="alternativeAuth()" class="btn" id="altBtn" style="background: #007AFF;">Try Alternative Method</button>
           </div>
 
           <script>
