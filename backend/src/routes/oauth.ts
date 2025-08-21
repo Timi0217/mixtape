@@ -2149,36 +2149,61 @@ router.get('/apple/safari-auth', async (req, res) => {
               document.getElementById('authBtn').style.display = 'none';
               updateStatus('Opening Apple Music authorization...');
               
-              if (window.MusicKit) {
-                const music = MusicKit.getInstance();
-                
-                // Add better error handling for the authorization
-                music.authorize().then(token => {
-                  console.log('🎵 Authorization response:', token);
-                  if (token) {
-                    console.log('✅ Token received, redirecting...');
-                    updateStatus('Success! Redirecting back to app...');
-                    
-                    // Add delay before redirect to ensure token is valid
+              try {
+                if (window.MusicKit) {
+                  const music = MusicKit.getInstance();
+                  console.log('🎵 MusicKit instance available:', !!music);
+                  console.log('🔍 Current authorization status:', music.isAuthorized);
+                  
+                  console.log('🚀 Calling music.authorize()...');
+                  
+                  // Wrap in try-catch and add timeout
+                  const authPromise = music.authorize();
+                  console.log('📝 Authorize promise created:', !!authPromise);
+                  
+                  // Add explicit timeout
+                  const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => {
-                      const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
-                      const finalUrl = redirectUrl + '?token=' + encodeURIComponent(token);
-                      console.log('🔗 Redirecting to:', finalUrl);
-                      window.location.href = finalUrl;
-                    }, 1000);
-                  } else {
-                    console.warn('⚠️ No token received');
-                    updateStatus('Authorization completed but no token received');
+                      console.log('⏰ Authorization timeout after 30 seconds');
+                      reject(new Error('Authorization timeout'));
+                    }, 30000);
+                  });
+                  
+                  Promise.race([authPromise, timeoutPromise]).then(token => {
+                    console.log('🎵 Authorization response received:', token);
+                    if (token) {
+                      console.log('✅ Token received, redirecting...');
+                      updateStatus('Success! Redirecting back to app...');
+                      
+                      setTimeout(() => {
+                        const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
+                        const finalUrl = redirectUrl + '?token=' + encodeURIComponent(token);
+                        console.log('🔗 Redirecting to:', finalUrl);
+                        window.location.href = finalUrl;
+                      }, 1000);
+                    } else {
+                      console.warn('⚠️ No token received from authorization');
+                      updateStatus('Authorization completed but no token received');
+                      document.getElementById('authBtn').style.display = 'block';
+                    }
+                  }).catch(error => {
+                    console.error('❌ Authorization error:', error);
+                    console.error('❌ Error type:', typeof error);
+                    console.error('❌ Error message:', error.message);
+                    console.error('❌ Error stack:', error.stack);
+                    updateStatus('Authorization failed: ' + error.message);
                     document.getElementById('authBtn').style.display = 'block';
-                  }
-                }).catch(error => {
-                  console.error('❌ Manual auth failed:', error);
-                  updateStatus('Authorization failed. Please try again.');
+                  });
+                  
+                } else {
+                  console.error('❌ MusicKit not available on window');
+                  updateStatus('MusicKit not loaded. Please refresh the page.');
                   document.getElementById('authBtn').style.display = 'block';
-                });
-              } else {
-                console.error('❌ MusicKit not available');
-                updateStatus('MusicKit not loaded. Please refresh the page.');
+                }
+              } catch (error) {
+                console.error('❌ Exception in manualAuth:', error);
+                updateStatus('Error: ' + error.message);
+                document.getElementById('authBtn').style.display = 'block';
               }
             }
             
