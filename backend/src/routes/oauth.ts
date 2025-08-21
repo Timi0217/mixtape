@@ -2118,6 +2118,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             <p class="subtitle">Authorizing your Apple Music account...</p>
             <div id="status" class="status">🍎 Apple Music Ready</div>
             <button onclick="manualAuth()" class="btn" id="authBtn">Authorize Apple Music</button>
+            <button onclick="alternativeAuth()" class="btn" id="altBtn" style="display: none; background: #007AFF;">Try Alternative Method</button>
           </div>
 
           <script>
@@ -2205,8 +2206,9 @@ router.get('/apple/safari-auth', async (req, res) => {
                       errorMessage += ': ' + authError.message;
                     }
                     
-                    updateStatus(errorMessage);
+                    updateStatus(errorMessage + ' - Try alternative method');
                     document.getElementById('authBtn').style.display = 'block';
+                    document.getElementById('altBtn').style.display = 'block';
                   });
                 }, 100);
                 
@@ -2215,6 +2217,30 @@ router.get('/apple/safari-auth', async (req, res) => {
                 updateStatus('Setup error: ' + error.message);
                 document.getElementById('authBtn').style.display = 'block';
               }
+            }
+            
+            // Alternative authorization method - direct redirect to Apple Music authorization
+            function alternativeAuth() {
+              console.log('🔄 Trying alternative authorization method');
+              document.getElementById('altBtn').style.display = 'none';
+              updateStatus('Redirecting to Apple Music login...');
+              
+              // Create direct Apple Music authorization URL
+              const baseUrl = 'https://authorize.music.apple.com/woa';
+              const params = new URLSearchParams({
+                'a': 'authorize',
+                'app_name': 'Mixtape',
+                'app_version': '1.0.0',
+                'd': '` + developerToken + `',
+                'redirect_uri': '` + (redirect || 'mixtape://apple-music-success') + `',
+                'response_type': 'code'
+              });
+              
+              const authUrl = baseUrl + '?' + params.toString();
+              console.log('🔗 Direct auth URL:', authUrl);
+              
+              // Redirect to Apple Music authorization
+              window.location.href = authUrl;
             }
             
 
