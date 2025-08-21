@@ -252,36 +252,41 @@ const LoginScreen = ({ onLoginSuccess }) => {
     setLoading('apple');
     
     try {
-      console.log('🍎 Starting Apple Music authentication with MusicKit...');
+      console.log('🦄 Starting Apple Music authentication with Safari hack...');
       
-      // For now, show user that Apple Music requires native iOS implementation
-      setLoading(null);
+      // Try the Safari hack approach
+      const result = await authenticateWithAppleMusic();
       
-      Alert.alert(
-        'Apple Music Requires Native Setup',
-        'Apple Music authentication requires a native iOS app with MusicKit framework. For now, please use Spotify which works perfectly with Expo/React Native.',
-        [
-          {
-            text: 'Use Spotify Instead',
-            onPress: () => handleSpotifyLogin(),
-            style: 'default'
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          }
-        ]
-      );
-        
+      if (result.cancelled) {
+        console.log('🚫 User cancelled Apple Music authentication');
+        setLoading(null);
+        return;
+      }
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      if (result.inProgress) {
+        console.log('🔄 Apple Music authentication in progress...');
+        // Authentication continues via deep link - keep loading state
+        return;
+      }
+      
     } catch (error) {
       console.error('❌ Apple Music authentication failed:', error);
       setLoading(null);
       
-      // Fallback: Show user a helpful message about Apple Music setup
+      // Show fallback options
       Alert.alert(
-        'Apple Music Setup',
-        'Apple Music authentication requires MusicKit to be enabled in Apple Developer Console. For now, please use Spotify to create and share playlists.',
+        'Apple Music Authentication Failed',
+        'The Safari-based authentication encountered an issue. You can try again or use Spotify which works reliably.',
         [
+          {
+            text: 'Try Again',
+            onPress: () => handleAppleMusicLogin(),
+            style: 'default'
+          },
           {
             text: 'Use Spotify',
             onPress: () => handleSpotifyLogin(),
