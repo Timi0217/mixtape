@@ -97,11 +97,12 @@ class AppleMusicService {
       console.log('- Has newlines:', privateKey.includes('\n'));
       console.log('- Line count:', privateKey.split('\n').length);
 
-      // Create JWT payload
+      // Create JWT payload (Apple Music requires specific claims)
       const payload = {
-        iss: teamId,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (6 * 30 * 24 * 60 * 60), // 6 months
+        iss: teamId, // Team ID
+        aud: 'appstoreconnect-v1', // Required audience for Apple Music API
+        iat: Math.floor(Date.now() / 1000), // Issued at
+        exp: Math.floor(Date.now() / 1000) + (6 * 30 * 24 * 60 * 60), // Expires in 6 months
       };
 
       // Create JWT header
