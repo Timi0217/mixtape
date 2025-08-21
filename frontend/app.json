@@ -39,7 +39,8 @@
       "expo-web-browser",
       "expo-apple-authentication",
       "expo-dev-client",
-      "./plugins/withMusicKit"
+      "./plugins/withMusicKit",
+      "./modules/expo-musickit/expo-musickit"
     ],
     "extra": {
       "API_BASE_URL": "https://mixtape-production.up.railway.app/api",
