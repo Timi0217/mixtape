@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "scheme": [
       "mixtape",
-      "com.mixtape.app"
+      "com.mobilemixtape.app"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,8 +18,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mixtape.app",
-      "usesNonExemptEncryption": false
+      "bundleIdentifier": "com.mobilemixtape.app",
+      "usesNonExemptEncryption": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +30,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.mixtape.app"
+      "package": "com.mobilemixtape.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
