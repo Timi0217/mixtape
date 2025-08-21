@@ -57,6 +57,68 @@ router.get('/apple-music-token', async (req, res) => {
   }
 });
 
+// Test detailed Apple Music API connectivity
+router.get('/apple-music-debug', async (req, res) => {
+  try {
+    console.log('🔍 Starting Apple Music debug test...');
+    
+    // Test developer token generation with detailed logging
+    const developerToken = await appleMusicService.getDeveloperToken();
+    console.log('✅ Developer token generated, length:', developerToken.length);
+    
+    // Test a simple API call manually
+    const axios = require('axios');
+    const testUrl = 'https://api.music.apple.com/v1/catalog/us/songs/203709340';
+    
+    console.log('🌐 Testing direct Apple Music API call...');
+    console.log('- URL:', testUrl);
+    console.log('- Auth header preview:', `Bearer ${developerToken.substring(0, 50)}...`);
+    
+    const response = await axios.get(testUrl, {
+      headers: {
+        'Authorization': `Bearer ${developerToken}`,
+        'Music-User-Token': 'test_user_token' // This will fail but we can see the error
+      },
+      timeout: 10000
+    });
+    
+    res.json({
+      success: true,
+      message: 'Apple Music API test successful',
+      response: {
+        status: response.status,
+        dataKeys: Object.keys(response.data || {}),
+        data: response.data
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Apple Music debug test failed:', error);
+    
+    let errorDetails = {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      headers: error.response?.headers
+    };
+    
+    res.status(500).json({
+      success: false,
+      error: 'Apple Music API debug test failed',
+      details: errorDetails,
+      analysis: {
+        likely_causes: {
+          401: 'Invalid developer token or JWT signing issue',
+          403: 'MusicKit not properly enabled or permission issue',
+          404: 'API endpoint not found',
+          network: 'Network connectivity issue'
+        }
+      }
+    });
+  }
+});
+
 // Test Apple Music playlist creation (bypass frontend authentication)
 router.post('/apple-music-playlist', async (req, res) => {
   const { name, description, musicUserToken } = req.body;
