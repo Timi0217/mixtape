@@ -8,6 +8,9 @@ WebBrowser.maybeCompleteAuthSession();
 class AppleMusicAuthSession {
   constructor() {
     this.isInitialized = false;
+    this.discovery = {
+      authorizationEndpoint: 'https://authorize.music.apple.com/woa'
+    };
   }
 
   /**
@@ -20,20 +23,11 @@ class AppleMusicAuthSession {
   }
 
   /**
-   * Start Apple Music OAuth flow using AuthSession
+   * Start Apple Music OAuth flow using modern AuthSession API
    */
   async requestAuthorization() {
     try {
       console.log('🔐 Starting Apple Music OAuth with AuthSession...');
-      
-      // Apple Music OAuth configuration
-      const authUrl = 'https://authorize.music.apple.com/woa';
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'mixtape',
-        path: 'auth/apple-music'
-      });
-      
-      console.log('Redirect URI:', redirectUri);
       
       // Get client configuration from backend
       const configResponse = await fetch('https://mixtape-production.up.railway.app/api/oauth/apple-music/config');
@@ -43,24 +37,35 @@ class AppleMusicAuthSession {
         throw new Error('Failed to get Apple Music configuration');
       }
       
-      // Build authorization URL with proper parameters
-      const authUrlWithParams = `${authUrl}?` + new URLSearchParams({
-        response_type: 'code',
-        client_id: config.clientId, // Your bundle ID
-        redirect_uri: redirectUri,
-        scope: 'openid email name',
-        state: config.state, // Backend-generated state for security
-      }).toString();
+      console.log('📋 Backend config received:', config);
       
-      console.log('Authorization URL:', authUrlWithParams);
-      
-      // Start the OAuth flow
-      const result = await AuthSession.startAsync({
-        authUrl: authUrlWithParams,
-        returnUrl: redirectUri,
+      // Create redirect URI
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'mixtape',
+        path: 'auth/apple-music'
       });
       
-      console.log('OAuth Result:', result);
+      console.log('🔗 Redirect URI:', redirectUri);
+      
+      // Configure the request
+      const request = new AuthSession.AuthRequest({
+        clientId: config.clientId, // com.mobilemixtape.app
+        scopes: ['openid', 'email', 'name'],
+        redirectUri: redirectUri,
+        responseType: AuthSession.ResponseType.Code,
+        state: config.state,
+        extraParams: {},
+      });
+      
+      console.log('📋 Auth request configured');
+      
+      // Make the request
+      const result = await request.promptAsync(this.discovery, {
+        preferEphemeralSession: false, // Keep session for convenience
+        showInRecents: true,
+      });
+      
+      console.log('🔍 OAuth Result:', result);
       
       if (result.type === 'success') {
         const { code, state } = result.params;

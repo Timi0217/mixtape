@@ -18,6 +18,7 @@ import { setAuthToken } from '../services/api';
 import api from '../services/api';
 import musicKitService from '../services/musicKitService';
 import { useAppleMusicAuth } from '../hooks/useAppleMusicAuth';
+import AppleMusicWebViewAuth from '../components/AppleMusicWebViewAuth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -80,7 +81,11 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const { 
     isAuthenticating: isAppleMusicAuthenticating, 
     authResult: appleMusicAuthResult,
+    showWebView,
     authenticateWithAppleMusic,
+    handleWebViewSuccess,
+    handleWebViewError,
+    handleWebViewCancel,
     resetAuth: resetAppleMusicAuth
   } = useAppleMusicAuth();
 
@@ -377,7 +382,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
               {loading === 'apple' || isAppleMusicAuthenticating ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.appleMusicButtonText}>Apple Music (Requires Native iOS)</Text>
+                <Text style={styles.appleMusicButtonText}>Continue with Apple Music</Text>
               )}
             </View>
           </TouchableOpacity>
@@ -387,6 +392,14 @@ const LoginScreen = ({ onLoginSuccess }) => {
           </Text>
         </View>
       </View>
+
+      {/* Apple Music WebView Authentication Modal */}
+      <AppleMusicWebViewAuth
+        visible={showWebView}
+        onSuccess={handleWebViewSuccess}
+        onError={handleWebViewError}
+        onCancel={handleWebViewCancel}
+      />
     </SafeAreaView>
   );
 };

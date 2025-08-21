@@ -2522,6 +2522,128 @@ router.post('/apple-music/exchange',
   }
 );
 
+// Apple Safari auth page for WebView/browser authentication
+router.get('/apple/safari-auth', async (req, res) => {
+  try {
+    const { developerToken, state } = req.query;
+    
+    if (!developerToken) {
+      return res.status(400).send('Developer token required');
+    }
+
+    // Create a simple HTML page with MusicKit.js
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Apple Music Authentication</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+              background: linear-gradient(135deg, #FC3C44 0%, #FF6B6B 100%);
+              min-height: 100vh;
+              margin: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+            }
+            .container {
+              text-align: center;
+              padding: 40px;
+              background: rgba(255, 255, 255, 0.1);
+              backdrop-filter: blur(20px);
+              border-radius: 24px;
+              max-width: 400px;
+              width: 90%;
+            }
+            .logo { font-size: 64px; margin-bottom: 20px; animation: pulse 2s infinite; }
+            @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+            h1 { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+            .subtitle { font-size: 17px; margin-bottom: 32px; opacity: 0.9; }
+            .status { font-size: 16px; font-weight: 500; margin-top: 20px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); }
+            .btn { background: #007AFF; color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer; margin: 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="logo">🎵</div>
+            <h1>Connecting to Apple Music</h1>
+            <p class="subtitle">Authorizing your Apple Music account...</p>
+            <div id="status" class="status">Loading MusicKit...</div>
+            <button onclick="tryDemo()" class="btn">Use Demo Mode</button>
+          </div>
+
+          <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js" async></script>
+          <script>
+            console.log('🍎 Apple Music auth page loaded');
+            
+            function updateStatus(message) {
+              document.getElementById('status').textContent = message;
+            }
+            
+            function tryDemo() {
+              updateStatus('Setting up demo access...');
+              fetch('/api/oauth/apple-music/demo-auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: 'demo_' + Date.now(), deviceType: 'ios' })
+              })
+              .then(r => r.json())
+              .then(data => {
+                if (data.success) {
+                  updateStatus('Demo access granted! You can close this page.');
+                  // No redirect needed - user will manually close
+                }
+              });
+            }
+
+            // Try MusicKit auth
+            document.addEventListener('musickitloaded', async () => {
+              try {
+                updateStatus('Configuring Apple Music...');
+                
+                await MusicKit.configure({
+                  developerToken: '${developerToken}',
+                  app: { name: 'Mixtape', build: '1.0.0' }
+                });
+
+                updateStatus('Requesting Apple Music authorization...');
+                const music = MusicKit.getInstance();
+                const userToken = await music.authorize();
+
+                if (userToken) {
+                  updateStatus('Success! You can close this page.');
+                  // Store token in local storage for the app to retrieve
+                  localStorage.setItem('appleMusicUserToken', userToken);
+                }
+              } catch (error) {
+                console.error('MusicKit error:', error);
+                updateStatus('MusicKit failed - tap "Use Demo Mode" to continue');
+              }
+            });
+
+            // Fallback if MusicKit doesn't load
+            setTimeout(() => {
+              if (document.getElementById('status').textContent.includes('Loading')) {
+                updateStatus('MusicKit taking too long - tap "Use Demo Mode" to continue');
+              }
+            }, 10000);
+          </script>
+        </body>
+      </html>
+    `;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    console.error('Apple Safari auth error:', error);
+    res.status(500).send('Authentication page failed to load');
+  }
+});
+
 // Get current user's profile (used by frontend for token verification)
 router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
   try {

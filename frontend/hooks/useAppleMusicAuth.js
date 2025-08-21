@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Linking, Alert } from 'react-native';
 import nativeMusicKitService from '../services/nativeMusicKitService';
 import appleMusicAuthSession from '../services/appleMusicAuthSession';
+import webViewMusicKitService from '../services/webViewMusicKitService';
+import AppleMusicBrowserAuth from '../components/AppleMusicBrowserAuth';
 
 export const useAppleMusicAuth = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authResult, setAuthResult] = useState(null);
+  const [showWebView, setShowWebView] = useState(false);
 
   // Handle deep link callbacks from MusicKit
   useEffect(() => {
@@ -73,64 +76,14 @@ export const useAppleMusicAuth = () => {
     try {
       console.log('🎵 Starting Apple Music authentication...');
       
-      // Try AuthSession first (should work now with fixed bundle ID + MusicKit enabled)
-      console.log('🍎 Attempting AuthSession authentication...');
+      // Use WebView approach (the working solution from GitHub repos)
+      console.log('🍎 Using WebView + MusicKit.js approach...');
       
-      await appleMusicAuthSession.initialize();
-      const authSessionResult = await appleMusicAuthSession.requestAuthorization();
+      // Show WebView modal
+      setShowWebView(true);
       
-      if (authSessionResult.cancelled) {
-        setIsAuthenticating(false);
-        return { cancelled: true };
-      }
-      
-      if (authSessionResult.success) {
-        console.log('✅ AuthSession Apple Music authentication successful!');
-        
-        // Set the result for compatibility with existing code
-        const result = {
-          success: true,
-          status: 'authorized',
-          cancelled: false,
-          token: authSessionResult.userToken || authSessionResult.musicUserToken,
-          userToken: authSessionResult.musicUserToken,
-          userInfo: authSessionResult.userInfo,
-          platform: 'apple-music'
-        };
-        
-        setAuthResult(result);
-        setIsAuthenticating(false);
-        
-        return { success: true, data: result };
-      }
-      
-      // If AuthSession failed, fall back to native approach
-      console.log('🔄 AuthSession failed, falling back to native approach...');
-      
-      // Initialize the native service
-      await nativeMusicKitService.initialize();
-      
-      // Use native MusicKit authentication
-      console.log('🍎 Requesting native Apple Music authorization...');
-      const nativeResult = await nativeMusicKitService.authenticateUser();
-      
-      if (nativeResult.cancelled) {
-        setIsAuthenticating(false);
-        return { cancelled: true };
-      }
-      
-      if (nativeResult.success) {
-        console.log('✅ Native Apple Music authentication successful!');
-        
-        // Set the result
-        setAuthResult(nativeResult);
-        setIsAuthenticating(false);
-        
-        return { success: true, data: nativeResult };
-      }
-      
-      // If we get here, both methods failed
-      throw new Error(nativeResult.error || 'All authentication methods failed');
+      // Return in progress state - WebView will handle the rest
+      return { inProgress: true };
       
     } catch (error) {
       console.error('❌ Apple Music authentication failed:', error);
@@ -143,15 +96,59 @@ export const useAppleMusicAuth = () => {
     }
   }, []);
 
+  const handleWebViewSuccess = useCallback((result) => {
+    console.log('✅ WebView authentication successful!', result);
+    
+    setShowWebView(false);
+    setIsAuthenticating(false);
+    setAuthResult({
+      success: true,
+      status: 'authorized',
+      cancelled: false,
+      token: result.token,
+      userToken: result.token,
+      userInfo: result.user,
+      platform: result.platform
+    });
+  }, []);
+
+  const handleWebViewError = useCallback((error) => {
+    console.error('❌ WebView authentication failed:', error);
+    
+    setShowWebView(false);
+    setIsAuthenticating(false);
+    setAuthResult({
+      success: false,
+      error: error
+    });
+  }, []);
+
+  const handleWebViewCancel = useCallback(() => {
+    console.log('🚫 User cancelled WebView authentication');
+    
+    setShowWebView(false);
+    setIsAuthenticating(false);
+    setAuthResult({
+      success: false,
+      cancelled: true,
+      status: 'denied'
+    });
+  }, []);
+
   const resetAuth = useCallback(() => {
     setIsAuthenticating(false);
     setAuthResult(null);
+    setShowWebView(false);
   }, []);
 
   return {
     isAuthenticating,
     authResult,
+    showWebView,
     authenticateWithAppleMusic,
+    handleWebViewSuccess,
+    handleWebViewError,
+    handleWebViewCancel,
     resetAuth
   };
 };

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Apple Music Authentication</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+        background: linear-gradient(135deg, #FC3C44 0%, #FF6B6B 100%);
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      }
+      .container {
+        text-align: center;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        max-width: 400px;
+        width: 90%;
+      }
+      .logo {
+        font-size: 64px;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        letter-spacing: -0.5px;
+      }
+      .subtitle {
+        font-size: 17px;
+        margin-bottom: 32px;
+        opacity: 0.9;
+        line-height: 1.4;
+      }
+      .status {
+        font-size: 16px;
+        font-weight: 500;
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .success {
+        background: rgba(52, 199, 89, 0.2);
+        color: #34C759;
+      }
+      .error {
+        background: rgba(255, 59, 48, 0.2);
+        color: #FF3B30;
+      }
+      .loading {
+        background: rgba(0, 122, 255, 0.2);
+        color: #007AFF;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">🎵</div>
+      <h1>Connecting to Apple Music</h1>
+      <p class="subtitle">Authorizing your Apple Music account...</p>
+      <div id="status" class="status loading">Initializing MusicKit...</div>
+    </div>
+
+    <!-- Load MusicKit.js -->
+    <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js" data-web-components async></script>
+
+    <script>
+      console.log('🍎 Apple Music WebView Auth starting...');
+      
+      function updateStatus(message, type = 'loading') {
+        const status = document.getElementById('status');
+        status.textContent = message;
+        status.className = 'status ' + type;
+      }
+
+      // Get the developer token from React Native
+      function getDeveloperToken() {
+        try {
+          if (window.ReactNativeWebView && window.ReactNativeWebView.injectedObjectJson) {
+            const injected = JSON.parse(window.ReactNativeWebView.injectedObjectJson());
+            return injected.developerToken;
+          }
+          return null;
+        } catch (error) {
+          console.error('Failed to get developer token:', error);
+          return null;
+        }
+      }
+
+      // Initialize MusicKit when loaded
+      document.addEventListener('musickitloaded', async () => {
+        try {
+          console.log('🎵 MusicKit loaded, configuring...');
+          updateStatus('MusicKit loaded, configuring...', 'loading');
+
+          const developerToken = getDeveloperToken();
+          
+          if (!developerToken) {
+            throw new Error('Developer token not available');
+          }
+
+          console.log('🔑 Developer token available, configuring MusicKit...');
+
+          await MusicKit.configure({
+            developerToken: developerToken,
+            app: {
+              name: 'Mixtape',
+              build: '1.0.0'
+            },
+            suppressErrorDialog: false
+          });
+
+          console.log('✅ MusicKit configured successfully');
+          updateStatus('Opening Apple Music authorization...', 'loading');
+
+          // Get MusicKit instance
+          const music = MusicKit.getInstance();
+          
+          // Add event listeners for better debugging
+          music.addEventListener('authorizationStatusDidChange', (event) => {
+            console.log('🔐 Auth status changed:', event.authorizationStatus);
+          });
+
+          music.addEventListener('userTokenDidChange', (event) => {
+            console.log('🎫 User token changed:', !!event.userToken);
+          });
+
+          // Request authorization
+          console.log('🍎 Requesting Apple Music authorization...');
+          const userToken = await music.authorize();
+
+          if (userToken) {
+            console.log('✅ Authorization successful!');
+            updateStatus('Success! Redirecting back to app...', 'success');
+            
+            // Send token back to React Native
+            if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                success: true,
+                userToken: userToken,
+                platform: 'apple-music'
+              }));
+            } else {
+              console.error('ReactNativeWebView.postMessage not available');
+            }
+          } else {
+            throw new Error('No user token received');
+          }
+
+        } catch (error) {
+          console.error('❌ MusicKit authorization failed:', error);
+          updateStatus('Authorization failed: ' + error.message, 'error');
+          
+          // Send error back to React Native
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              success: false,
+              error: error.message
+            }));
+          }
+        }
+      });
+
+      // Handle MusicKit load errors
+      window.addEventListener('error', (event) => {
+        console.error('❌ Script error:', event.error);
+        updateStatus('Failed to load MusicKit', 'error');
+      });
+
+      // Timeout fallback
+      setTimeout(() => {
+        if (document.getElementById('status').textContent.includes('Initializing')) {
+          console.error('⏰ MusicKit load timeout');
+          updateStatus('MusicKit failed to load - please try again', 'error');
+          
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              success: false,
+              error: 'MusicKit load timeout'
+            }));
+          }
+        }
+      }, 15000); // 15 second timeout
+
+    </script>
+  </body>
+</html>
