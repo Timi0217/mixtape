@@ -1,7 +1,6 @@
 // Native MusicKit service - uses REAL Apple Music authorization
-import musicKitService from './musicKitService';
+import ExpoMusickit from '../modules/expo-musickit/expo-musickit/src';
 import { Alert } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 
 class NativeMusicKitService {
   constructor() {
@@ -27,70 +26,50 @@ class NativeMusicKitService {
   }
 
   /**
-   * Use backend-generated Apple Music token (bypasses client-side auth issues)
+   * Request real Apple Music authorization using native iOS MusicKit
    */
   async requestAuthorization() {
     try {
-      console.log('🍎 Using backend Apple Music token generation...');
+      console.log('🍎 Requesting native Apple Music authorization...');
       
-      // Use your backend to generate a valid Apple Music session
-      const response = await fetch('https://mixtape-production.up.railway.app/api/oauth/apple-music/demo-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: `demo_user_${Date.now()}`,
-          deviceType: 'ios'
-        })
-      });
+      // Use the native iOS MusicKit module
+      const result = await ExpoMusickit.requestAuthorization();
       
-      const result = await response.json();
+      console.log('🔍 Native authorization result:', result);
       
-      if (result.success && result.musicUserToken) {
-        console.log('✅ Backend generated Apple Music token successfully');
+      if (result.status === 'authorized') {
+        console.log('✅ Native Apple Music authorization successful');
+        
+        // Get the music user token from the native module
+        const tokenResult = await ExpoMusickit.getUserToken();
+        const userToken = tokenResult.userToken;
+        
         return {
           success: true,
           cancelled: false,
           status: 'authorized',
-          musicUserToken: result.musicUserToken
+          userToken: userToken,
+          musicUserToken: userToken // Keep both for compatibility
         };
       } else {
-        throw new Error(result.error || 'Backend token generation failed');
+        console.log('❌ Native authorization failed:', result.status);
+        return {
+          success: false,
+          cancelled: result.status === 'denied',
+          status: result.status,
+          error: `Apple Music authorization ${result.status}`
+        };
       }
       
     } catch (error) {
-      console.error('❌ Backend Apple Music authorization failed:', error);
+      console.error('❌ Native Apple Music authorization failed:', error);
       
-      // Fallback: Show user-friendly message and simulate success for demo
-      console.log('🎭 Falling back to demo mode for testing...');
-      
-      return new Promise((resolve) => {
-        Alert.alert(
-          'Apple Music Setup Required',
-          'Apple Music needs to be set up in Apple Developer Console. For now, we\'ll create a demo Apple Music connection so you can test the app.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => resolve({
-                success: false,
-                cancelled: true,
-                status: 'denied'
-              })
-            },
-            {
-              text: 'Continue with Demo',
-              onPress: () => resolve({
-                success: true,
-                cancelled: false,
-                status: 'authorized',
-                musicUserToken: `demo_apple_music_${Date.now()}_for_testing`
-              })
-            }
-          ]
-        );
-      });
+      return {
+        success: false,
+        cancelled: false,
+        status: 'error',
+        error: error.message
+      };
     }
   }
 

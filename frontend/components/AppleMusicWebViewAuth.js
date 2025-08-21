@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import webViewMusicKitService from '../services/webViewMusicKitService';
+import nativeMusicKitService from '../services/nativeMusicKitService';
 
 // Configure WebBrowser for OAuth completion
 WebBrowser.maybeCompleteAuthSession();
@@ -16,61 +17,25 @@ const AppleMusicWebViewAuth = ({ visible, onSuccess, onError, onCancel }) => {
 
   const startAuthentication = async () => {
     try {
-      console.log('🍎 Starting Apple Music authentication...');
+      console.log('🍎 Starting native Apple Music authentication...');
       
-      // Get developer token
-      const developerToken = await webViewMusicKitService.getDeveloperToken();
+      // Try native iOS MusicKit first
+      const nativeResult = await nativeMusicKitService.requestAuthorization();
       
-      // Create auth URL
-      const authUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/safari-auth?developerToken=${encodeURIComponent(developerToken)}&state=webview_auth_${Date.now()}&redirect=mixtape://apple-music-success`;
-      
-      console.log('🚀 Opening Apple Music auth browser:', authUrl);
-      
-      // Listen for deep link response
-      const handleDeepLink = (url) => {
-        console.log('🔗 Received deep link:', url);
+      if (nativeResult.status === 'authorized') {
+        console.log('✅ Native Apple Music authorization successful');
         
-        if (url.includes('apple-music-success')) {
-          const urlObj = new URL(url);
-          const token = urlObj.searchParams.get('token');
-          const error = urlObj.searchParams.get('error');
-          
-          if (token) {
-            console.log('✅ Received Apple Music token from deep link');
-            handleTokenReceived(token);
-          } else if (error) {
-            console.error('❌ Received error from deep link:', error);
-            onError(error);
-          } else {
-            console.error('❌ No token received in callback');
-            onError('Apple Music authentication failed - no token received');
-          }
-        }
-      };
-      
-      // Set up deep link listener
-      const subscription = Linking.addEventListener('url', handleDeepLink);
-      
-      const result = await WebBrowser.openBrowserAsync(authUrl, {
-        dismissButtonStyle: 'close',
-        presentationStyle: 'fullScreen', // Use fullscreen instead of pageSheet
-      });
-
-      // Clean up listener
-      subscription?.remove();
-
-      if (result.type === 'cancel') {
-        console.log('🚫 User cancelled browser auth');
-        onCancel();
+        // Exchange the user token with backend
+        const exchangeResult = await webViewMusicKitService.exchangeTokenWithBackend(nativeResult.userToken || nativeResult.musicUserToken);
+        onSuccess(exchangeResult);
         return;
+      } else {
+        console.log('❌ Native authorization failed:', nativeResult.status);
+        throw new Error(`Apple Music authorization ${nativeResult.status}: ${nativeResult.error || 'Please enable Apple Music in Settings'}`);
       }
 
-      // If browser closed without deep link, authentication failed
-      console.log('📱 Browser closed without authentication');
-      onError('Apple Music authentication cancelled or failed');
-
     } catch (error) {
-      console.error('❌ Auth failed:', error);
+      console.error('❌ Native auth failed:', error);
       onError(error.message);
     }
   };
