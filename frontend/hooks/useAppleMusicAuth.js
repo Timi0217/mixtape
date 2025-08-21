@@ -75,14 +75,12 @@ export const useAppleMusicAuth = () => {
 
     try {
       console.log('🎵 Starting Apple Music authentication...');
+      console.log('🍎 Using browser + deep link approach...');
       
-      // Use WebView approach (the working solution from GitHub repos)
-      console.log('🍎 Using WebView + MusicKit.js approach...');
-      
-      // Show WebView modal
+      // Show browser auth modal
       setShowWebView(true);
       
-      // Return in progress state - WebView will handle the rest
+      // Return in progress state - modal will handle the rest
       return { inProgress: true };
       
     } catch (error) {
