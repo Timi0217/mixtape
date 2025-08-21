@@ -18,7 +18,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mixtape.app"
+      "bundleIdentifier": "com.mixtape.app",
+      "usesNonExemptEncryption": false
     },
     "android": {
       "adaptiveIcon": {
@@ -41,7 +42,11 @@
       "API_BASE_URL": "https://mixtape-production.up.railway.app/api",
       "APP_ENV": "production",
       "ENABLE_DEBUG_LOGS": false,
-      "DEEP_LINK_SCHEME": "mixtape"
-    }
+      "DEEP_LINK_SCHEME": "mixtape",
+      "eas": {
+        "projectId": "6d07271b-0b89-456a-94a4-fbbdf46dbaa7"
+      }
+    },
+    "owner": "tmilehin"
   }
 }
