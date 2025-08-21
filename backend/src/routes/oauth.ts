@@ -2116,8 +2116,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             <div class="logo">🎵</div>
             <h1>Connecting to Apple Music</h1>
             <p class="subtitle">Authorizing your Apple Music account...</p>
-            <div id="status" class="status">Loading MusicKit...</div>
-            <button onclick="tryDemo()" class="btn">Use Demo Mode</button>
+            <div id="status" class="status">🍎 Loading Apple Music...</div>
           </div>
 
           <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js" async></script>
@@ -2128,28 +2127,6 @@ router.get('/apple/safari-auth', async (req, res) => {
               document.getElementById('status').textContent = message;
             }
             
-            function tryDemo() {
-              updateStatus('Setting up demo access...');
-              fetch('/api/oauth/apple-music/demo-auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: 'demo_' + Date.now(), deviceType: 'ios' })
-              })
-              .then(r => r.json())
-              .then(data => {
-                if (data.success) {
-                  updateStatus('Demo access granted! Redirecting...');
-                  
-                  // Redirect back to app with demo token
-                  const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
-                  if (redirectUrl.includes('mixtape://')) {
-                    window.location.href = redirectUrl + '?token=' + encodeURIComponent(data.musicUserToken);
-                  } else {
-                    updateStatus('Demo access granted! You can close this page.');
-                  }
-                }
-              });
-            }
 
             // Try MusicKit auth
             document.addEventListener('musickitloaded', async () => {
@@ -2180,14 +2157,24 @@ router.get('/apple/safari-auth', async (req, res) => {
                 }
               } catch (error) {
                 console.error('MusicKit error:', error);
-                updateStatus('MusicKit failed - tap "Use Demo Mode" to continue');
+                updateStatus('❌ Apple Music authorization failed: ' + error.message);
               }
             });
 
-            // Fallback if MusicKit doesn't load
+            // Handle script loading errors
+            window.addEventListener('error', (event) => {
+              if (event.target && event.target.tagName === 'SCRIPT') {
+                console.error('❌ MusicKit script loading failed:', event.target.src);
+                updateStatus('❌ Failed to load Apple Music. Please check your connection.');
+              }
+            });
+
+            // Timeout if MusicKit doesn't load after 10 seconds
             setTimeout(() => {
-              if (document.getElementById('status').textContent.includes('Loading')) {
-                updateStatus('MusicKit taking too long - tap "Use Demo Mode" to continue');
+              const statusEl = document.getElementById('status');
+              if (statusEl && (statusEl.textContent.includes('Loading') || statusEl.textContent.includes('🍎'))) {
+                console.log('⏰ MusicKit load timeout');
+                updateStatus('❌ Apple Music connection timeout. Please try again.');
               }
             }, 10000);
           </script>
