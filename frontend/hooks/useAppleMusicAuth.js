@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Linking, Alert } from 'react-native';
 import nativeMusicKitService from '../services/nativeMusicKitService';
+import appleMusicAuthSession from '../services/appleMusicAuthSession';
 
 export const useAppleMusicAuth = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -70,32 +71,66 @@ export const useAppleMusicAuth = () => {
     setAuthResult(null);
 
     try {
-      console.log('🎵 Starting Native Apple Music authentication...');
+      console.log('🎵 Starting Apple Music authentication...');
       
-      // Initialize the native service
-      await nativeMusicKitService.initialize();
+      // Try AuthSession first (should work now with fixed bundle ID + MusicKit enabled)
+      console.log('🍎 Attempting AuthSession authentication...');
       
-      // Use native MusicKit authentication
-      console.log('🍎 Requesting native Apple Music authorization...');
-      const result = await nativeMusicKitService.authenticateUser();
+      await appleMusicAuthSession.initialize();
+      const authSessionResult = await appleMusicAuthSession.requestAuthorization();
       
-      if (result.cancelled) {
+      if (authSessionResult.cancelled) {
         setIsAuthenticating(false);
         return { cancelled: true };
       }
       
-      if (result.success) {
-        console.log('✅ Native Apple Music authentication successful!');
+      if (authSessionResult.success) {
+        console.log('✅ AuthSession Apple Music authentication successful!');
         
-        // Set the result
+        // Set the result for compatibility with existing code
+        const result = {
+          success: true,
+          status: 'authorized',
+          cancelled: false,
+          token: authSessionResult.userToken || authSessionResult.musicUserToken,
+          userToken: authSessionResult.musicUserToken,
+          userInfo: authSessionResult.userInfo,
+          platform: 'apple-music'
+        };
+        
         setAuthResult(result);
         setIsAuthenticating(false);
         
         return { success: true, data: result };
       }
       
-      // If we get here, something went wrong
-      throw new Error(result.error || 'Unknown authentication error');
+      // If AuthSession failed, fall back to native approach
+      console.log('🔄 AuthSession failed, falling back to native approach...');
+      
+      // Initialize the native service
+      await nativeMusicKitService.initialize();
+      
+      // Use native MusicKit authentication
+      console.log('🍎 Requesting native Apple Music authorization...');
+      const nativeResult = await nativeMusicKitService.authenticateUser();
+      
+      if (nativeResult.cancelled) {
+        setIsAuthenticating(false);
+        return { cancelled: true };
+      }
+      
+      if (nativeResult.success) {
+        console.log('✅ Native Apple Music authentication successful!');
+        
+        // Set the result
+        setAuthResult(nativeResult);
+        setIsAuthenticating(false);
+        
+        return { success: true, data: nativeResult };
+      }
+      
+      // If we get here, both methods failed
+      throw new Error(nativeResult.error || 'All authentication methods failed');
       
     } catch (error) {
       console.error('❌ Apple Music authentication failed:', error);

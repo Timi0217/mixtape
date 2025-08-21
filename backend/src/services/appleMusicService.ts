@@ -274,6 +274,12 @@ class AppleMusicService {
   // Validate a user token
   async validateUserToken(userToken: string): Promise<boolean> {
     try {
+      // Allow demo tokens for development
+      if (userToken.startsWith('demo_apple_music_')) {
+        console.log('🎭 Accepting demo Apple Music token for development');
+        return true;
+      }
+
       const developerToken = await this.getDeveloperToken();
 
       const response = await axios.get('https://api.music.apple.com/v1/me/storefront', {

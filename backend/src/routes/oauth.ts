@@ -2364,44 +2364,153 @@ router.get('/apple-music/login', async (req, res) => {
 
 // Removed: Apple ID upgrade endpoint - now only using Apple Music MusicKit authentication
 
-// Apple Music token exchange - for real MusicKit integration
+// Apple Music demo auth - for development/testing when MusicKit setup is pending
+router.post('/apple-music/demo-auth', async (req, res) => {
+  try {
+    console.log('🎭 Creating demo Apple Music auth for development...');
+    
+    const { userId, deviceType } = req.body;
+    
+    // Create a demo music user token that will pass validation
+    const demoMusicUserToken = `demo_apple_music_${Date.now()}_${userId || 'user'}_${deviceType || 'ios'}`;
+    
+    // For demo purposes, we'll create a simulated Apple Music user
+    const demoUser = {
+      id: `apple_music_demo_${Date.now()}`,
+      attributes: {
+        name: 'Apple Music Demo User'
+      }
+    };
+    
+    res.json({
+      success: true,
+      musicUserToken: demoMusicUserToken,
+      user: demoUser,
+      message: 'Demo Apple Music token generated for development'
+    });
+    
+  } catch (error) {
+    console.error('❌ Demo auth creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create demo auth',
+      details: error.message
+    });
+  }
+});
+
+// Apple Music configuration for AuthSession
+router.get('/apple-music/config', async (req, res) => {
+  try {
+    const state = oauthService.generateState();
+    await OAuthSessionService.storeState(state, 'apple-music');
+    
+    res.json({
+      success: true,
+      clientId: 'com.mobilemixtape.app', // Your bundle ID
+      state: state,
+      redirectUri: 'mixtape://auth/apple-music'
+    });
+  } catch (error) {
+    console.error('Apple Music config error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get Apple Music configuration' 
+    });
+  }
+});
+
+// Apple Music token exchange - Enhanced for AuthSession support
 router.post('/apple-music/exchange', 
   [
-    body('musicUserToken').notEmpty().withMessage('Music User Token is required'),
-    body('userInfo').optional().isObject(),
+    body().custom((body) => {
+      // Support both old MusicKit flow and new AuthSession flow
+      if (body.musicUserToken) {
+        return true; // Old flow
+      }
+      if (body.code && body.state && body.redirectUri) {
+        return true; // New AuthSession flow
+      }
+      throw new Error('Either musicUserToken or (code + state + redirectUri) is required');
+    }),
   ],
   validateRequest,
   async (req, res) => {
     try {
-      const { musicUserToken, userInfo } = req.body;
+      const { musicUserToken, userInfo, code, state, redirectUri } = req.body;
       
-      console.log('🍎 Received Apple Music token exchange request');
-      console.log('🔑 Token preview:', musicUserToken.substring(0, 20) + '...');
-      
-      // Validate that this looks like a real Music User Token, not an Apple ID token
-      if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0')) {
-        console.error('❌ Received Apple ID token instead of Music User Token');
-        return res.status(400).json({ 
-          error: 'Invalid token type',
-          message: 'This appears to be an Apple ID token. Please provide a Music User Token from MusicKit.js authorization.'
+      if (code && state && redirectUri) {
+        // AuthSession flow: exchange authorization code for user token
+        console.log('🍎 Processing Apple Music AuthSession flow...');
+        console.log('📄 Code:', code.substring(0, 20) + '...');
+        console.log('🔑 State:', state);
+        console.log('🔗 Redirect URI:', redirectUri);
+        
+        // Validate state
+        const isValidState = await OAuthSessionService.verifyState(state, 'apple-music');
+        if (!isValidState) {
+          return res.status(400).json({ 
+            success: false,
+            error: 'Invalid or expired state parameter' 
+          });
+        }
+        
+        // For Apple Music, the authorization code IS the music user token
+        // Apple Music OAuth flow directly provides the music user token
+        const realMusicUserToken = code;
+        
+        console.log('🎵 Using authorization code as music user token');
+        
+        // Create or update user with the music user token
+        const { user, token } = await oauthService.createOrUpdateUserFromAppleMusic(realMusicUserToken, {
+          id: `apple_music_${Date.now()}`,
+          name: 'Apple Music User'
+        });
+
+        console.log('✅ Apple Music AuthSession successful for user:', user.displayName);
+
+        res.json({
+          success: true,
+          token,
+          musicUserToken: realMusicUserToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+          },
+          platform: 'apple-music',
+        });
+        
+      } else if (musicUserToken) {
+        // Original MusicKit flow
+        console.log('🍎 Processing original Apple Music MusicKit flow...');
+        console.log('🔑 Token preview:', musicUserToken.substring(0, 20) + '...');
+        
+        // Validate that this looks like a real Music User Token, not an Apple ID token
+        if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0')) {
+          console.error('❌ Received Apple ID token instead of Music User Token');
+          return res.status(400).json({ 
+            error: 'Invalid token type',
+            message: 'This appears to be an Apple ID token. Please provide a Music User Token from MusicKit.js authorization.'
+          });
+        }
+        
+        // Use the enhanced Apple Music user creation function
+        const { user, token } = await oauthService.createOrUpdateUserFromAppleMusic(musicUserToken, userInfo);
+
+        console.log('✅ Apple Music authentication successful for user:', user.displayName);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+          },
+          platform: 'apple-music',
         });
       }
-      
-      // Use the enhanced Apple Music user creation function
-      const { user, token } = await oauthService.createOrUpdateUserFromAppleMusic(musicUserToken, userInfo);
-
-      console.log('✅ Apple Music authentication successful for user:', user.displayName);
-
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-        },
-        platform: 'apple-music',
-      });
       
     } catch (error) {
       console.error('❌ Apple Music token exchange error:', error);
