@@ -72,9 +72,9 @@ export const useAppleMusicAuth = () => {
     try {
       console.log('🍎 Starting Apple Music MusicKit authentication...');
       
-      // Direct MusicKit authentication (no Apple Sign In required)
-      console.log('🎵 Opening MusicKit authorization...');
-      const result = await musicKitService.authenticateWithWebView();
+      // Safari-based MusicKit authentication (SAFARI HACK)
+      console.log('🦄 Opening MusicKit authorization in Safari...');
+      const result = await musicKitService.authenticateWithSafari();
       
       if (result.type === 'cancel') {
         setIsAuthenticating(false);

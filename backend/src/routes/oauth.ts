@@ -1052,6 +1052,250 @@ router.get('/apple/music-permissions', async (req, res) => {
   }
 });
 
+// Safari-optimized Apple Music auth page - SAFARI HACK
+router.get('/apple/safari-auth', async (req, res) => {
+  try {
+    const { state, developerToken } = req.query;
+    
+    if (!state || !developerToken) {
+      return res.status(400).send('Missing required parameters');
+    }
+    
+    const sessionData = await OAuthSessionService.getSessionState(state as string);
+    if (!sessionData) {
+      return res.status(400).send('Invalid or expired state parameter');
+    }
+    
+    // Safari-optimized HTML with enhanced MusicKit.js integration
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <title>Apple Music - Mixtape</title>
+        <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" 
+                async onload="console.log('✅ MusicKit loaded')" 
+                onerror="console.error('❌ MusicKit load failed')"></script>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: linear-gradient(135deg, #FC3C44 0%, #FF6B6B 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+          }
+          .container {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 48px 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+          }
+          .logo { font-size: 64px; margin-bottom: 20px; animation: pulse 2s infinite; }
+          @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+          h1 { color: #1D1D1F; font-size: 32px; font-weight: 700; margin-bottom: 12px; }
+          .subtitle { color: #86868B; font-size: 17px; margin-bottom: 32px; line-height: 1.4; }
+          .auth-btn {
+            background: #FC3C44;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 18px 36px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 16px 0;
+            transition: all 0.3s ease;
+            font-family: inherit;
+          }
+          .auth-btn:hover { background: #E73540; transform: translateY(-2px); }
+          .auth-btn:disabled { background: #ccc; transform: none; cursor: not-allowed; }
+          .status { margin-top: 20px; font-size: 16px; font-weight: 500; }
+          .success { color: #30D158; }
+          .error { color: #FF3B30; }
+          .loading { color: #007AFF; }
+          .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-radius: 50%; border-top: 2px solid #FC3C44; animation: spin 1s linear infinite; margin-right: 8px; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo">🎵</div>
+          <h1>Connect Apple Music</h1>
+          <p class="subtitle">Authorize Mixtape to access your Apple Music library</p>
+          
+          <button id="authBtn" class="auth-btn" onclick="startAuthentication()">
+            <span id="btnText">Authorize Apple Music</span>
+          </button>
+          
+          <div id="status" class="status">Ready to connect</div>
+        </div>
+
+        <script>
+          let musicKitReady = false;
+          let retryCount = 0;
+          const maxRetries = 3;
+
+          // Enhanced MusicKit initialization for Safari
+          async function initMusicKit() {
+            try {
+              console.log('🍎 Initializing MusicKit for Safari...');
+              
+              if (typeof MusicKit === 'undefined') {
+                throw new Error('MusicKit not available');
+              }
+
+              await MusicKit.configure({
+                developerToken: '${developerToken}',
+                app: {
+                  name: 'Mixtape',
+                  build: '1.0.0'
+                },
+                suppressErrorDialog: false,
+                declarativeMarkup: true
+              });
+
+              const music = MusicKit.getInstance();
+              
+              // Add event listeners
+              music.addEventListener('authorizationStatusDidChange', handleAuthChange);
+              music.addEventListener('userTokenDidChange', handleTokenChange);
+              
+              musicKitReady = true;
+              updateStatus('Ready to authorize', 'status');
+              console.log('✅ MusicKit initialized successfully');
+              
+            } catch (error) {
+              console.error('❌ MusicKit init error:', error);
+              updateStatus('MusicKit initialization failed: ' + error.message, 'error');
+              
+              if (retryCount < maxRetries) {
+                retryCount++;
+                console.log(\`🔄 Retrying MusicKit init (\${retryCount}/\${maxRetries})...\`);
+                setTimeout(initMusicKit, 2000);
+              }
+            }
+          }
+
+          function handleAuthChange(event) {
+            console.log('🔐 Auth status changed:', event.authorizationStatus);
+          }
+
+          function handleTokenChange(event) {
+            console.log('🎫 Token changed:', !!event.userToken);
+            if (event.userToken) {
+              handleSuccess(event.userToken);
+            }
+          }
+
+          async function startAuthentication() {
+            const btn = document.getElementById('authBtn');
+            const btnText = document.getElementById('btnText');
+            
+            try {
+              btn.disabled = true;
+              btnText.innerHTML = '<span class="spinner"></span>Authorizing...';
+              updateStatus('Requesting Apple Music permission...', 'loading');
+
+              if (!musicKitReady) {
+                throw new Error('MusicKit not ready');
+              }
+
+              const music = MusicKit.getInstance();
+              console.log('🎵 Starting authorization...');
+              
+              // Request authorization
+              const userToken = await music.authorize();
+              
+              if (userToken) {
+                handleSuccess(userToken);
+              } else {
+                throw new Error('No user token received');
+              }
+              
+            } catch (error) {
+              console.error('❌ Auth error:', error);
+              handleError(error.message);
+            }
+          }
+
+          async function handleSuccess(userToken) {
+            console.log('✅ Authorization successful!');
+            updateStatus('Success! Redirecting back to app...', 'success');
+            
+            try {
+              // Send token back to app via deep link
+              const callbackUrl = \`mixtape://apple-music-auth?music_user_token=\${encodeURIComponent(userToken)}&state=\${encodeURIComponent('${state}')}\`;
+              
+              console.log('🔗 Redirecting to app:', callbackUrl);
+              window.location.href = callbackUrl;
+              
+            } catch (error) {
+              console.error('❌ Redirect error:', error);
+              updateStatus('Success! Please return to the Mixtape app manually.', 'success');
+            }
+          }
+
+          function handleError(message) {
+            const btn = document.getElementById('authBtn');
+            const btnText = document.getElementById('btnText');
+            
+            btn.disabled = false;
+            btnText.textContent = 'Try Again';
+            updateStatus('Error: ' + message, 'error');
+          }
+
+          function updateStatus(message, type = 'status') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+          }
+
+          // Initialize when page loads
+          document.addEventListener('DOMContentLoaded', function() {
+            console.log('📱 Page loaded in Safari');
+            updateStatus('Loading Apple Music...', 'loading');
+            
+            // Wait for MusicKit to load, then initialize
+            if (typeof MusicKit !== 'undefined') {
+              initMusicKit();
+            } else {
+              // Poll for MusicKit availability
+              let checkCount = 0;
+              const checkInterval = setInterval(() => {
+                checkCount++;
+                if (typeof MusicKit !== 'undefined') {
+                  clearInterval(checkInterval);
+                  initMusicKit();
+                } else if (checkCount > 10) {
+                  clearInterval(checkInterval);
+                  updateStatus('Failed to load Apple Music. Please refresh.', 'error');
+                }
+              }, 500);
+            }
+          });
+        </script>
+      </body>
+      </html>
+    `;
+    
+    res.send(html);
+  } catch (error) {
+    console.error('Safari auth page error:', error);
+    res.status(500).send('Failed to load authentication page');
+  }
+});
+
 // Simple Apple Music auth page without MusicKit
 router.get('/apple/simple-auth', async (req, res) => {
   try {

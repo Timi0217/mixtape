@@ -149,40 +149,45 @@ class MusicKitService {
     }
   }
 
-  // Use WebView-based MusicKit approach for React Native
-  async authenticateWithWebView() {
+  // Use Safari instead of WebView for full MusicKit.js support
+  async authenticateWithSafari() {
     try {
       if (!this.isInitialized) {
         await this.initialize();
       }
 
-      console.log('🌐 Using WebView-based MusicKit authentication...');
+      console.log('🦄 Using Safari-based MusicKit authentication...');
       
-      // Create a web page that loads MusicKit.js
-      const musicKitHtml = this.createMusicKitWebPage();
+      // Deploy the auth page to a real domain instead of data URL
+      const authPageUrl = await this.deployAuthPage();
       
-      // Create a data URL for the HTML content
-      const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(musicKitHtml)}`;
+      console.log('🌐 Opening MusicKit in Safari:', authPageUrl);
       
-      console.log('🌐 Opening MusicKit WebView...');
-      
-      // Open custom WebView with MusicKit integration
-      const result = await WebBrowser.openBrowserAsync(dataUrl, {
-        dismissButtonStyle: 'close',
-        presentationStyle: 'pageSheet',
-        enableDefaultShare: false,
-        showTitle: true,
-        toolbarColor: '#FC3C44',
-        controlsColor: '#ffffff',
-        showInRecents: false
-      });
+      // Force Safari View Controller with specific options
+      const result = await WebBrowser.openAuthSessionAsync(
+        authPageUrl,
+        'mixtape://apple-music-auth',
+        {
+          // These options force Safari instead of in-app WebView
+          preferEphemeralSession: false,
+          showInRecents: false,
+          dismissButtonStyle: 'close',
+          presentationStyle: 'overFullScreen', // Forces Safari
+        }
+      );
 
-      console.log('🔄 WebView result:', result);
+      console.log('🔄 Safari result:', result);
       return result;
     } catch (error) {
-      console.error('❌ WebView MusicKit authentication failed:', error);
+      console.error('❌ Safari MusicKit authentication failed:', error);
       throw error;
     }
+  }
+
+  // Use WebView-based MusicKit approach for React Native (DEPRECATED)
+  async authenticateWithWebView() {
+    console.log('⚠️ WebView approach deprecated, using Safari instead...');
+    return this.authenticateWithSafari();
   }
 
   // Alternative: Direct MusicKit authorization URL approach
@@ -212,6 +217,25 @@ class MusicKitService {
       return result;
     } catch (error) {
       console.error('❌ Direct URL MusicKit authentication failed:', error);
+      throw error;
+    }
+  }
+
+  // Deploy auth page to a real domain for Safari compatibility
+  async deployAuthPage() {
+    try {
+      // Use your backend to serve the auth page instead of data URL
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://mixtape-production.up.railway.app'  // Your production URL
+        : 'http://localhost:8080';
+      
+      // Create auth page URL with state parameter
+      const authPageUrl = `${baseUrl}/api/oauth/apple/safari-auth?state=${encodeURIComponent(this.state)}&developerToken=${encodeURIComponent(this.musicKitConfig.developerToken)}`;
+      
+      console.log('🌐 Auth page URL generated:', authPageUrl);
+      return authPageUrl;
+    } catch (error) {
+      console.error('❌ Failed to create auth page URL:', error);
       throw error;
     }
   }
