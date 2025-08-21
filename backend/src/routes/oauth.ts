@@ -2145,64 +2145,74 @@ router.get('/apple/safari-auth', async (req, res) => {
             }
             
             function manualAuth() {
-              console.log('🖱️ Manual authorization button clicked');
+              console.log('🖱️ Manual authorization button clicked - user initiated');
               document.getElementById('authBtn').style.display = 'none';
-              updateStatus('Opening Apple Music authorization...');
+              updateStatus('Authorizing with Apple Music...');
               
               try {
-                if (window.MusicKit) {
-                  const music = MusicKit.getInstance();
-                  console.log('🎵 MusicKit instance available:', !!music);
-                  console.log('🔍 Current authorization status:', music.isAuthorized);
-                  
-                  console.log('🚀 Calling music.authorize()...');
-                  
-                  // Wrap in try-catch and add timeout
-                  const authPromise = music.authorize();
-                  console.log('📝 Authorize promise created:', !!authPromise);
-                  
-                  // Add explicit timeout
-                  const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => {
-                      console.log('⏰ Authorization timeout after 30 seconds');
-                      reject(new Error('Authorization timeout'));
-                    }, 30000);
-                  });
-                  
-                  Promise.race([authPromise, timeoutPromise]).then(token => {
-                    console.log('🎵 Authorization response received:', token);
-                    if (token) {
-                      console.log('✅ Token received, redirecting...');
-                      updateStatus('Success! Redirecting back to app...');
+                if (!window.MusicKit) {
+                  throw new Error('MusicKit not loaded');
+                }
+                
+                const music = MusicKit.getInstance();
+                console.log('🎵 MusicKit instance:', music);
+                console.log('🔍 Authorization status:', music.isAuthorized);
+                console.log('🔍 MusicKit API available:', !!music.api);
+                
+                // Reset any existing authorization first
+                if (music.isAuthorized) {
+                  console.log('🔄 Clearing existing authorization...');
+                  music.unauthorize();
+                }
+                
+                console.log('🚀 Starting authorization (user-initiated)...');
+                
+                // Use setTimeout to ensure this runs after user gesture completes
+                setTimeout(() => {
+                  music.authorize().then(userToken => {
+                    console.log('✅ Authorization success!');
+                    console.log('🎵 User token type:', typeof userToken);
+                    console.log('🎵 User token length:', userToken ? userToken.length : 'null');
+                    console.log('🎵 User token preview:', userToken ? userToken.substring(0, 50) + '...' : 'null');
+                    
+                    if (userToken && userToken.length > 0) {
+                      updateStatus('Success! Redirecting to app...');
                       
+                      const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
+                      const finalUrl = redirectUrl + '?token=' + encodeURIComponent(userToken);
+                      
+                      console.log('🔗 Final redirect URL:', finalUrl);
+                      
+                      // Redirect after short delay
                       setTimeout(() => {
-                        const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
-                        const finalUrl = redirectUrl + '?token=' + encodeURIComponent(token);
-                        console.log('🔗 Redirecting to:', finalUrl);
                         window.location.href = finalUrl;
-                      }, 1000);
+                      }, 1500);
+                      
                     } else {
-                      console.warn('⚠️ No token received from authorization');
-                      updateStatus('Authorization completed but no token received');
+                      console.warn('⚠️ Authorization succeeded but no valid token');
+                      updateStatus('Authorization succeeded but no token received');
                       document.getElementById('authBtn').style.display = 'block';
                     }
-                  }).catch(error => {
-                    console.error('❌ Authorization error:', error);
-                    console.error('❌ Error type:', typeof error);
-                    console.error('❌ Error message:', error.message);
-                    console.error('❌ Error stack:', error.stack);
-                    updateStatus('Authorization failed: ' + error.message);
+                    
+                  }).catch(authError => {
+                    console.error('❌ Authorization promise rejected:', authError);
+                    console.error('❌ Error name:', authError.name);
+                    console.error('❌ Error message:', authError.message);
+                    console.error('❌ Error code:', authError.code);
+                    
+                    let errorMessage = 'Authorization failed';
+                    if (authError.message) {
+                      errorMessage += ': ' + authError.message;
+                    }
+                    
+                    updateStatus(errorMessage);
                     document.getElementById('authBtn').style.display = 'block';
                   });
-                  
-                } else {
-                  console.error('❌ MusicKit not available on window');
-                  updateStatus('MusicKit not loaded. Please refresh the page.');
-                  document.getElementById('authBtn').style.display = 'block';
-                }
+                }, 100);
+                
               } catch (error) {
-                console.error('❌ Exception in manualAuth:', error);
-                updateStatus('Error: ' + error.message);
+                console.error('❌ Authorization setup error:', error);
+                updateStatus('Setup error: ' + error.message);
                 document.getElementById('authBtn').style.display = 'block';
               }
             }
@@ -2220,6 +2230,8 @@ router.get('/apple/safari-auth', async (req, res) => {
                 
                 await MusicKit.configure({
                   developerToken: '` + developerToken + `',
+                  debug: true,
+                  suppressErrorDialog: false,
                   app: { 
                     name: 'Mixtape', 
                     build: '1.0.0',
@@ -2282,7 +2294,8 @@ router.get('/apple/safari-auth', async (req, res) => {
     `;
 
     res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.music.apple.com;");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com; frame-src https://authorize.music.apple.com;");
+    res.setHeader('Referrer-Policy', 'origin');
     res.send(html);
   } catch (error) {
     console.error('Apple Safari auth error:', error);
