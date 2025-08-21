@@ -2117,6 +2117,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             <h1>Connecting to Apple Music</h1>
             <p class="subtitle">Authorizing your Apple Music account...</p>
             <div id="status" class="status">🍎 Loading Apple Music...</div>
+            <button onclick="manualAuth()" class="btn" style="display: none;" id="authBtn">Authorize Apple Music</button>
           </div>
 
           <script>
@@ -2143,6 +2144,26 @@ router.get('/apple/safari-auth', async (req, res) => {
               document.getElementById('status').textContent = message;
             }
             
+            function manualAuth() {
+              console.log('🖱️ Manual authorization button clicked');
+              document.getElementById('authBtn').style.display = 'none';
+              updateStatus('Requesting authorization...');
+              
+              if (window.MusicKit) {
+                const music = MusicKit.getInstance();
+                music.authorize().then(token => {
+                  if (token) {
+                    updateStatus('Success! Redirecting...');
+                    const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
+                    window.location.href = redirectUrl + '?token=' + encodeURIComponent(token);
+                  }
+                }).catch(error => {
+                  console.error('Manual auth failed:', error);
+                  updateStatus('Authorization failed: ' + error.message);
+                });
+              }
+            }
+            
 
             // Try MusicKit auth
             document.addEventListener('musickitloaded', async () => {
@@ -2163,6 +2184,15 @@ router.get('/apple/safari-auth', async (req, res) => {
                 console.log('🎵 MusicKit instance:', music);
                 console.log('🔍 Checking authorization status:', music.isAuthorized);
                 
+                // Check if user has Apple Music subscription
+                try {
+                  const api = music.api;
+                  console.log('🔍 MusicKit API available:', !!api);
+                  console.log('🔍 Music app capabilities:', music.musicKitConfiguration);
+                } catch (e) {
+                  console.log('⚠️ Could not check music capabilities:', e.message);
+                }
+                
                 // Force reset authorization state
                 if (music.isAuthorized) {
                   console.log('🔄 Clearing existing authorization...');
@@ -2175,8 +2205,11 @@ router.get('/apple/safari-auth', async (req, res) => {
                 // Try authorization with user gesture
                 const userToken = await new Promise((resolve, reject) => {
                   const timeout = setTimeout(() => {
-                    reject(new Error('Authorization timeout - no response from Apple Music'));
-                  }, 20000);
+                    console.log('⏰ Authorization timeout - showing manual button');
+                    updateStatus('Apple Music authorization timed out. Please check:');
+                    document.getElementById('authBtn').style.display = 'block';
+                    reject(new Error('Authorization timeout - try manual button'));
+                  }, 10000);
                   
                   music.authorize().then(token => {
                     clearTimeout(timeout);
