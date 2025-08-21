@@ -2119,9 +2119,25 @@ router.get('/apple/safari-auth', async (req, res) => {
             <div id="status" class="status">🍎 Loading Apple Music...</div>
           </div>
 
-          <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js" async></script>
           <script>
             console.log('🍎 Apple Music auth page loaded');
+            
+            // Load MusicKit.js dynamically with better error handling
+            const script = document.createElement('script');
+            script.src = 'https://js-cdn.music.apple.com/musickit/v1/musickit.js';
+            script.async = true;
+            
+            script.onload = () => {
+              console.log('✅ MusicKit.js script loaded successfully');
+              updateStatus('MusicKit loaded, initializing...');
+            };
+            
+            script.onerror = (error) => {
+              console.error('❌ Failed to load MusicKit.js:', error);
+              updateStatus('❌ Failed to load Apple Music. Please check your connection.');
+            };
+            
+            document.head.appendChild(script);
             
             function updateStatus(message) {
               document.getElementById('status').textContent = message;
@@ -2131,15 +2147,20 @@ router.get('/apple/safari-auth', async (req, res) => {
             // Try MusicKit auth
             document.addEventListener('musickitloaded', async () => {
               try {
+                console.log('🎵 MusicKit loaded event fired');
                 updateStatus('Configuring Apple Music...');
                 
+                console.log('🔑 Configuring MusicKit with developer token...');
                 await MusicKit.configure({
                   developerToken: '${developerToken}',
                   app: { name: 'Mixtape', build: '1.0.0' }
                 });
 
+                console.log('✅ MusicKit configured successfully');
                 updateStatus('Requesting Apple Music authorization...');
+                
                 const music = MusicKit.getInstance();
+                console.log('🍎 Requesting Apple Music authorization...');
                 const userToken = await music.authorize();
 
                 if (userToken) {
@@ -2169,11 +2190,20 @@ router.get('/apple/safari-auth', async (req, res) => {
               }
             });
 
+            // Fallback check if event doesn't fire but MusicKit is available
+            setTimeout(() => {
+              if (window.MusicKit && !document.getElementById('status').textContent.includes('Configuring')) {
+                console.log('🔄 MusicKit available but event didn\'t fire, trying directly...');
+                document.dispatchEvent(new Event('musickitloaded'));
+              }
+            }, 3000);
+
             // Timeout if MusicKit doesn't load after 10 seconds
             setTimeout(() => {
               const statusEl = document.getElementById('status');
               if (statusEl && (statusEl.textContent.includes('Loading') || statusEl.textContent.includes('🍎'))) {
                 console.log('⏰ MusicKit load timeout');
+                console.log('MusicKit available?', !!window.MusicKit);
                 updateStatus('❌ Apple Music connection timeout. Please try again.');
               }
             }, 10000);
