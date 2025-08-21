@@ -149,37 +149,35 @@ class MusicKitService {
     }
   }
 
-  // Use Safari instead of WebView for full MusicKit.js support
+  // Use direct Apple Music authorization (no JavaScript needed)
   async authenticateWithSafari() {
     try {
       if (!this.isInitialized) {
         await this.initialize();
       }
 
-      console.log('🦄 Using Safari-based MusicKit authentication...');
+      console.log('🔗 Using direct Apple Music authorization URL...');
       
-      // Deploy the auth page to a real domain instead of data URL
-      const authPageUrl = await this.deployAuthPage();
+      // Use Apple's direct authorization URL (bypasses JavaScript completely)
+      const directAuthUrl = `https://authorize.music.apple.com/woa?app_name=${encodeURIComponent(this.musicKitConfig.app.name)}&app_id=host.exp.Exponent&developer_token=${encodeURIComponent(this.musicKitConfig.developerToken)}&redirect_uri=${encodeURIComponent('mixtape://apple-music-auth')}&state=${encodeURIComponent(this.state)}`;
       
-      console.log('🌐 Opening MusicKit in Safari:', authPageUrl);
+      console.log('🌐 Opening direct Apple Music auth:', directAuthUrl.substring(0, 100) + '...');
       
-      // Force Safari View Controller with specific options
+      // Open Apple's official authorization page directly
       const result = await WebBrowser.openAuthSessionAsync(
-        authPageUrl,
+        directAuthUrl,
         'mixtape://apple-music-auth',
         {
-          // These options force Safari instead of in-app WebView
           preferEphemeralSession: false,
           showInRecents: false,
           dismissButtonStyle: 'close',
-          presentationStyle: 'overFullScreen', // Forces Safari
         }
       );
 
-      console.log('🔄 Safari result:', result);
+      console.log('🔄 Direct auth result:', result);
       return result;
     } catch (error) {
-      console.error('❌ Safari MusicKit authentication failed:', error);
+      console.error('❌ Direct Apple Music authentication failed:', error);
       throw error;
     }
   }
