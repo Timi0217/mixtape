@@ -13,10 +13,13 @@ export const useAppleMusicAuth = () => {
   // Handle deep link callbacks from MusicKit
   useEffect(() => {
     const handleDeepLink = (url) => {
-      console.log('🔗 Received deep link:', url);
+      console.log('🔗 Received deep link:', url, typeof url);
       
-      if (url.includes('apple-music-auth')) {
-        handleMusicKitCallback(url);
+      // Handle both string URLs and URL objects from Linking
+      const urlString = typeof url === 'string' ? url : url?.url || '';
+      
+      if (urlString.includes('apple-music-success')) {
+        handleMusicKitCallback(urlString);
       }
     };
 
@@ -41,13 +44,13 @@ export const useAppleMusicAuth = () => {
       
       // Extract music user token from URL
       const urlObj = new URL(url);
-      const musicUserToken = urlObj.searchParams.get('music_user_token');
+      const musicUserToken = urlObj.searchParams.get('token') || urlObj.searchParams.get('music_user_token');
       
       if (musicUserToken) {
         console.log('✅ Music User Token received');
         
-        // Exchange token with backend
-        const result = await musicKitService.exchangeTokenWithBackend(musicUserToken);
+        // Exchange token with backend  
+        const result = await webViewMusicKitService.exchangeTokenWithBackend(musicUserToken);
         
         setAuthResult({
           success: true,
