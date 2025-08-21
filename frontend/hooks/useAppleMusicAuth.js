@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Linking, Alert } from 'react-native';
-import musicKitService from '../services/musicKitService';
+import nativeMusicKitService from '../services/nativeMusicKitService';
 
 export const useAppleMusicAuth = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -70,19 +70,32 @@ export const useAppleMusicAuth = () => {
     setAuthResult(null);
 
     try {
-      console.log('🍎 Starting Apple Music MusicKit authentication...');
+      console.log('🎵 Starting Native Apple Music authentication...');
       
-      // Safari-based MusicKit authentication (SAFARI HACK)
-      console.log('🦄 Opening MusicKit authorization in Safari...');
-      const result = await musicKitService.authenticateWithSafari();
+      // Initialize the native service
+      await nativeMusicKitService.initialize();
       
-      if (result.type === 'cancel') {
+      // Use native MusicKit authentication
+      console.log('🍎 Requesting native Apple Music authorization...');
+      const result = await nativeMusicKitService.authenticateUser();
+      
+      if (result.cancelled) {
         setIsAuthenticating(false);
         return { cancelled: true };
       }
       
-      // Authentication continues via deep link callback
-      return { inProgress: true };
+      if (result.success) {
+        console.log('✅ Native Apple Music authentication successful!');
+        
+        // Set the result
+        setAuthResult(result);
+        setIsAuthenticating(false);
+        
+        return { success: true, data: result };
+      }
+      
+      // If we get here, something went wrong
+      throw new Error(result.error || 'Unknown authentication error');
       
     } catch (error) {
       console.error('❌ Apple Music authentication failed:', error);

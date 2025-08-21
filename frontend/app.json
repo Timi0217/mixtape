@@ -3,7 +3,10 @@
     "name": "Mixtape",
     "slug": "mixtape",
     "version": "1.0.0",
-    "scheme": ["mixtape", "com.mixtape.app"],
+    "scheme": [
+      "mixtape",
+      "com.mixtape.app"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,14 +25,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.mixtape.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-dev-client",
+      "./plugins/withMusicKit"
     ],
     "extra": {
       "API_BASE_URL": "https://mixtape-production.up.railway.app/api",
