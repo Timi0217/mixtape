@@ -34,6 +34,7 @@
     "node-cron": "^3.0.3",
     "passport": "^0.7.0",
     "passport-spotify": "^2.0.0",
+    "react-native-webview": "13.13.5",
     "redis": "^4.6.11",
     "uuid": "^9.0.1"
   },

@@ -2525,7 +2525,7 @@ router.post('/apple-music/exchange',
 // Apple Safari auth page for WebView/browser authentication
 router.get('/apple/safari-auth', async (req, res) => {
   try {
-    const { developerToken, state } = req.query;
+    const { developerToken, state, redirect } = req.query;
     
     if (!developerToken) {
       return res.status(400).send('Developer token required');
@@ -2594,8 +2594,15 @@ router.get('/apple/safari-auth', async (req, res) => {
               .then(r => r.json())
               .then(data => {
                 if (data.success) {
-                  updateStatus('Demo access granted! You can close this page.');
-                  // No redirect needed - user will manually close
+                  updateStatus('Demo access granted! Redirecting...');
+                  
+                  // Redirect back to app with demo token
+                  const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+                  if (redirectUrl.includes('mixtape://')) {
+                    window.location.href = redirectUrl + '?token=' + encodeURIComponent(data.musicUserToken);
+                  } else {
+                    updateStatus('Demo access granted! You can close this page.');
+                  }
                 }
               });
             }
@@ -2615,9 +2622,17 @@ router.get('/apple/safari-auth', async (req, res) => {
                 const userToken = await music.authorize();
 
                 if (userToken) {
-                  updateStatus('Success! You can close this page.');
-                  // Store token in local storage for the app to retrieve
-                  localStorage.setItem('appleMusicUserToken', userToken);
+                  updateStatus('Success! Redirecting back to app...');
+                  
+                  // Redirect back to app with token
+                  const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+                  if (redirectUrl.includes('mixtape://')) {
+                    window.location.href = redirectUrl + '?token=' + encodeURIComponent(userToken);
+                  } else {
+                    // Store token in local storage as fallback
+                    localStorage.setItem('appleMusicUserToken', userToken);
+                    updateStatus('Success! You can close this page.');
+                  }
                 }
               } catch (error) {
                 console.error('MusicKit error:', error);
