@@ -2167,6 +2167,16 @@ router.get('/apple/safari-auth', async (req, res) => {
                 }
                 
                 console.log('🚀 Starting authorization (user-initiated)...');
+                console.log('📱 Page visibility state:', document.visibilityState);
+                console.log('📱 Document hidden:', document.hidden);
+                
+                // Check if page is visible - required for mobile Safari authorization
+                if (document.hidden || document.visibilityState !== 'visible') {
+                  console.warn('⚠️ Page is hidden - authorization may fail');
+                  updateStatus('Please keep this page visible and try again');
+                  document.getElementById('authBtn').style.display = 'block';
+                  return;
+                }
                 
                 // Use setTimeout to ensure this runs after user gesture completes
                 setTimeout(() => {
@@ -2218,6 +2228,14 @@ router.get('/apple/safari-auth', async (req, res) => {
                 document.getElementById('authBtn').style.display = 'block';
               }
             }
+            
+            // Handle page visibility changes
+            document.addEventListener('visibilitychange', () => {
+              console.log('👁️ Page visibility changed:', document.visibilityState);
+              if (document.visibilityState === 'visible') {
+                console.log('✅ Page is now visible - authorization should work');
+              }
+            });
             
             // Alternative authorization method - direct redirect to Apple Music authorization
             function alternativeAuth() {
