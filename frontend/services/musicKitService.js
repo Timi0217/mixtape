@@ -224,10 +224,8 @@ class MusicKitService {
   // Deploy auth page to a real domain for Safari compatibility
   async deployAuthPage() {
     try {
-      // Use your backend to serve the auth page instead of data URL
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://mixtape-production.up.railway.app'  // Your production URL
-        : 'http://localhost:8080';
+      // Always use production URL for Safari auth (since localhost doesn't work on mobile)
+      const baseUrl = 'https://mixtape-production.up.railway.app';
       
       // Create auth page URL with state parameter
       const authPageUrl = `${baseUrl}/api/oauth/apple/safari-auth?state=${encodeURIComponent(this.state)}&developerToken=${encodeURIComponent(this.musicKitConfig.developerToken)}`;
