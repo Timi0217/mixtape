@@ -2152,7 +2152,7 @@ router.get('/apple/safari-auth', async (req, res) => {
                 
                 console.log('🔑 Configuring MusicKit with developer token...');
                 await MusicKit.configure({
-                  developerToken: '${developerToken}',
+                  developerToken: '` + developerToken + `',
                   app: { name: 'Mixtape', build: '1.0.0' }
                 });
 
@@ -2167,7 +2167,7 @@ router.get('/apple/safari-auth', async (req, res) => {
                   updateStatus('Success! Redirecting back to app...');
                   
                   // Redirect back to app with token
-                  const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+                  const redirectUrl = '` + (redirect || 'mixtape://apple-music-success') + `';
                   if (redirectUrl.includes('mixtape://')) {
                     window.location.href = redirectUrl + '?token=' + encodeURIComponent(userToken);
                   } else {
@@ -2198,7 +2198,7 @@ router.get('/apple/safari-auth', async (req, res) => {
               }
             }, 3000);
 
-            // Timeout if MusicKit doesn't load after 10 seconds
+            // Timeout if MusicKit does not load after 10 seconds
             setTimeout(() => {
               const statusEl = document.getElementById('status');
               if (statusEl && (statusEl.textContent.includes('Loading') || statusEl.textContent.includes('🍎'))) {
