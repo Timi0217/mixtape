@@ -2160,8 +2160,17 @@ router.get('/apple/safari-auth', async (req, res) => {
                 updateStatus('Requesting Apple Music authorization...');
                 
                 const music = MusicKit.getInstance();
+                console.log('🎵 MusicKit instance:', music);
+                console.log('🔍 Checking authorization status:', music.isAuthorized);
                 console.log('🍎 Requesting Apple Music authorization...');
-                const userToken = await music.authorize();
+                
+                // Add timeout to authorization
+                const authPromise = music.authorize();
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Authorization timeout after 15 seconds')), 15000)
+                );
+                
+                const userToken = await Promise.race([authPromise, timeoutPromise]);
 
                 if (userToken) {
                   updateStatus('Success! Redirecting back to app...');
