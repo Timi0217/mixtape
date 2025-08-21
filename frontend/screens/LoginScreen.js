@@ -98,7 +98,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
     if (appleMusicAuthResult) {
       if (appleMusicAuthResult.success) {
         console.log('✅ Apple Music authentication successful!');
-        handleOAuthSuccess(appleMusicAuthResult.token, appleMusicAuthResult.platform);
+        // For native Apple Music, we need to exchange the user token with our backend
+        handleAppleMusicTokenExchange(appleMusicAuthResult.userToken || appleMusicAuthResult.token);
       } else {
         console.error('❌ Apple Music authentication failed:', appleMusicAuthResult.error);
         Alert.alert(
@@ -110,6 +111,29 @@ const LoginScreen = ({ onLoginSuccess }) => {
       resetAppleMusicAuth();
     }
   }, [appleMusicAuthResult]);
+
+  const handleAppleMusicTokenExchange = async (musicUserToken) => {
+    try {
+      console.log('🔄 Exchanging Apple Music token with backend...');
+      
+      // Exchange the Apple Music user token for our backend token
+      const response = await api.post('/oauth/apple-music/exchange', {
+        musicUserToken: musicUserToken,
+        platform: 'apple-music'
+      });
+      
+      if (response.data.success) {
+        console.log('✅ Token exchange successful!');
+        handleOAuthSuccess(response.data.token, 'apple-music');
+      } else {
+        throw new Error(response.data.error || 'Token exchange failed');
+      }
+    } catch (error) {
+      console.error('❌ Apple Music token exchange failed:', error);
+      Alert.alert('Login Failed', 'Failed to connect to Apple Music. Please try again.');
+      setLoading(null);
+    }
+  };
 
   const handleOAuthSuccess = async (token, platform) => {
     try {
