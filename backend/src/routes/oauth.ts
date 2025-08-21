@@ -2213,6 +2213,7 @@ router.get('/apple/safari-auth', async (req, res) => {
     `;
 
     res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.music.apple.com;");
     res.send(html);
   } catch (error) {
     console.error('Apple Safari auth error:', error);
