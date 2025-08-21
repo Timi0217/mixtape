@@ -1138,6 +1138,10 @@ router.get('/apple/safari-auth', async (req, res) => {
             <span id="btnText">Authorize Apple Music</span>
           </button>
           
+          <button onclick="testClick()" style="margin-top: 10px; padding: 10px; background: #007AFF; color: white; border: none; border-radius: 8px; width: 100%;">
+            Test Click (Debug)
+          </button>
+          
           <div id="status" class="status">Ready to connect</div>
         </div>
 
@@ -1203,19 +1207,33 @@ router.get('/apple/safari-auth', async (req, res) => {
             const btnText = document.getElementById('btnText');
             
             try {
+              // Visual feedback immediately
+              updateStatus('Button clicked! Starting...', 'loading');
               btn.disabled = true;
               btnText.innerHTML = '<span class="spinner"></span>Authorizing...';
-              updateStatus('Requesting Apple Music permission...', 'loading');
-
+              
+              // Check MusicKit status with detailed feedback
               if (!musicKitReady) {
-                throw new Error('MusicKit not ready');
+                updateStatus('MusicKit not ready - initializing...', 'error');
+                await initMusicKit();
+                if (!musicKitReady) {
+                  throw new Error('MusicKit failed to initialize');
+                }
               }
 
+              updateStatus('MusicKit ready! Requesting permission...', 'loading');
               const music = MusicKit.getInstance();
-              console.log('🎵 Starting authorization...');
               
-              // Request authorization
-              const userToken = await music.authorize();
+              // Add more detailed status
+              updateStatus('Opening Apple Music authorization...', 'loading');
+              
+              // Request authorization with timeout
+              const authPromise = music.authorize();
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Authorization timeout')), 30000)
+              );
+              
+              const userToken = await Promise.race([authPromise, timeoutPromise]);
               
               if (userToken) {
                 handleSuccess(userToken);
@@ -1259,6 +1277,11 @@ router.get('/apple/safari-auth', async (req, res) => {
             const status = document.getElementById('status');
             status.textContent = message;
             status.className = 'status ' + type;
+          }
+
+          function testClick() {
+            updateStatus('Test button clicked! JavaScript is working.', 'success');
+            alert('JavaScript is working! MusicKit ready: ' + musicKitReady);
           }
 
           // Initialize when page loads
