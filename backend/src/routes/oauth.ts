@@ -2190,9 +2190,16 @@ router.get('/apple/safari-auth', async (req, res) => {
                 updateStatus('Configuring Apple Music...');
                 
                 console.log('🔑 Configuring MusicKit with developer token...');
+                console.log('🔍 Token length:', '` + developerToken + `'.length);
+                console.log('🔍 Token starts with:', '` + developerToken + `'.substring(0, 20) + '...');
+                
                 await MusicKit.configure({
                   developerToken: '` + developerToken + `',
-                  app: { name: 'Mixtape', build: '1.0.0' }
+                  app: { 
+                    name: 'Mixtape', 
+                    build: '1.0.0',
+                    bundleId: 'com.mobilemixtape.app'
+                  }
                 });
 
                 console.log('✅ MusicKit configured successfully');
