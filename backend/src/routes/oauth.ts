@@ -2168,7 +2168,7 @@ router.get('/apple/safari-auth', async (req, res) => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com https://play.itunes.apple.com https://itunes.apple.com; frame-src 'self' https://authorize.music.apple.com https://play.itunes.apple.com; style-src 'self' 'unsafe-inline';">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js-cdn.music.apple.com; connect-src 'self' https://*.apple.com https://*.itunes.apple.com https://*.music.apple.com; frame-src 'self' https://*.apple.com; style-src 'self' 'unsafe-inline';">
           <title>Apple Music Authentication</title>
           <style>
             body {
@@ -2222,7 +2222,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             
             // Load MusicKit.js dynamically with better error handling
             const script = document.createElement('script');
-            script.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
+            script.src = 'https://js-cdn.music.apple.com/musickit/v1/musickit.js';
             script.async = true;
             
             console.log('🔍 DEBUG: Loading MusicKit from:', script.src);
@@ -2366,25 +2366,20 @@ router.get('/apple/safari-auth', async (req, res) => {
             
             // Alternative authorization method - direct redirect to Apple Music authorization
             function alternativeAuth() {
-              console.log('🔄 Trying alternative authorization method');
-              document.getElementById('altBtn').style.display = 'none';
-              updateStatus('Redirecting to Apple Music login...');
+              console.log('🔄 Trying alternative authorization method - direct URL');
               
-              // Create direct Apple Music authorization URL
-              const baseUrl = 'https://authorize.music.apple.com/woa';
-              const params = new URLSearchParams({
-                'a': 'authorize',
+              // Create direct Apple Music authorization URL (bypasses MusicKit.js popup)
+              const authUrl = 'https://authorize.music.apple.com/woa?' + new URLSearchParams({
                 'app_name': 'Mixtape',
-                'app_version': '1.0.0',
-                'd': '` + developerToken + `',
-                'redirect_uri': '` + (redirect || 'mixtape://apple-music-success') + `',
-                'response_type': 'code'
-              });
+                'app_id': 'com.mobilemixtape.app',
+                'developer_token': '` + developerToken + `',
+                'state': '` + (state || 'direct_auth') + `',
+                'redirect_uri': '` + (redirect || 'mixtape://apple-music-success') + `'
+              }).toString();
               
-              const authUrl = baseUrl + '?' + params.toString();
               console.log('🔗 Direct auth URL:', authUrl);
-              
-              // Redirect to Apple Music authorization
+              updateStatus('Redirecting to Apple Music login...');
+              document.getElementById('altBtn').style.display = 'none';
               window.location.href = authUrl;
             }
             
