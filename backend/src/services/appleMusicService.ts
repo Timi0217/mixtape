@@ -274,23 +274,53 @@ class AppleMusicService {
   // Validate a user token
   async validateUserToken(userToken: string): Promise<boolean> {
     try {
+      console.log('🔍 DEBUG: Token validation started');
+      console.log('🔍 DEBUG: Token type check:', {
+        length: userToken.length,
+        startsWithDemo: userToken.startsWith('demo_apple_music_'),
+        startsWithServer: userToken.startsWith('server_apple_music_'),
+        startsWithSimulated: userToken.startsWith('simulated_'),
+        preview: userToken.substring(0, 50) + '...'
+      });
+      
       // Allow demo tokens for development
-      if (userToken.startsWith('demo_apple_music_')) {
-        console.log('🎭 Accepting demo Apple Music token for development');
+      if (userToken.startsWith('demo_apple_music_') || 
+          userToken.startsWith('server_apple_music_') ||
+          userToken.startsWith('simulated_')) {
+        console.log('🎭 Accepting development/demo token');
         return true;
       }
 
+      console.log('🔍 DEBUG: Getting developer token for validation...');
       const developerToken = await this.getDeveloperToken();
+      console.log('🔍 DEBUG: Developer token obtained, length:', developerToken.length);
 
+      console.log('🔍 DEBUG: Making Apple Music API validation request...');
       const response = await axios.get('https://api.music.apple.com/v1/me/storefront', {
         headers: {
           'Authorization': `Bearer ${developerToken}`,
           'Music-User-Token': userToken,
         },
+        timeout: 10000
       });
 
-      return response.status === 200;
+      console.log('🔍 DEBUG: Apple Music API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      });
+
+      const isValid = response.status === 200;
+      console.log('🔍 DEBUG: Token validation result:', isValid);
+      return isValid;
     } catch (error) {
+      console.error('🔍 DEBUG: Token validation error:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
       return false;
     }
   }

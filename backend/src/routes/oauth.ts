@@ -2015,12 +2015,31 @@ router.post('/apple-music/exchange',
   validateRequest,
   async (req, res) => {
     try {
+      console.log('🔍 DEBUG: Apple Music token exchange endpoint hit');
+      console.log('🔍 DEBUG: Request timestamp:', new Date().toISOString());
+      console.log('🔍 DEBUG: Request headers:', {
+        contentType: req.headers['content-type'],
+        userAgent: req.headers['user-agent'],
+        origin: req.headers.origin,
+        referer: req.headers.referer
+      });
+      
       const { musicUserToken, userInfo, code, state, redirectUri } = req.body;
+      console.log('🔍 DEBUG: Request body analysis:', {
+        hasMusicUserToken: !!musicUserToken,
+        hasUserInfo: !!userInfo,
+        hasCode: !!code,
+        hasState: !!state,
+        hasRedirectUri: !!redirectUri,
+        bodyKeys: Object.keys(req.body)
+      });
       
       if (code && state && redirectUri) {
         // AuthSession flow: exchange authorization code for user token
         console.log('🍎 Processing Apple Music AuthSession flow...');
-        console.log('📄 Code:', code.substring(0, 20) + '...');
+        console.log('🔍 DEBUG: AuthSession flow details:');
+        console.log('📄 Code length:', code.length);
+        console.log('📄 Code preview:', code.substring(0, 50) + '...');
         console.log('🔑 State:', state);
         console.log('🔗 Redirect URI:', redirectUri);
         
@@ -2062,19 +2081,33 @@ router.post('/apple-music/exchange',
       } else if (musicUserToken) {
         // Original MusicKit flow
         console.log('🍎 Processing original Apple Music MusicKit flow...');
-        console.log('🔑 Token preview:', musicUserToken.substring(0, 20) + '...');
+        console.log('🔍 DEBUG: MusicKit flow details:');
+        console.log('🔑 Token length:', musicUserToken.length);
+        console.log('🔑 Token preview:', musicUserToken.substring(0, 50) + '...');
+        console.log('🔑 Token suffix:', musicUserToken.substring(musicUserToken.length - 20));
+        console.log('🔍 DEBUG: UserInfo provided:', !!userInfo);
+        if (userInfo) {
+          console.log('🔍 DEBUG: UserInfo details:', JSON.stringify(userInfo, null, 2));
+        }
         
         // Validate that this looks like a real Music User Token, not an Apple ID token
         if (musicUserToken.includes('eyJraWQiOiJVYUlJRlkyZlc0')) {
           console.error('❌ Received Apple ID token instead of Music User Token');
+          console.log('🔍 DEBUG: Rejected Apple ID token pattern detected');
           return res.status(400).json({ 
             error: 'Invalid token type',
             message: 'This appears to be an Apple ID token. Please provide a Music User Token from MusicKit.js authorization.'
           });
         }
         
+        console.log('🔍 DEBUG: Calling createOrUpdateUserFromAppleMusic...');
         // Use the enhanced Apple Music user creation function
         const { user, token } = await oauthService.createOrUpdateUserFromAppleMusic(musicUserToken, userInfo);
+        console.log('🔍 DEBUG: User creation successful:', {
+          userId: user.id,
+          userEmail: user.email,
+          userDisplayName: user.displayName
+        });
 
         console.log('✅ Apple Music authentication successful for user:', user.displayName);
 
@@ -2164,19 +2197,37 @@ router.get('/apple/safari-auth', async (req, res) => {
 
           <script>
             console.log('🍎 Apple Music auth page loaded');
+            console.log('🔍 DEBUG: Page environment:', {
+              userAgent: navigator.userAgent,
+              platform: navigator.platform,
+              cookieEnabled: navigator.cookieEnabled,
+              language: navigator.language,
+              onLine: navigator.onLine,
+              href: window.location.href
+            });
             
             // Load MusicKit.js dynamically with better error handling
             const script = document.createElement('script');
             script.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
             script.async = true;
             
+            console.log('🔍 DEBUG: Loading MusicKit from:', script.src);
+            
             script.onload = () => {
               console.log('✅ MusicKit.js script loaded successfully');
+              console.log('🔍 DEBUG: MusicKit object available:', !!window.MusicKit);
+              console.log('🔍 DEBUG: MusicKit version:', window.MusicKit?.version || 'unknown');
+              console.log('🔍 DEBUG: MusicKit configure method:', typeof window.MusicKit?.configure);
               updateStatus('MusicKit loaded, initializing...');
             };
             
             script.onerror = (error) => {
               console.error('❌ Failed to load MusicKit.js:', error);
+              console.error('🔍 DEBUG: Script error details:', {
+                target: error.target?.src,
+                type: error.type,
+                message: error.message
+              });
               updateStatus('❌ Failed to load Apple Music. Please check your connection.');
             };
             
@@ -2368,13 +2419,15 @@ router.get('/apple/safari-auth', async (req, res) => {
             document.addEventListener('musickitloaded', async () => {
               try {
                 console.log('🎵 MusicKit loaded event fired');
+                console.log('🔍 DEBUG: Event timestamp:', new Date().toISOString());
                 updateStatus('Configuring Apple Music...');
                 
                 console.log('🔑 Configuring MusicKit with developer token...');
-                console.log('🔍 Token length:', '` + developerToken + `'.length);
-                console.log('🔍 Token starts with:', '` + developerToken + `'.substring(0, 20) + '...');
+                console.log('🔍 DEBUG: Token length:', '` + developerToken + `'.length);
+                console.log('🔍 DEBUG: Token starts with:', '` + developerToken + `'.substring(0, 20) + '...');
+                console.log('🔍 DEBUG: Token ends with:', '` + developerToken + `'.substring('` + developerToken + `'.length - 20));
                 
-                await MusicKit.configure({
+                const configOptions = {
                   developerToken: '` + developerToken + `',
                   debug: true,
                   suppressErrorDialog: false,
@@ -2383,22 +2436,42 @@ router.get('/apple/safari-auth', async (req, res) => {
                     build: '1.0.0',
                     bundleId: 'com.mobilemixtape.app'
                   }
-                });
+                };
+                
+                console.log('🔍 DEBUG: Configuration options:', JSON.stringify(configOptions, null, 2));
+                console.log('🔍 DEBUG: About to call MusicKit.configure...');
+                
+                await MusicKit.configure(configOptions);
 
                 console.log('✅ MusicKit configured successfully');
+                console.log('🔍 DEBUG: Configuration complete at:', new Date().toISOString());
                 musicKitConfigured = true;
                 
                 const music = MusicKit.getInstance();
-                console.log('🎵 MusicKit instance:', music);
-                console.log('🔍 Checking authorization status:', music.isAuthorized);
+                console.log('🎵 MusicKit instance obtained:', !!music);
+                console.log('🔍 DEBUG: Instance properties:', {
+                  isAuthorized: music.isAuthorized,
+                  bitrate: music.bitrate,
+                  storekit: !!music.storekit,
+                  api: !!music.api,
+                  player: !!music.player
+                });
+                
+                console.log('🔍 DEBUG: Authorization status:', music.isAuthorized);
                 
                 // Check if user has Apple Music subscription
                 try {
                   const api = music.api;
-                  console.log('🔍 MusicKit API available:', !!api);
-                  console.log('🔍 Music app capabilities:', music.musicKitConfiguration);
+                  console.log('🔍 DEBUG: MusicKit API available:', !!api);
+                  console.log('🔍 DEBUG: Music app capabilities:', music.musicKitConfiguration);
+                  console.log('🔍 DEBUG: API methods available:', {
+                    chart: typeof api?.chart,
+                    library: typeof api?.library,
+                    search: typeof api?.search
+                  });
                 } catch (e) {
                   console.log('⚠️ Could not check music capabilities:', e.message);
+                  console.error('🔍 DEBUG: Capabilities error:', e);
                 }
                 
                 // Show ready status and enable manual button
