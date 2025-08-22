@@ -2157,7 +2157,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             <h1>Connecting to Apple Music</h1>
             <p class="subtitle">Authorizing your Apple Music account...</p>
             <div id="status" class="status">🍎 Apple Music Ready</div>
-            <button onclick="manualAuth()" class="btn" id="authBtn">Authorize Apple Music</button>
+            <button onclick="manualAuth()" class="btn" id="authBtn" disabled style="opacity: 0.5;">Authorize Apple Music</button>
             <button onclick="alternativeAuth()" class="btn" id="altBtn" style="background: #007AFF;">Try Alternative Method</button>
             <button onclick="serverAuth()" class="btn" id="serverBtn" style="background: #34C759;">Use Server Auth</button>
           </div>
@@ -2167,7 +2167,7 @@ router.get('/apple/safari-auth', async (req, res) => {
             
             // Load MusicKit.js dynamically with better error handling
             const script = document.createElement('script');
-            script.src = 'https://js-cdn.music.apple.com/musickit/v1/musickit.js';
+            script.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
             script.async = true;
             
             script.onload = () => {
@@ -2186,6 +2186,8 @@ router.get('/apple/safari-auth', async (req, res) => {
               document.getElementById('status').textContent = message;
             }
             
+            let musicKitConfigured = false;
+            
             function manualAuth() {
               console.log('🖱️ Manual authorization button clicked - user initiated');
               document.getElementById('authBtn').style.display = 'none';
@@ -2194,6 +2196,10 @@ router.get('/apple/safari-auth', async (req, res) => {
               try {
                 if (!window.MusicKit) {
                   throw new Error('MusicKit not loaded');
+                }
+                
+                if (!musicKitConfigured) {
+                  throw new Error('MusicKit not configured yet. Please wait for configuration to complete.');
                 }
                 
                 const music = MusicKit.getInstance();
@@ -2265,8 +2271,22 @@ router.get('/apple/safari-auth', async (req, res) => {
                 
               } catch (error) {
                 console.error('❌ Authorization setup error:', error);
-                updateStatus('Setup error: ' + error.message);
+                console.error('Setup error details:', {
+                  name: error.name,
+                  message: error.message,
+                  musicKitAvailable: !!window.MusicKit,
+                  musicKitConfigured: musicKitConfigured
+                });
+                
+                let errorMessage = 'Setup error: ' + error.message;
+                if (!musicKitConfigured) {
+                  errorMessage = 'Please wait for MusicKit to configure, then try again';
+                }
+                
+                updateStatus(errorMessage);
                 document.getElementById('authBtn').style.display = 'block';
+                document.getElementById('authBtn').disabled = false;
+                document.getElementById('authBtn').style.opacity = '1';
               }
             }
             
@@ -2366,6 +2386,7 @@ router.get('/apple/safari-auth', async (req, res) => {
                 });
 
                 console.log('✅ MusicKit configured successfully');
+                musicKitConfigured = true;
                 
                 const music = MusicKit.getInstance();
                 console.log('🎵 MusicKit instance:', music);
@@ -2380,12 +2401,23 @@ router.get('/apple/safari-auth', async (req, res) => {
                   console.log('⚠️ Could not check music capabilities:', e.message);
                 }
                 
-                // Show ready status and manual button
+                // Show ready status and enable manual button
                 updateStatus('Ready! Click button to authorize Apple Music');
+                document.getElementById('authBtn').disabled = false;
+                document.getElementById('authBtn').style.opacity = '1';
                 
               } catch (error) {
                 console.error('MusicKit configuration error:', error);
+                console.error('MusicKit error details:', {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack
+                });
                 updateStatus('❌ MusicKit configuration failed: ' + error.message);
+                
+                // Show fallback options if configuration fails
+                document.getElementById('altBtn').style.display = 'block';
+                document.getElementById('serverBtn').style.display = 'block';
               }
             });
 
