@@ -94,8 +94,13 @@ class AppleMusicService {
         if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
           console.log('- Key appears truncated, attempting to fix...');
           if (!privateKey.includes('-----END PRIVATE KEY-----')) {
-            privateKey = privateKey + '\n-----END PRIVATE KEY-----';
+            privateKey = privateKey.trim() + '\n-----END PRIVATE KEY-----';
             console.log('- Added missing END marker');
+          } else {
+            // END marker exists but not at the end, reformat
+            const parts = privateKey.split('-----END PRIVATE KEY-----');
+            privateKey = parts[0].trim() + '\n-----END PRIVATE KEY-----';
+            console.log('- Reformatted END marker position');
           }
         }
       }
@@ -292,11 +297,10 @@ class AppleMusicService {
         preview: userToken.substring(0, 50) + '...'
       });
       
-      // Allow demo tokens for development
+      // Allow demo tokens for development only
       if (userToken.startsWith('demo_apple_music_') || 
           userToken.startsWith('server_apple_music_') ||
-          userToken.startsWith('simulated_') ||
-          userToken.length < 100) { // Temporary: accept short tokens as demo
+          userToken.startsWith('simulated_')) {
         console.log('🎭 Accepting development/demo token');
         return true;
       }
@@ -338,8 +342,6 @@ class AppleMusicService {
         console.log('  - User does not have Apple Music subscription');
         console.log('  - Token is expired or invalid format');
         console.log('  - Developer token is invalid (but we validated it)');
-        console.log('🎭 Treating as demo token for now to allow development');
-        return true; // Temporary: accept all tokens that get 401
       }
       
       return false;

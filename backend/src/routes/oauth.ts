@@ -2281,17 +2281,22 @@ router.get('/apple/safari-auth', async (req, res) => {
                 console.log('📱 Page visibility state:', document.visibilityState);
                 console.log('📱 Document hidden:', document.hidden);
                 
-                // Check if page is visible - required for mobile Safari authorization
-                if (document.hidden || document.visibilityState !== 'visible') {
-                  console.warn('⚠️ Page is hidden - authorization may fail');
-                  updateStatus('Please keep this page visible and try again');
-                  document.getElementById('authBtn').style.display = 'block';
-                  return;
-                }
+                // Set up visibility change listener to handle Safari popup behavior
+                let authorizationInProgress = true;
+                const handleVisibilityChange = () => {
+                  if (authorizationInProgress) {
+                    console.log('📱 Visibility changed during auth:', document.visibilityState);
+                    // Don't interrupt authorization when page becomes hidden due to popup
+                  }
+                };
+                document.addEventListener('visibilitychange', handleVisibilityChange);
                 
                 // Use setTimeout to ensure this runs after user gesture completes
                 setTimeout(() => {
                   music.authorize().then(userToken => {
+                    authorizationInProgress = false;
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                    
                     console.log('✅ Authorization success!');
                     console.log('🎵 User token type:', typeof userToken);
                     console.log('🎵 User token length:', userToken ? userToken.length : 'null');
@@ -2317,6 +2322,8 @@ router.get('/apple/safari-auth', async (req, res) => {
                     }
                     
                   }).catch(authError => {
+                    authorizationInProgress = false;
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
                     console.error('❌ Authorization promise rejected:', authError);
                     console.error('❌ Error name:', authError.name);
                     console.error('❌ Error message:', authError.message);
@@ -2354,13 +2361,7 @@ router.get('/apple/safari-auth', async (req, res) => {
               }
             }
             
-            // Handle page visibility changes
-            document.addEventListener('visibilitychange', () => {
-              console.log('👁️ Page visibility changed:', document.visibilityState);
-              if (document.visibilityState === 'visible') {
-                console.log('✅ Page is now visible - authorization should work');
-              }
-            });
+            // Note: Removed global visibility handler as it interferes with popup authorization
             
             // Alternative authorization method - direct redirect to Apple Music authorization
             function alternativeAuth() {
