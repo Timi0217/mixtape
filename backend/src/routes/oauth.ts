@@ -2580,18 +2580,49 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
   </div>
   <script>
     console.log('🍎 Apple Music - Official Implementation');
+    
+    // Add timeout to enable button even if MusicKit doesn't load
+    setTimeout(() => {
+      if (document.getElementById('authBtn').disabled) {
+        console.log('⚠️ MusicKit not loaded after timeout, enabling button anyway');
+        document.getElementById('status').textContent = 'MusicKit timeout - Click to try anyway';
+        document.getElementById('authBtn').disabled = false;
+      }
+    }, 5000);
+    
     document.addEventListener('musickitloaded', function () {
       console.log('🎵 MusicKit loaded');
-      MusicKit.configure({ developerToken: '${developerToken}', debug: true, declarativeMarkup: true, storefrontId: 'us' });
-      console.log('✅ MusicKit configured');
-      document.getElementById('status').textContent = 'Ready!';
-      document.getElementById('authBtn').disabled = false;
+      try {
+        MusicKit.configure({ 
+          developerToken: '${developerToken}', 
+          debug: true, 
+          declarativeMarkup: true, 
+          storefrontId: 'us' 
+        });
+        console.log('✅ MusicKit configured');
+        document.getElementById('status').textContent = 'Ready!';
+        document.getElementById('authBtn').disabled = false;
+      } catch (error) {
+        console.error('❌ MusicKit config error:', error);
+        document.getElementById('status').textContent = 'Config error - Click to try anyway';
+        document.getElementById('authBtn').disabled = false;
+      }
     });
     function authorizeAppleMusic() {
       console.log('🚀 Starting authorization');
-      const music = MusicKit.getInstance();
       document.getElementById('status').textContent = 'Authorizing...';
-      music.authorize().then(function(userToken) {
+      
+      try {
+        if (!window.MusicKit) {
+          throw new Error('MusicKit not loaded');
+        }
+        
+        const music = MusicKit.getInstance();
+        if (!music) {
+          throw new Error('MusicKit instance not available');
+        }
+        
+        music.authorize().then(function(userToken) {
         console.log('✅ Success! Token:', userToken);
         if (userToken) {
           document.getElementById('status').textContent = 'Success! Redirecting...';
@@ -2606,6 +2637,11 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
         console.error('❌ Authorization failed:', error);
         document.getElementById('status').textContent = 'Authorization failed: ' + error.message;
       });
+      
+      } catch (error) {
+        console.error('❌ Authorization setup error:', error);
+        document.getElementById('status').textContent = 'Setup error: ' + error.message;
+      }
     }
   </script>
 </body>
