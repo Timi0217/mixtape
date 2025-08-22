@@ -22,6 +22,19 @@ router.get('/deployment-test', (req, res) => {
   });
 });
 
+// Debug endpoint to test logging
+router.get('/debug-test', (req, res) => {
+  console.log('🔍 DEBUG: Debug test endpoint called at', new Date().toISOString());
+  console.log('🔍 DEBUG: Request headers:', req.headers);
+  console.log('🔍 DEBUG: User agent:', req.headers['user-agent']);
+  
+  res.json({
+    message: '🔍 Debug test successful - check Railway logs for output',
+    timestamp: new Date().toISOString(),
+    logs: 'Check Railway dashboard for console.log output'
+  });
+});
+
 router.get('/spotify/login', async (req, res) => {
   try {
     const state = oauthService.generateState();
