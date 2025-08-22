@@ -2647,6 +2647,15 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
 </body>
 </html>`;
     
+    // Set CSP headers to allow MusicKit.js
+    res.setHeader('Content-Security-Policy', 
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; " +
+      "connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com https://play.itunes.apple.com; " +
+      "frame-src 'self' https://authorize.music.apple.com; " +
+      "style-src 'self' 'unsafe-inline';"
+    );
+    
     res.send(html);
   } catch (error) {
     console.error('Apple Safari simple auth error:', error);
