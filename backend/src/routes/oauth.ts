@@ -2168,6 +2168,7 @@ router.get('/apple/safari-auth', async (req, res) => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com https://play.itunes.apple.com https://itunes.apple.com; frame-src 'self' https://authorize.music.apple.com https://play.itunes.apple.com; style-src 'self' 'unsafe-inline';">
           <title>Apple Music Authentication</title>
           <style>
             body {
