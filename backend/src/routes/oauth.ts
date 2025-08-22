@@ -2557,7 +2557,7 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
     
     console.log('🍎 Apple Safari Simple Auth (Official Method)');
 
-    const html = \`<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -2582,7 +2582,7 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
     console.log('🍎 Apple Music - Official Implementation');
     document.addEventListener('musickitloaded', function () {
       console.log('🎵 MusicKit loaded');
-      MusicKit.configure({ developerToken: '\${developerToken}', debug: true, declarativeMarkup: true, storefrontId: 'us' });
+      MusicKit.configure({ developerToken: '${developerToken}', debug: true, declarativeMarkup: true, storefrontId: 'us' });
       console.log('✅ MusicKit configured');
       document.getElementById('status').textContent = 'Ready!';
       document.getElementById('authBtn').disabled = false;
@@ -2595,7 +2595,7 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
         console.log('✅ Success! Token:', userToken);
         if (userToken) {
           document.getElementById('status').textContent = 'Success! Redirecting...';
-          const redirectUrl = '\${redirect || 'mixtape://apple-music-success'}';
+          const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
           const finalUrl = redirectUrl + '?token=' + encodeURIComponent(userToken);
           console.log('🔗 Redirecting to:', finalUrl);
           setTimeout(() => { window.location.href = finalUrl; }, 1000);
@@ -2609,7 +2609,7 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
     }
   </script>
 </body>
-</html>\`;
+</html>`;
     
     res.send(html);
   } catch (error) {
