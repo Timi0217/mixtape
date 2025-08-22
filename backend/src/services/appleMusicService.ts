@@ -89,6 +89,15 @@ class AppleMusicService {
             .trim();
           console.log('- After formatting, length:', privateKey.length);
         }
+        
+        // Check if key is truncated and try to fix
+        if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
+          console.log('- Key appears truncated, attempting to fix...');
+          if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+            privateKey = privateKey + '\n-----END PRIVATE KEY-----';
+            console.log('- Added missing END marker');
+          }
+        }
       }
       
       console.log('- Final key format check:');
