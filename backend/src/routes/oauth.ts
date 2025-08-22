@@ -2612,6 +2612,14 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
       console.log('🚀 Starting authorization');
       document.getElementById('status').textContent = 'Authorizing...';
       
+      // Force page to stay visible during authorization
+      const keepVisible = setInterval(() => {
+        if (document.visibilityState === 'hidden') {
+          console.log('🔒 Page went hidden, forcing focus back');
+          window.focus();
+        }
+      }, 100);
+      
       try {
         if (!window.MusicKit) {
           throw new Error('MusicKit not loaded');
@@ -2622,7 +2630,10 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
           throw new Error('MusicKit instance not available');
         }
         
+        console.log('🎵 Calling music.authorize()...');
         music.authorize().then(function(userToken) {
+          clearInterval(keepVisible);
+          console.log('✅ Authorization completed');
         console.log('✅ Success! Token:', userToken);
         if (userToken) {
           document.getElementById('status').textContent = 'Success! Redirecting...';
@@ -2634,11 +2645,13 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
           document.getElementById('status').textContent = 'No token received';
         }
       }).catch(function(error) {
+        clearInterval(keepVisible);
         console.error('❌ Authorization failed:', error);
         document.getElementById('status').textContent = 'Authorization failed: ' + error.message;
       });
       
       } catch (error) {
+        clearInterval(keepVisible);
         console.error('❌ Authorization setup error:', error);
         document.getElementById('status').textContent = 'Setup error: ' + error.message;
       }
