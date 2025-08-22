@@ -23,7 +23,7 @@ const AppleMusicWebViewAuth = ({ visible, onSuccess, onError, onCancel }) => {
       const developerToken = await webViewMusicKitService.getDeveloperToken();
       
       // Create auth URL with different parameters to force full Safari
-      const authUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/safari-auth?developerToken=${encodeURIComponent(developerToken)}&state=native_auth_${Date.now()}&redirect=mixtape://apple-music-success&mode=safari`;
+      const authUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/safari-auth-simple?developerToken=${encodeURIComponent(developerToken)}&state=native_auth_${Date.now()}&redirect=mixtape://apple-music-success&mode=safari`;
       
       console.log('🚀 Opening Apple Music auth in Safari:', authUrl);
       
