@@ -33,6 +33,8 @@ export const config = {
     privateKeyPath: process.env.APPLE_MUSIC_PRIVATE_KEY_PATH!,
   },
   
+  frontendUrl: process.env.FRONTEND_URL || 'mixtape://',
+  apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000',
 };
 
 const requiredEnvVars = [

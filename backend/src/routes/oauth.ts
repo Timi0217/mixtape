@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import { config } from '../config/env';
 import { OAuthSessionService } from '../services/OAuthSessionService';
 import { oauthService } from '../services/oauthService';
-import api from '../services/api';
 
 const router = express.Router();
 
@@ -118,7 +117,7 @@ router.get('/spotify/callback', async (req, res) => {
       {
         id: userData.id,
         email: userData.email,
-        displayName: userData.display_name || userData.id
+        display_name: userData.display_name || userData.id
       },
       tokenData
     );
@@ -204,11 +203,7 @@ router.get('/me', async (req, res) => {
     }
     
     const token = authHeader.split(' ')[1];
-    const user = await oauthService.getUserFromToken(token);
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
+    const user = await oauthService.validateToken(token);
     
     res.json({
       success: true,
