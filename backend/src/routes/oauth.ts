@@ -8,6 +8,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { User, UserMusicAccount } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import * as he from 'he';
+import { appleMusicService } from '../services/appleMusicService';
 
 const router = express.Router();
 
@@ -2576,8 +2577,8 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
     <h1>🎵 Apple Music</h1>
     <p>Official Apple Implementation</p>
     <div id="status">Initializing...</div><br>
-    <button onclick="authorizeAppleMusic()" class="btn" id="authBtn" disabled>Authorize Apple Music</button>
-    <button onclick="bypassMusicKit()" class="btn" style="background: #34C759; margin-top: 20px;">Skip MusicKit - Use Demo Token</button>
+    <button onclick="authorizeAppleMusic()" class="btn" id="authBtn" disabled>Authorize Apple Music (Native)</button>
+    <button onclick="webAuthAppleMusic()" class="btn" style="background: #FF9500; margin-top: 10px;">Try Web Authorization</button>
   </div>
   <script>
     console.log('🍎 Apple Music - Official Implementation');
@@ -2704,25 +2705,35 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
       }
     }
     
-    // Bypass MusicKit.js entirely - use server-generated token
-    function bypassMusicKit() {
-      console.log('🔄 Bypassing MusicKit.js - generating server token');
-      document.getElementById('status').textContent = 'Generating demo Apple Music token...';
+    // Web-based Apple Music authorization (bypasses native popup)
+    function webAuthAppleMusic() {
+      console.log('🌐 Starting web-based Apple Music authorization');
+      document.getElementById('status').textContent = 'Starting web authorization...';
       
-      // Generate a working demo token that passes backend validation
-      const demoToken = 'demo_apple_music_' + Date.now() + '_bypass_token';
-      console.log('🎭 Generated demo token:', demoToken);
-      
-      document.getElementById('status').textContent = 'Success! Redirecting...';
-      
-      const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
-      const finalUrl = redirectUrl + '?token=' + encodeURIComponent(demoToken);
-      
-      console.log('🔗 Bypassing to:', finalUrl);
-      
-      setTimeout(() => {
-        window.location.href = finalUrl;
-      }, 1000);
+      try {
+        // Create authorization URL for Apple's web flow
+        const authParams = new URLSearchParams({
+          response_type: 'code',
+          client_id: 'mixtape-app',
+          redirect_uri: window.location.origin + '/api/oauth/apple/web-callback',
+          scope: 'media-library media-playback',
+          state: '${state || 'web_auth_' + Date.now()}'
+        });
+        
+        const appleAuthUrl = 'https://authorize.music.apple.com/oauth/authorize?' + authParams.toString();
+        
+        console.log('🔗 Redirecting to Apple web auth:', appleAuthUrl);
+        document.getElementById('status').textContent = 'Redirecting to Apple Music...';
+        
+        // Redirect to Apple's web authorization
+        setTimeout(() => {
+          window.location.href = appleAuthUrl;
+        }, 1000);
+        
+      } catch (error) {
+        console.error('❌ Web auth setup failed:', error);
+        document.getElementById('status').textContent = 'Web authorization failed: ' + error.message;
+      }
     }
   </script>
 </body>
@@ -2741,6 +2752,90 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
   } catch (error) {
     console.error('Apple Safari simple auth error:', error);
     res.status(500).send('Authentication page failed to load');
+  }
+});
+
+// Handle Apple Music web authorization callback
+router.get('/apple/web-callback', async (req, res) => {
+  try {
+    const { code, state, error } = req.query;
+    
+    console.log('🍎 Apple Music web callback received:', {
+      hasCode: !!code,
+      state: state,
+      error: error
+    });
+    
+    if (error) {
+      console.error('❌ Apple Music authorization error:', error);
+      return res.redirect(`mixtape://apple-music-error?error=${encodeURIComponent(error as string)}`);
+    }
+    
+    if (!code) {
+      console.error('❌ No authorization code received');
+      return res.redirect('mixtape://apple-music-error?error=no_code');
+    }
+    
+    try {
+      // Get developer token from service
+      const developerToken = await appleMusicService.getDeveloperToken();
+      
+      // Exchange authorization code for access token
+      const tokenResponse = await fetch('https://api.music.apple.com/v1/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${developerToken}`
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: code as string,
+          redirect_uri: `${req.protocol}://${req.get('host')}/api/oauth/apple/web-callback`,
+          client_id: 'mixtape-app'
+        })
+      });
+      
+      const tokenData = await tokenResponse.json() as any;
+      console.log('🔄 Apple Music token exchange result:', {
+        success: tokenResponse.ok,
+        hasAccessToken: !!tokenData.access_token,
+        hasRefreshToken: !!tokenData.refresh_token,
+        error: tokenData.error
+      });
+      
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        throw new Error(`Token exchange failed: ${tokenData.error || 'Unknown error'}`);
+      }
+      
+      // Create user profile
+      const userProfile = {
+        id: 'apple_web_user_' + Date.now(),
+        attributes: {
+          name: 'Apple Music User (Web)',
+        },
+      };
+      
+      // Create or update user
+      const { user, token } = await oauthService.createOrUpdateUser(
+        'apple-music',
+        userProfile,
+        tokenData
+      );
+      
+      console.log('✅ Apple Music web auth successful');
+      
+      // Redirect back to app with success
+      const successUrl = `mixtape://apple-music-success?token=${encodeURIComponent(tokenData.access_token)}`;
+      res.redirect(successUrl);
+      
+    } catch (tokenError) {
+      console.error('❌ Apple Music token exchange failed:', tokenError);
+      res.redirect(`mixtape://apple-music-error?error=${encodeURIComponent((tokenError as Error).message)}`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Apple Music web callback error:', error);
+    res.redirect(`mixtape://apple-music-error?error=${encodeURIComponent((error as Error).message)}`);
   }
 });
 
