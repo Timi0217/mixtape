@@ -17,15 +17,12 @@ const AppleMusicWebViewAuth = ({ visible, onSuccess, onError, onCancel }) => {
 
   const startAuthentication = async () => {
     try {
-      console.log('🍎 Starting Apple Music authentication...');
+      console.log('🍎 Starting Apple Music app redirect authentication...');
       
-      // Get developer token
-      const developerToken = await webViewMusicKitService.getDeveloperToken();
+      // Use Apple Music app redirect approach (no MusicKit.js or developer token needed)
+      const authUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/app-redirect-auth?state=app_redirect_${Date.now()}&redirect=mixtape://apple-music-success`;
       
-      // Create auth URL with different parameters to force full Safari
-      const authUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/safari-auth-simple?developerToken=${encodeURIComponent(developerToken)}&state=native_auth_${Date.now()}&redirect=mixtape://apple-music-success&mode=safari`;
-      
-      console.log('🚀 Opening Apple Music auth in Safari:', authUrl);
+      console.log('🚀 Opening Apple Music app redirect in Safari:', authUrl);
       
       // Listen for deep link response
       const handleDeepLink = (url) => {
