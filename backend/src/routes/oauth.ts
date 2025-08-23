@@ -2705,34 +2705,35 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
       }
     }
     
-    // Web-based Apple Music authorization (bypasses native popup)
+    // Alternative: Open in system browser instead of WebView
     function webAuthAppleMusic() {
-      console.log('🌐 Starting web-based Apple Music authorization');
-      document.getElementById('status').textContent = 'Starting web authorization...';
+      console.log('🌐 Opening Apple Music auth in system browser');
+      document.getElementById('status').textContent = 'Opening in system browser...';
       
       try {
-        // Create authorization URL for Apple's web flow
-        const authParams = new URLSearchParams({
-          response_type: 'code',
-          client_id: 'mixtape-app',
-          redirect_uri: window.location.origin + '/api/oauth/apple/web-callback',
-          scope: 'media-library media-playback',
-          state: '${state || 'web_auth_' + Date.now()}'
-        });
+        // Create a simplified auth page URL that will work in system browser
+        const systemBrowserUrl = window.location.href.replace('safari-auth-simple', 'safari-auth-browser') + '&browser=system';
         
-        const appleAuthUrl = 'https://authorize.music.apple.com/oauth/authorize?' + authParams.toString();
+        console.log('🔗 Opening system browser:', systemBrowserUrl);
+        document.getElementById('status').textContent = 'Opening system browser...';
         
-        console.log('🔗 Redirecting to Apple web auth:', appleAuthUrl);
-        document.getElementById('status').textContent = 'Redirecting to Apple Music...';
-        
-        // Redirect to Apple's web authorization
+        // Try to open in system browser (this should work from WebView)
         setTimeout(() => {
-          window.location.href = appleAuthUrl;
-        }, 1000);
+          // This will attempt to open the URL in the system browser
+          const a = document.createElement('a');
+          a.href = systemBrowserUrl;
+          a.target = '_system';
+          a.rel = 'noopener';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          document.getElementById('status').textContent = 'Please complete auth in the browser that opened...';
+        }, 500);
         
       } catch (error) {
-        console.error('❌ Web auth setup failed:', error);
-        document.getElementById('status').textContent = 'Web authorization failed: ' + error.message;
+        console.error('❌ System browser auth failed:', error);
+        document.getElementById('status').textContent = 'System browser failed: ' + error.message;
       }
     }
   </script>
@@ -2755,7 +2756,168 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
   }
 });
 
-// Handle Apple Music web authorization callback
+// Apple Music auth optimized for system browsers (not WebView)
+router.get('/apple/safari-auth-browser', async (req, res) => {
+  try {
+    const { developerToken, state, redirect } = req.query;
+    
+    if (!developerToken) {
+      return res.status(400).send('Developer token required');
+    }
+    
+    console.log('🌐 Apple Music Browser Auth (System Browser Optimized)');
+    
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apple Music - System Browser</title>
+  <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+      background: linear-gradient(135deg, #FC3C44 0%, #FF6B6B 100%); 
+      min-height: 100vh; margin: 0; display: flex; align-items: center; 
+      justify-content: center; color: white; text-align: center; 
+    }
+    .container { 
+      padding: 40px; background: rgba(255, 255, 255, 0.1); 
+      backdrop-filter: blur(20px); border-radius: 24px; max-width: 400px; 
+    }
+    .btn { 
+      background: #007AFF; color: white; border: none; padding: 16px 32px; 
+      border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer; 
+      margin: 8px; width: 100%; 
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .success { background: #34C759; }
+    .info { background: #FF9500; margin-top: 20px; padding: 16px; border-radius: 12px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 Apple Music</h1>
+    <p>System Browser Authentication</p>
+    <div id="status">Loading MusicKit...</div><br>
+    <button onclick="startAuth()" class="btn" id="authBtn" disabled>
+      Authorize Apple Music
+    </button>
+    <div class="info">
+      ✅ Running in system browser<br>
+      🔄 This should work better than WebView
+    </div>
+  </div>
+  
+  <script>
+    console.log('🌐 Apple Music - System Browser Implementation');
+    let musicInstance = null;
+    
+    document.addEventListener('musickitloaded', function () {
+      console.log('🎵 MusicKit loaded in system browser');
+      try {
+        MusicKit.configure({ 
+          developerToken: '${developerToken}', 
+          debug: true,
+          storefrontId: 'us' 
+        });
+        
+        musicInstance = MusicKit.getInstance();
+        console.log('✅ MusicKit configured for system browser');
+        document.getElementById('status').textContent = 'Ready to authorize!';
+        document.getElementById('authBtn').disabled = false;
+      } catch (error) {
+        console.error('❌ MusicKit config error:', error);
+        document.getElementById('status').textContent = 'Config error: ' + error.message;
+      }
+    });
+    
+    // Handle case where MusicKit doesn't load
+    setTimeout(() => {
+      if (!musicInstance) {
+        console.log('⚠️ MusicKit didn\\'t load, enabling button anyway');
+        document.getElementById('status').textContent = 'Click to try authorization anyway';
+        document.getElementById('authBtn').disabled = false;
+      }
+    }, 5000);
+    
+    function startAuth() {
+      console.log('🚀 Starting system browser authorization');
+      const btn = document.getElementById('authBtn');
+      const status = document.getElementById('status');
+      
+      btn.disabled = true;
+      btn.textContent = 'Authorizing...';
+      status.textContent = 'Requesting Apple Music permission...';
+      
+      try {
+        if (!musicInstance) {
+          console.log('⚠️ No MusicKit instance, trying to create one');
+          if (typeof MusicKit !== 'undefined') {
+            musicInstance = MusicKit.getInstance();
+          }
+        }
+        
+        if (!musicInstance) {
+          throw new Error('MusicKit not available in this browser');
+        }
+        
+        console.log('🎵 Calling authorize() in system browser');
+        musicInstance.authorize().then(function(userToken) {
+          console.log('✅ System browser authorization successful!');
+          console.log('🔑 Token received:', userToken ? 'Yes' : 'No');
+          
+          if (userToken) {
+            status.textContent = '✅ Success! Redirecting back to app...';
+            btn.textContent = '✅ Authorized';
+            btn.className = 'btn success';
+            
+            const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+            const finalUrl = redirectUrl + '?token=' + encodeURIComponent(userToken);
+            
+            console.log('🔗 System browser redirecting to:', finalUrl);
+            
+            setTimeout(() => {
+              window.location.href = finalUrl;
+            }, 2000);
+          } else {
+            throw new Error('No user token received');
+          }
+        }).catch(function(error) {
+          console.error('❌ System browser authorization failed:', error);
+          status.textContent = '❌ Failed: ' + error.message;
+          btn.disabled = false;
+          btn.textContent = 'Try Again';
+        });
+        
+      } catch (error) {
+        console.error('❌ System browser setup error:', error);
+        status.textContent = 'Setup error: ' + error.message;
+        btn.disabled = false;
+        btn.textContent = 'Try Again';
+      }
+    }
+  </script>
+</body>
+</html>`;
+    
+    // Set comprehensive CSP headers for system browser
+    res.setHeader('Content-Security-Policy', 
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; " +
+      "connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com https://play.itunes.apple.com; " +
+      "frame-src 'self' https://authorize.music.apple.com; " +
+      "style-src 'self' 'unsafe-inline';"
+    );
+    
+    res.send(html);
+  } catch (error) {
+    console.error('Apple Music browser auth error:', error);
+    res.status(500).send('System browser authentication page failed to load');
+  }
+});
+
+// Handle Apple Music web authorization callback (keeping for compatibility)
 router.get('/apple/web-callback', async (req, res) => {
   try {
     const { code, state, error } = req.query;
