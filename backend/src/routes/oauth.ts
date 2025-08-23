@@ -1366,6 +1366,22 @@ router.get('/apple/auth-page', async (req, res) => {
       </html>
     `;
     
+    // Use very permissive CSP for MusicKit.js compatibility - allow eval() usage
+    res.removeHeader('Content-Security-Policy');
+    res.setHeader('Content-Security-Policy', 
+      "default-src *; " +
+      "script-src * 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src * 'unsafe-inline'; " +
+      "img-src * data:; " +
+      "connect-src *; " +
+      "frame-src *;"
+    );
+    
+    // Add cache-busting headers to ensure fresh load
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     res.send(html);
   } catch (error) {
     console.error('Apple Music auth page error:', error);
