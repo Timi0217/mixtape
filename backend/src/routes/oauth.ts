@@ -2803,10 +2803,14 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
     <button onclick="startAuth()" class="btn" id="authBtn" disabled>
       Authorize Apple Music
     </button>
+    <button onclick="testMusicKit()" class="btn" style="background: #FF9500; margin-top: 10px;" id="testBtn">
+      🔍 Test MusicKit
+    </button>
     <div class="info">
       ✅ Running in system browser<br>
       🔄 This should work better than WebView
     </div>
+    <div id="debug-info" style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; margin-top: 20px; font-size: 12px; text-align: left; font-family: monospace;"></div>
   </div>
   
   <script>
@@ -2841,7 +2845,7 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
       }
     }, 5000);
     
-    function startAuth() {
+    async function startAuth() {
       console.log('🚀 Starting system browser authorization');
       const btn = document.getElementById('authBtn');
       const status = document.getElementById('status');
@@ -2851,10 +2855,23 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
       status.textContent = 'Requesting Apple Music permission...';
       
       try {
+        // Extra debugging
+        console.log('🔍 Debug info:', {
+          musicKitDefined: typeof MusicKit !== 'undefined',
+          musicInstanceExists: !!musicInstance,
+          windowLocation: window.location.href,
+          userAgent: navigator.userAgent
+        });
+        
         if (!musicInstance) {
           console.log('⚠️ No MusicKit instance, trying to create one');
           if (typeof MusicKit !== 'undefined') {
-            musicInstance = MusicKit.getInstance();
+            try {
+              musicInstance = MusicKit.getInstance();
+              console.log('✅ MusicKit instance created:', !!musicInstance);
+            } catch (getInstanceError) {
+              console.error('❌ Failed to get MusicKit instance:', getInstanceError);
+            }
           }
         }
         
@@ -2862,40 +2879,104 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
           throw new Error('MusicKit not available in this browser');
         }
         
-        console.log('🎵 Calling authorize() in system browser');
-        musicInstance.authorize().then(function(userToken) {
-          console.log('✅ System browser authorization successful!');
-          console.log('🔑 Token received:', userToken ? 'Yes' : 'No');
-          
-          if (userToken) {
-            status.textContent = '✅ Success! Redirecting back to app...';
-            btn.textContent = '✅ Authorized';
-            btn.className = 'btn success';
-            
+        // Check if user is already authorized
+        console.log('🔍 Checking existing authorization...');
+        const isAuthorized = musicInstance.isAuthorized;
+        console.log('🔑 Already authorized:', isAuthorized);
+        
+        if (isAuthorized) {
+          const existingToken = musicInstance.musicUserToken;
+          console.log('🎯 Using existing token:', existingToken ? 'Yes' : 'No');
+          if (existingToken) {
+            status.textContent = '✅ Already authorized! Redirecting...';
             const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
-            const finalUrl = redirectUrl + '?token=' + encodeURIComponent(userToken);
-            
-            console.log('🔗 System browser redirecting to:', finalUrl);
-            
-            setTimeout(() => {
-              window.location.href = finalUrl;
-            }, 2000);
-          } else {
-            throw new Error('No user token received');
+            const finalUrl = redirectUrl + '?token=' + encodeURIComponent(existingToken);
+            setTimeout(() => window.location.href = finalUrl, 1000);
+            return;
           }
-        }).catch(function(error) {
-          console.error('❌ System browser authorization failed:', error);
-          status.textContent = '❌ Failed: ' + error.message;
-          btn.disabled = false;
-          btn.textContent = 'Try Again';
-        });
+        }
+        
+        console.log('🎵 Calling authorize() in system browser...');
+        status.textContent = 'Opening Apple Music authorization popup...';
+        
+        const userToken = await musicInstance.authorize();
+        
+        console.log('✅ System browser authorization completed!');
+        console.log('🔑 Token received:', userToken ? 'Yes (' + userToken.length + ' chars)' : 'No');
+        console.log('🔑 Token preview:', userToken ? userToken.substring(0, 50) + '...' : 'None');
+        
+        if (userToken) {
+          status.textContent = '✅ Success! Redirecting back to app...';
+          btn.textContent = '✅ Authorized';
+          btn.className = 'btn success';
+          
+          const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+          const finalUrl = redirectUrl + '?token=' + encodeURIComponent(userToken);
+          
+          console.log('🔗 System browser redirecting to:', finalUrl);
+          
+          setTimeout(() => {
+            window.location.href = finalUrl;
+          }, 2000);
+        } else {
+          throw new Error('No user token received from Apple Music');
+        }
         
       } catch (error) {
-        console.error('❌ System browser setup error:', error);
-        status.textContent = 'Setup error: ' + error.message;
+        console.error('❌ System browser authorization error:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        status.textContent = '❌ Failed: ' + error.message;
         btn.disabled = false;
         btn.textContent = 'Try Again';
+        
+        // Additional debugging for common issues
+        if (error.message.includes('popup')) {
+          status.textContent = '❌ Popup blocked - please allow popups and try again';
+        } else if (error.message.includes('network')) {
+          status.textContent = '❌ Network issue - check connection and try again';
+        }
       }
+    }
+    
+    function testMusicKit() {
+      console.log('🔍 Testing MusicKit functionality');
+      const debugInfo = document.getElementById('debug-info');
+      
+      const info = {
+        timestamp: new Date().toISOString(),
+        musicKitDefined: typeof MusicKit !== 'undefined',
+        musicInstance: !!musicInstance,
+        userAgent: navigator.userAgent.substring(0, 100),
+        windowLocation: window.location.href.substring(0, 100),
+        documentDomain: document.domain,
+        isSecure: location.protocol === 'https:',
+        cookiesEnabled: navigator.cookieEnabled
+      };
+      
+      if (typeof MusicKit !== 'undefined') {
+        try {
+          const instance = MusicKit.getInstance();
+          info.instanceCreated = !!instance;
+          if (instance) {
+            info.isAuthorized = instance.isAuthorized;
+            info.storefrontId = instance.storefrontId;
+            info.developerToken = instance.developerToken ? 'Present' : 'Missing';
+          }
+        } catch (error) {
+          info.instanceError = error.message;
+        }
+      }
+      
+      debugInfo.innerHTML = '<strong>Debug Info:</strong><br>' + 
+        Object.entries(info)
+          .map(([key, value]) => key + ': ' + value)
+          .join('<br>');
+      
+      console.log('🔍 Debug Info:', info);
     }
   </script>
 </body>
