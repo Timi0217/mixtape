@@ -139,4 +139,33 @@ router.get('/apple-music-clean', async (req, res) => {
   }
 });
 
+// Super simple CSP test route
+router.get('/csp-test', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  
+  // Completely remove any CSP
+  res.removeHeader('Content-Security-Policy');
+  res.removeHeader('content-security-policy'); 
+  
+  const html = `<!DOCTYPE html>
+<html>
+<head><title>CSP Test</title></head>
+<body>
+  <h1>CSP Test Page</h1>
+  <script>
+    console.log('Testing eval...');
+    try {
+      eval('console.log("SUCCESS: eval() works!");');
+      document.body.innerHTML += '<p style="color: green;">✅ SUCCESS: eval() works!</p>';
+    } catch(e) {
+      console.error('FAILED: eval() blocked:', e);
+      document.body.innerHTML += '<p style="color: red;">❌ FAILED: eval() blocked - ' + e.message + '</p>';
+    }
+  </script>
+</body>
+</html>`;
+  
+  res.send(html);
+});
+
 export default router;
