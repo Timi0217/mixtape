@@ -13,7 +13,10 @@ const app = express();
 // Trust proxy for Railway deployment
 app.set('trust proxy', true);
 
-app.use(helmet());
+// Configure helmet with disabled CSP to allow route-specific CSP policies
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable global CSP to allow route-specific CSP
+}));
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
