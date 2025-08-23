@@ -110,6 +110,10 @@ console.log('Importing test routes...');
 import testRoutes from './routes/test';
 console.log('✅ Test routes imported');
 
+console.log('Importing clean Apple Music routes...');
+import appleMusicCleanRoutes from './routes/apple-music-clean';
+console.log('✅ Clean Apple Music routes imported');
+
 console.log('🛣️ Registering routes with Express app...');
 
 app.use('/api/auth', authRoutes);
@@ -141,6 +145,9 @@ console.log('✅ Vote routes registered at /api/votes');
 
 app.use('/test', testRoutes);
 console.log('✅ Test routes registered at /test');
+
+app.use('/api/oauth', appleMusicCleanRoutes);
+console.log('✅ Clean Apple Music routes registered at /api/oauth');
 
 // Root level OAuth callback for Spotify
 app.use('/', oauthRoutes);
