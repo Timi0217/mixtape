@@ -1160,11 +1160,27 @@ router.get('/apple/auth-page', async (req, res) => {
             const status = document.getElementById('status');
             
             try {
+              // Add detailed debugging
+              console.log('🔍 MusicKit Debug Info:', {
+                musicKitExists: typeof MusicKit !== 'undefined',
+                windowLocation: window.location.href,
+                userAgent: navigator.userAgent.substring(0, 100),
+                cspMeta: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || 'not found'
+              });
+              
               console.log('Checking for MusicKit...');
+              
+              // Test eval() to check CSP
+              try {
+                eval('console.log("✅ eval() is working - CSP allows unsafe-eval")');
+              } catch (evalError) {
+                console.error('❌ eval() blocked by CSP:', evalError);
+                throw new Error('CSP is blocking eval() - unsafe-eval not allowed');
+              }
               
               // Check if MusicKit loaded
               if (typeof MusicKit === 'undefined') {
-                throw new Error('MusicKit library not available - may be blocked by webview');
+                throw new Error('MusicKit library not available - may be blocked by CSP or webview');
               }
               
               console.log('MusicKit found, configuring...');
@@ -2792,6 +2808,7 @@ router.get('/apple/desktop-auth', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src *; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data:; connect-src *; frame-src *;">
   <title>Mixtape - Apple Music Desktop Auth</title>
   <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
   <style>
