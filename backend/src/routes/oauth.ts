@@ -2806,9 +2806,21 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
     <button onclick="testMusicKit()" class="btn" style="background: #FF9500; margin-top: 10px;" id="testBtn">
       🔍 Test MusicKit
     </button>
-    <div class="info">
+    <button onclick="showPopupInstructions()" class="btn" style="background: #34C759; margin-top: 10px;" id="helpBtn">
+      📱 Enable Popups Help
+    </button>
+    <div class="info" id="mainInfo">
       ✅ Running in system browser<br>
       🔄 This should work better than WebView
+    </div>
+    <div class="info" id="popup-help" style="display: none; background: #34C759;">
+      <strong>📱 To enable popups in Safari:</strong><br>
+      1. Open Safari Settings<br>
+      2. Tap "Safari" in Settings<br>
+      3. Find "Block Pop-ups" toggle<br>
+      4. Turn OFF "Block Pop-ups"<br>
+      5. Return here and try again<br><br>
+      <button onclick="hidePopupInstructions()" style="background: white; color: #34C759; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600;">Got it!</button>
     </div>
     <div id="debug-info" style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; margin-top: 20px; font-size: 12px; text-align: left; font-family: monospace;"></div>
   </div>
@@ -2899,6 +2911,35 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
         console.log('🎵 Calling authorize() in system browser...');
         status.textContent = 'Opening Apple Music authorization popup...';
         
+        // Test if popups are blocked by trying to open a test popup first
+        const testPopup = window.open('', '_blank', 'width=1,height=1');
+        if (!testPopup || testPopup.closed) {
+          console.log('⚠️ Popups appear to be blocked');
+          status.textContent = '⚠️ Popups blocked - trying alternative method...';
+          
+          // Alternative: Try authorization without popup detection
+          try {
+            const userToken = await musicInstance.authorize();
+            if (userToken) {
+              console.log('✅ Alternative authorization succeeded!');
+              status.textContent = '✅ Success! Redirecting back to app...';
+              btn.textContent = '✅ Authorized';
+              btn.className = 'btn success';
+              
+              const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+              const finalUrl = redirectUrl + '?token=' + encodeURIComponent(userToken);
+              setTimeout(() => window.location.href = finalUrl, 2000);
+              return;
+            }
+          } catch (altError) {
+            console.error('❌ Alternative authorization also failed:', altError);
+            throw new Error('Popup blocked and alternative method failed. Please enable popups in Safari settings.');
+          }
+        } else {
+          testPopup.close();
+          console.log('✅ Popups appear to be allowed');
+        }
+        
         const userToken = await musicInstance.authorize();
         
         console.log('✅ System browser authorization completed!');
@@ -2977,6 +3018,16 @@ router.get('/apple/safari-auth-browser', async (req, res) => {
           .join('<br>');
       
       console.log('🔍 Debug Info:', info);
+    }
+    
+    function showPopupInstructions() {
+      document.getElementById('popup-help').style.display = 'block';
+      document.getElementById('mainInfo').style.display = 'none';
+    }
+    
+    function hidePopupInstructions() {
+      document.getElementById('popup-help').style.display = 'none';
+      document.getElementById('mainInfo').style.display = 'block';
     }
   </script>
 </body>
