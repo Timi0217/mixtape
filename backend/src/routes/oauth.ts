@@ -1,7 +1,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import { config } from '../config/env';
-import { OAuthSessionService } from '../services/OAuthSessionService';
+import { OAuthSessionService } from '../services/oauthSessionService';
 import { oauthService } from '../services/oauthService';
 
 const router = express.Router();
@@ -93,7 +93,7 @@ router.get('/spotify/callback', async (req, res) => {
       return res.redirect(`${config.frontendUrl}auth/error?error=token_exchange_failed`);
     }
     
-    const tokenData = await tokenResponse.json();
+    const tokenData: any = await tokenResponse.json();
     console.log('✅ Spotify tokens obtained');
     
     // Get user profile
@@ -108,7 +108,7 @@ router.get('/spotify/callback', async (req, res) => {
       return res.redirect(`${config.frontendUrl}auth/error?error=user_profile_failed`);
     }
     
-    const userData = await userResponse.json();
+    const userData: any = await userResponse.json();
     console.log('✅ Spotify user profile obtained:', userData.display_name);
     
     // Create or update user
@@ -117,8 +117,9 @@ router.get('/spotify/callback', async (req, res) => {
       {
         id: userData.id,
         email: userData.email,
-        display_name: userData.display_name || userData.id
-      },
+        display_name: userData.display_name || userData.id,
+        images: userData.images || []
+      } as any,
       tokenData
     );
     
