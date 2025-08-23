@@ -24,6 +24,7 @@ router.get('/apple-music-clean', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-eval' 'unsafe-inline'; script-src * 'unsafe-eval' 'unsafe-inline';">
   <title>Apple Music - Clean Auth</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #FC3C44; color: white; text-align: center; padding: 40px;">
@@ -34,11 +35,21 @@ router.get('/apple-music-clean', async (req, res) => {
   <script>
     console.log('=== CLEAN AUTH DEBUG ===');
     
+    // Check current CSP
+    const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    console.log('CSP Meta found:', cspMeta ? cspMeta.content : 'none');
+    
+    // Check if eval is in a different context
+    console.log('Location:', window.location.href);
+    console.log('User Agent:', navigator.userAgent.substring(0, 50));
+    
     // Test 1: Basic eval
     try {
       eval('console.log("✅ eval() works!")');
     } catch(e) {
       console.log('❌ eval() blocked:', e.message);
+      console.log('❌ eval() error type:', e.name);
+      console.log('❌ eval() stack:', e.stack);
     }
     
     // Test 2: Function constructor  
@@ -108,8 +119,18 @@ router.get('/apple-music-clean', async (req, res) => {
 </body>
 </html>`;
 
-    // Send response with absolutely NO CSP headers
+    // Send response with absolutely NO CSP headers and explicitly disable CSP
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    
+    // Remove any possible CSP headers
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('content-security-policy');
+    res.removeHeader('X-Content-Security-Policy');
+    res.removeHeader('X-WebKit-CSP');
+    
+    // Set permissive CSP as fallback
+    res.setHeader('Content-Security-Policy', "default-src * 'unsafe-eval' 'unsafe-inline'; script-src * 'unsafe-eval' 'unsafe-inline'");
+    
     res.send(html);
     
   } catch (error) {
