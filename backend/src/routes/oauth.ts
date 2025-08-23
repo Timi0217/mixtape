@@ -3095,13 +3095,21 @@ router.get('/apple/desktop-auth', async (req, res) => {
 </body>
 </html>`;
     
+    // Use very permissive CSP for MusicKit.js compatibility
+    res.removeHeader('Content-Security-Policy');
     res.setHeader('Content-Security-Policy', 
-      "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js-cdn.music.apple.com; " +
-      "connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com https://play.itunes.apple.com; " +
-      "frame-src 'self' https://authorize.music.apple.com; " +
-      "style-src 'self' 'unsafe-inline';"
+      "default-src *; " +
+      "script-src * 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src * 'unsafe-inline'; " +
+      "img-src * data:; " +
+      "connect-src *; " +
+      "frame-src *;"
     );
+    
+    // Add cache-busting headers to ensure fresh load
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     res.send(html);
   } catch (error) {
