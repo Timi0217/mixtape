@@ -20,8 +20,8 @@ router.get('/spotify/login', async (req, res) => {
     const state = crypto.randomBytes(16).toString('hex');
     const tokenId = crypto.randomBytes(16).toString('hex');
     
-    // Store session
-    await OAuthSessionService.createSession(tokenId, 'spotify', state);
+    // Store state for verification
+    await OAuthSessionService.storeState(state, 'spotify');
     
     // Build Spotify authorization URL
     const params = new URLSearchParams({
