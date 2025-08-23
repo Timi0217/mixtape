@@ -980,7 +980,7 @@ router.get('/apple/music-permissions', async (req, res) => {
                 status.textContent = 'Access granted! Redirecting...';
                 
                 // Show success message
-                document.body.innerHTML = \`
+                document.body.innerHTML = `
                   <div style="
                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
                     background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
@@ -1030,7 +1030,7 @@ router.get('/apple/music-permissions', async (req, res) => {
                       ">Apple Music is now connected to Mixtape. You can start sharing songs!</p>
                     </div>
                   </div>
-                \`;
+                `;
                 
                 setTimeout(() => {
                   window.location.href = 'mixtape://auth/success?platform=apple-music';
@@ -1163,7 +1163,7 @@ router.get('/apple/auth-page', async (req, res) => {
             const allMetas = document.querySelectorAll('meta');
             console.log('📄 All Meta Tags:');
             allMetas.forEach((meta, i) => {
-              console.log(`  ${i + 1}. ${meta.outerHTML}`);
+              console.log('  ' + (i + 1) + '. ' + meta.outerHTML);
             });
             
             // 2. Check response headers via fetch
@@ -1172,7 +1172,7 @@ router.get('/apple/auth-page', async (req, res) => {
                 console.log('📡 Response Headers:');
                 for (let [key, value] of response.headers.entries()) {
                   if (key.toLowerCase().includes('security') || key.toLowerCase().includes('csp')) {
-                    console.log(`  ${key}: ${value}`);
+                    console.log('  ' + key + ': ' + value);
                   }
                 }
               })
@@ -1341,7 +1341,7 @@ router.get('/apple/auth-page', async (req, res) => {
                 
                 if (data.success) {
                   // Show success message and redirect
-                  document.body.innerHTML = \`
+                  document.body.innerHTML = `
                     <div style="
                       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
                       background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
@@ -1422,7 +1422,7 @@ router.get('/apple/auth-page', async (req, res) => {
                         ">You can now close this page and return to your Mixtape app!</p>
                       </div>
                     </div>
-                  \`;
+                  `;
                   
                   setTimeout(() => {
                     window.location.href = 'mixtape://auth/success?platform=apple-music';
@@ -3357,14 +3357,14 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
       const instructions = document.createElement('div');
       instructions.className = 'info';
       instructions.style.background = '#FF9500';
-      instructions.innerHTML = \`
+      instructions.innerHTML = `
         <strong>📱 Manual Steps:</strong><br>
         1. Open Apple Music app manually<br>
         2. Sign in to your Apple ID<br>
         3. Subscribe to Apple Music (if not already)<br>
         4. Return here when done<br><br>
         <button onclick="checkSubscription()" class="btn">✅ I'm subscribed - Continue</button>
-      \`;
+      `;
       container.appendChild(instructions);
     }
     
@@ -3373,13 +3373,13 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
       const returnDiv = document.createElement('div');
       returnDiv.className = 'info';
       returnDiv.style.background = '#34C759';
-      returnDiv.innerHTML = \`
+      returnDiv.innerHTML = `
         <strong>🎵 Apple Music Ready?</strong><br>
         If you've subscribed to Apple Music, continue below:<br><br>
         <button onclick="continueWithAppleMusic()" class="btn" style="background: white; color: #34C759;">
           ✅ Continue with Apple Music
         </button>
-      \`;
+      `;
       container.appendChild(returnDiv);
     }
     
