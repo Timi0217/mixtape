@@ -2862,22 +2862,40 @@ router.get('/apple/desktop-auth', async (req, res) => {
     let musicInstance = null;
     let countdownTimer = null;
     
+    // Add detailed debugging
+    console.log('🔍 MusicKit Debug Info:', {
+      musicKitExists: typeof MusicKit !== 'undefined',
+      windowLocation: window.location.href,
+      developerToken: '${developerToken}'.substring(0, 50) + '...',
+      userAgent: navigator.userAgent.substring(0, 100)
+    });
+    
     // Initialize MusicKit when loaded
     document.addEventListener('musickitloaded', function () {
       console.log('🎵 MusicKit loaded on desktop');
       try {
+        console.log('🔧 Configuring MusicKit with token:', '${developerToken}'.substring(0, 50) + '...');
+        
         MusicKit.configure({ 
           developerToken: '${developerToken}', 
           debug: true,
+          declarativeMarkup: true,
           storefrontId: 'us' 
         });
         
+        console.log('🎯 Getting MusicKit instance...');
         musicInstance = MusicKit.getInstance();
+        console.log('✅ MusicKit instance obtained:', !!musicInstance);
         console.log('✅ MusicKit configured for desktop');
         document.getElementById('status').textContent = 'Ready to authenticate!';
         document.getElementById('authBtn').disabled = false;
       } catch (error) {
         console.error('❌ MusicKit config error:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
         document.getElementById('status').textContent = 'Setup error: ' + error.message;
       }
     });
@@ -2885,9 +2903,36 @@ router.get('/apple/desktop-auth', async (req, res) => {
     // Fallback if MusicKit doesn't load
     setTimeout(() => {
       if (!musicInstance) {
-        console.log('⚠️ MusicKit timeout, enabling button anyway');
-        document.getElementById('status').textContent = 'Click to try authentication';
-        document.getElementById('authBtn').disabled = false;
+        console.log('⚠️ MusicKit timeout, trying manual initialization...');
+        
+        try {
+          if (typeof MusicKit !== 'undefined') {
+            console.log('🔄 Attempting manual MusicKit configuration...');
+            MusicKit.configure({ 
+              developerToken: '${developerToken}', 
+              debug: true,
+              declarativeMarkup: true,
+              storefrontId: 'us' 
+            });
+            musicInstance = MusicKit.getInstance();
+            
+            if (musicInstance) {
+              console.log('✅ Manual MusicKit initialization successful');
+              document.getElementById('status').textContent = 'Ready to authenticate!';
+              document.getElementById('authBtn').disabled = false;
+            } else {
+              throw new Error('Failed to get MusicKit instance');
+            }
+          } else {
+            throw new Error('MusicKit library not loaded');
+          }
+        } catch (error) {
+          console.error('❌ Manual MusicKit initialization failed:', error);
+          document.getElementById('status').textContent = 'MusicKit failed to load. Please refresh and try again.';
+          document.getElementById('authBtn').disabled = false;
+          document.getElementById('authBtn').textContent = '🔄 Refresh Page';
+          document.getElementById('authBtn').onclick = () => window.location.reload();
+        }
       }
     }, 5000);
     
@@ -2901,20 +2946,60 @@ router.get('/apple/desktop-auth', async (req, res) => {
       status.textContent = 'Opening Apple Music authorization...';
       
       try {
-        if (!musicInstance && typeof MusicKit !== 'undefined') {
-          musicInstance = MusicKit.getInstance();
+        // Comprehensive pre-flight checks
+        console.log('🔍 Pre-flight checks:');
+        console.log('  MusicKit exists:', typeof MusicKit !== 'undefined');
+        console.log('  musicInstance exists:', !!musicInstance);
+        console.log('  Current URL:', window.location.href);
+        
+        if (!musicInstance) {
+          console.log('⚠️ No musicInstance, attempting to create one...');
+          
+          if (typeof MusicKit === 'undefined') {
+            throw new Error('MusicKit library not loaded. Please refresh the page.');
+          }
+          
+          try {
+            console.log('🔄 Configuring MusicKit now...');
+            MusicKit.configure({ 
+              developerToken: '${developerToken}', 
+              debug: true,
+              declarativeMarkup: true,
+              storefrontId: 'us' 
+            });
+            
+            musicInstance = MusicKit.getInstance();
+            console.log('✅ MusicKit instance created during auth:', !!musicInstance);
+          } catch (configError) {
+            console.error('❌ Failed to configure MusicKit:', configError);
+            throw new Error('MusicKit configuration failed: ' + configError.message);
+          }
         }
         
         if (!musicInstance) {
-          throw new Error('MusicKit not available');
+          throw new Error('No configured instance - MusicKit initialization failed');
+        }
+        
+        // Check if instance is properly configured
+        console.log('🔍 MusicKit instance checks:');
+        console.log('  Instance type:', typeof musicInstance);
+        console.log('  Has authorize method:', typeof musicInstance.authorize === 'function');
+        console.log('  Developer token set:', !!musicInstance.developerToken);
+        console.log('  Storefront ID:', musicInstance.storefrontId);
+        
+        if (typeof musicInstance.authorize !== 'function') {
+          throw new Error('MusicKit instance missing authorize method');
         }
         
         // Desktop browsers handle this much better
         console.log('🎵 Calling authorize() on desktop browser');
+        status.textContent = 'Please allow Apple Music access in the popup...';
+        
         const userToken = await musicInstance.authorize();
         
-        console.log('✅ Desktop authorization successful!');
+        console.log('✅ Desktop authorization completed!');
         console.log('🔑 Token received:', userToken ? 'Yes (' + userToken.length + ' chars)' : 'No');
+        console.log('🔑 Token preview:', userToken ? userToken.substring(0, 50) + '...' : 'None');
         
         if (userToken) {
           btn.textContent = '✅ Authenticated';
@@ -2928,9 +3013,26 @@ router.get('/apple/desktop-auth', async (req, res) => {
         
       } catch (error) {
         console.error('❌ Desktop authentication failed:', error);
-        status.textContent = '❌ Authentication failed: ' + error.message;
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        
+        let errorMessage = error.message;
+        if (error.message.includes('No configured instance')) {
+          errorMessage = 'MusicKit failed to initialize. Please refresh and try again.';
+          btn.textContent = '🔄 Refresh Page';
+          btn.onclick = () => window.location.reload();
+        } else if (error.message.includes('popup')) {
+          errorMessage = 'Popup blocked. Please allow popups and try again.';
+          btn.textContent = '🔐 Try Again';
+        } else {
+          btn.textContent = '🔐 Authenticate Apple Music';
+        }
+        
+        status.textContent = '❌ ' + errorMessage;
         btn.disabled = false;
-        btn.textContent = '🔐 Authenticate Apple Music';
       }
     }
     
