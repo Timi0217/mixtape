@@ -3357,14 +3357,13 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
       const instructions = document.createElement('div');
       instructions.className = 'info';
       instructions.style.background = '#FF9500';
-      instructions.innerHTML = `
-        <strong>📱 Manual Steps:</strong><br>
-        1. Open Apple Music app manually<br>
-        2. Sign in to your Apple ID<br>
-        3. Subscribe to Apple Music (if not already)<br>
-        4. Return here when done<br><br>
-        <button onclick="checkSubscription()" class="btn">✅ I'm subscribed - Continue</button>
-      `;
+      instructions.innerHTML = 
+        '<strong>📱 Manual Steps:</strong><br>' +
+        '1. Open Apple Music app manually<br>' +
+        '2. Sign in to your Apple ID<br>' +
+        '3. Subscribe to Apple Music (if not already)<br>' +
+        '4. Return here when done<br><br>' +
+        '<button onclick="checkSubscription()" class="btn">✅ I\\'m subscribed - Continue</button>';
       container.appendChild(instructions);
     }
     
@@ -3373,13 +3372,12 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
       const returnDiv = document.createElement('div');
       returnDiv.className = 'info';
       returnDiv.style.background = '#34C759';
-      returnDiv.innerHTML = `
-        <strong>🎵 Apple Music Ready?</strong><br>
-        If you've subscribed to Apple Music, continue below:<br><br>
-        <button onclick="continueWithAppleMusic()" class="btn" style="background: white; color: #34C759;">
-          ✅ Continue with Apple Music
-        </button>
-      `;
+      returnDiv.innerHTML = 
+        '<strong>🎵 Apple Music Ready?</strong><br>' +
+        'If you\\'ve subscribed to Apple Music, continue below:<br><br>' +
+        '<button onclick="continueWithAppleMusic()" class="btn" style="background: white; color: #34C759;">' +
+        '  ✅ Continue with Apple Music' +
+        '</button>';
       container.appendChild(returnDiv);
     }
     
