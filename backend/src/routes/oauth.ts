@@ -2612,13 +2612,32 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
       console.log('🚀 Starting authorization');
       document.getElementById('status').textContent = 'Authorizing...';
       
-      // Force page to stay visible during authorization
+      // Override visibility properties completely
+      const originalVisibilityState = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+      const originalHidden = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+      
+      Object.defineProperty(document, 'visibilityState', {
+        get: function() { 
+          console.log('🔒 Visibility intercepted - forcing visible');
+          return 'visible'; 
+        },
+        configurable: true
+      });
+      
+      Object.defineProperty(document, 'hidden', {
+        get: function() { 
+          console.log('🔒 Hidden intercepted - forcing false');
+          return false; 
+        },
+        configurable: true
+      });
+      
+      console.log('🔒 Document visibility completely overridden');
+      
+      // Also keep focusing the window
       const keepVisible = setInterval(() => {
-        if (document.visibilityState === 'hidden') {
-          console.log('🔒 Page went hidden, forcing focus back');
-          window.focus();
-        }
-      }, 100);
+        window.focus();
+      }, 50);
       
       try {
         if (!window.MusicKit) {
@@ -2633,6 +2652,15 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
         console.log('🎵 Calling music.authorize()...');
         music.authorize().then(function(userToken) {
           clearInterval(keepVisible);
+          
+          // Restore original visibility properties
+          if (originalVisibilityState) {
+            Object.defineProperty(document, 'visibilityState', originalVisibilityState);
+          }
+          if (originalHidden) {
+            Object.defineProperty(document, 'hidden', originalHidden);
+          }
+          
           console.log('✅ Authorization completed');
         console.log('✅ Success! Token:', userToken);
         if (userToken) {
@@ -2646,12 +2674,30 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
         }
       }).catch(function(error) {
         clearInterval(keepVisible);
+        
+        // Restore original visibility properties
+        if (originalVisibilityState) {
+          Object.defineProperty(document, 'visibilityState', originalVisibilityState);
+        }
+        if (originalHidden) {
+          Object.defineProperty(document, 'hidden', originalHidden);
+        }
+        
         console.error('❌ Authorization failed:', error);
         document.getElementById('status').textContent = 'Authorization failed: ' + error.message;
       });
       
       } catch (error) {
         clearInterval(keepVisible);
+        
+        // Restore original visibility properties
+        if (originalVisibilityState) {
+          Object.defineProperty(document, 'visibilityState', originalVisibilityState);
+        }
+        if (originalHidden) {
+          Object.defineProperty(document, 'hidden', originalHidden);
+        }
+        
         console.error('❌ Authorization setup error:', error);
         document.getElementById('status').textContent = 'Setup error: ' + error.message;
       }
