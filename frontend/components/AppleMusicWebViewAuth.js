@@ -17,12 +17,12 @@ const AppleMusicWebViewAuth = ({ visible, onSuccess, onError, onCancel }) => {
 
   const startAuthentication = async () => {
     try {
-      console.log('🍎 Starting Apple Music app redirect authentication...');
+      console.log('🖥️ Starting Apple Music desktop sync authentication...');
       
-      // Use Apple Music app redirect approach (no MusicKit.js or developer token needed)
-      const authUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/app-redirect-auth?state=app_redirect_${Date.now()}&redirect=mixtape://apple-music-success`;
+      // Show desktop sync instructions instead of complex web auth
+      const desktopAuthUrl = `https://mixtape-production.up.railway.app/api/oauth/apple/desktop-auth`;
       
-      console.log('🚀 Opening Apple Music app redirect in Safari:', authUrl);
+      console.log('🚀 Opening Apple Music desktop auth:', desktopAuthUrl);
       
       // Listen for deep link response
       const handleDeepLink = (url) => {
@@ -78,8 +78,8 @@ const AppleMusicWebViewAuth = ({ visible, onSuccess, onError, onCancel }) => {
       // Set up deep link listener
       const subscription = Linking.addEventListener('url', handleDeepLink);
       
-      // Use Linking.openURL to open in actual Safari instead of embedded browser
-      await Linking.openURL(authUrl);
+      // Use Linking.openURL to open desktop auth page in Safari
+      await Linking.openURL(desktopAuthUrl);
       
       // Don't remove listener immediately - wait for deep link
       setTimeout(() => {

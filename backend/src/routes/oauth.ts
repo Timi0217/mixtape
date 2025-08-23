@@ -2756,6 +2756,257 @@ router.get('/apple/safari-auth-simple', async (req, res) => {
   }
 });
 
+// Desktop Apple Music authentication (works reliably with MusicKit.js)
+router.get('/apple/desktop-auth', async (req, res) => {
+  try {
+    console.log('🖥️ Apple Music Desktop Authentication Request');
+    
+    // Generate developer token for MusicKit
+    let developerToken;
+    try {
+      developerToken = await appleMusicService.getDeveloperToken();
+      console.log('✅ Developer token generated for desktop auth');
+    } catch (tokenError) {
+      console.error('❌ Failed to generate developer token:', tokenError);
+      return res.status(500).send('Failed to initialize Apple Music authentication');
+    }
+    
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mixtape - Apple Music Desktop Auth</title>
+  <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; 
+      background: linear-gradient(135deg, #FC3C44 0%, #FF6B6B 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      color: white;
+    }
+    .container { 
+      background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);
+      border-radius: 24px; padding: 60px 40px; text-align: center;
+      max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    }
+    h1 { font-size: 36px; margin-bottom: 10px; font-weight: 700; }
+    .subtitle { font-size: 18px; margin-bottom: 30px; opacity: 0.9; }
+    .step { background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 16px; margin: 20px 0; }
+    .step-number { 
+      background: #007AFF; color: white; width: 30px; height: 30px; 
+      border-radius: 50%; display: inline-flex; align-items: center; 
+      justify-content: center; font-weight: 600; margin-right: 15px;
+    }
+    .btn { 
+      background: #007AFF; color: white; border: none; padding: 16px 32px;
+      border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer;
+      margin: 10px; min-width: 200px; transition: all 0.3s ease;
+    }
+    .btn:hover { background: #0056CC; transform: translateY(-2px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .success { background: #34C759; }
+    .sync-code { 
+      background: rgba(255, 255, 255, 0.2); padding: 30px; border-radius: 20px;
+      margin: 30px 0; border: 2px dashed rgba(255, 255, 255, 0.3);
+    }
+    .code-display { 
+      font-size: 48px; font-weight: 800; letter-spacing: 8px; 
+      color: #FFD60A; margin: 20px 0; font-family: 'SF Mono', monospace;
+    }
+    .status { margin: 20px 0; font-size: 16px; }
+    .mobile-instructions {
+      background: rgba(52, 199, 89, 0.2); border: 2px solid #34C759;
+      padding: 25px; border-radius: 16px; margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 Apple Music</h1>
+    <div class="subtitle">Desktop Authentication</div>
+    
+    <div class="step">
+      <span class="step-number">1</span>
+      <strong>Authenticate with Apple Music on Desktop</strong><br>
+      <small>Desktop browsers work better with Apple Music authentication</small>
+    </div>
+    
+    <div class="status" id="status">Ready to authenticate</div>
+    
+    <button onclick="startDesktopAuth()" class="btn" id="authBtn" disabled>
+      🔐 Authenticate Apple Music
+    </button>
+    
+    <div class="sync-code" id="syncSection" style="display: none;">
+      <div class="step">
+        <span class="step-number">2</span>
+        <strong>Enter this code in your mobile app:</strong>
+      </div>
+      <div class="code-display" id="syncCode">------</div>
+      <div>Code expires in: <span id="countdown">10:00</span></div>
+    </div>
+    
+    <div class="mobile-instructions" id="mobileInstructions" style="display: none;">
+      <strong>📱 On your mobile device:</strong><br>
+      1. Open the Mixtape app<br>
+      2. Go to Apple Music connection<br>
+      3. Enter the sync code above<br>
+      4. Enjoy your Apple Music integration!
+    </div>
+  </div>
+  
+  <script>
+    console.log('🖥️ Apple Music Desktop Authentication');
+    let musicInstance = null;
+    let countdownTimer = null;
+    
+    // Initialize MusicKit when loaded
+    document.addEventListener('musickitloaded', function () {
+      console.log('🎵 MusicKit loaded on desktop');
+      try {
+        MusicKit.configure({ 
+          developerToken: '${developerToken}', 
+          debug: true,
+          storefrontId: 'us' 
+        });
+        
+        musicInstance = MusicKit.getInstance();
+        console.log('✅ MusicKit configured for desktop');
+        document.getElementById('status').textContent = 'Ready to authenticate!';
+        document.getElementById('authBtn').disabled = false;
+      } catch (error) {
+        console.error('❌ MusicKit config error:', error);
+        document.getElementById('status').textContent = 'Setup error: ' + error.message;
+      }
+    });
+    
+    // Fallback if MusicKit doesn't load
+    setTimeout(() => {
+      if (!musicInstance) {
+        console.log('⚠️ MusicKit timeout, enabling button anyway');
+        document.getElementById('status').textContent = 'Click to try authentication';
+        document.getElementById('authBtn').disabled = false;
+      }
+    }, 5000);
+    
+    async function startDesktopAuth() {
+      console.log('🚀 Starting desktop Apple Music authentication');
+      const btn = document.getElementById('authBtn');
+      const status = document.getElementById('status');
+      
+      btn.disabled = true;
+      btn.textContent = 'Authenticating...';
+      status.textContent = 'Opening Apple Music authorization...';
+      
+      try {
+        if (!musicInstance && typeof MusicKit !== 'undefined') {
+          musicInstance = MusicKit.getInstance();
+        }
+        
+        if (!musicInstance) {
+          throw new Error('MusicKit not available');
+        }
+        
+        // Desktop browsers handle this much better
+        console.log('🎵 Calling authorize() on desktop browser');
+        const userToken = await musicInstance.authorize();
+        
+        console.log('✅ Desktop authorization successful!');
+        console.log('🔑 Token received:', userToken ? 'Yes (' + userToken.length + ' chars)' : 'No');
+        
+        if (userToken) {
+          btn.textContent = '✅ Authenticated';
+          btn.className = 'btn success';
+          status.textContent = '✅ Success! Generating sync code...';
+          
+          await generateSyncCode(userToken);
+        } else {
+          throw new Error('No user token received from Apple Music');
+        }
+        
+      } catch (error) {
+        console.error('❌ Desktop authentication failed:', error);
+        status.textContent = '❌ Authentication failed: ' + error.message;
+        btn.disabled = false;
+        btn.textContent = '🔐 Authenticate Apple Music';
+      }
+    }
+    
+    async function generateSyncCode(userToken) {
+      try {
+        const response = await fetch('/api/oauth/apple/generate-sync-code', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userToken: userToken,
+            source: 'desktop_auth'
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.syncCode) {
+          console.log('✅ Sync code generated:', result.syncCode);
+          showSyncCode(result.syncCode);
+          startCountdown();
+        } else {
+          throw new Error(result.error || 'Failed to generate sync code');
+        }
+        
+      } catch (error) {
+        console.error('❌ Sync code generation failed:', error);
+        document.getElementById('status').textContent = '❌ Failed to generate sync code: ' + error.message;
+      }
+    }
+    
+    function showSyncCode(code) {
+      document.getElementById('syncCode').textContent = code;
+      document.getElementById('syncSection').style.display = 'block';
+      document.getElementById('mobileInstructions').style.display = 'block';
+      document.getElementById('status').textContent = '✅ Success! Use the sync code below on your mobile device.';
+    }
+    
+    function startCountdown() {
+      let timeLeft = 600; // 10 minutes in seconds
+      const countdownElement = document.getElementById('countdown');
+      
+      countdownTimer = setInterval(() => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        countdownElement.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+        
+        if (timeLeft <= 0) {
+          clearInterval(countdownTimer);
+          countdownElement.textContent = 'EXPIRED';
+          document.getElementById('syncCode').textContent = 'EXPIRED';
+          document.getElementById('status').textContent = '❌ Sync code expired. Please refresh and try again.';
+        }
+        
+        timeLeft--;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>`;
+    
+    res.setHeader('Content-Security-Policy', 
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; " +
+      "connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com; " +
+      "style-src 'self' 'unsafe-inline';"
+    );
+    
+    res.send(html);
+  } catch (error) {
+    console.error('❌ Desktop auth page error:', error);
+    res.status(500).send('Failed to load desktop authentication page');
+  }
+});
+
 // Apple Music app redirect authentication (bypasses all MusicKit.js issues)
 router.get('/apple/app-redirect-auth', async (req, res) => {
   try {
@@ -2989,6 +3240,178 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
   } catch (error) {
     console.error('Apple Music browser auth error:', error);
     res.status(500).send('System browser authentication page failed to load');
+  }
+});
+
+// Generate sync code for desktop Apple Music authentication
+router.post('/apple/generate-sync-code', async (req, res) => {
+  try {
+    const { userToken, source } = req.body;
+    
+    console.log('🔄 Generating Apple Music sync code:', {
+      hasUserToken: !!userToken,
+      tokenLength: userToken?.length || 0,
+      source,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!userToken) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Apple Music user token required' 
+      });
+    }
+    
+    // Generate a 6-digit sync code
+    const syncCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    
+    // Store the sync code in memory (in production, use Redis or database)
+    const syncData = {
+      syncCode,
+      userToken,
+      source,
+      expiresAt: expiresAt.toISOString(),
+      used: false,
+      createdAt: new Date().toISOString()
+    };
+    
+    // Store in a simple in-memory cache (replace with proper storage in production)
+    global.appleMusicSyncCodes = global.appleMusicSyncCodes || new Map();
+    global.appleMusicSyncCodes.set(syncCode, syncData);
+    
+    // Clean up expired codes
+    for (const [code, data] of global.appleMusicSyncCodes.entries()) {
+      if (new Date(data.expiresAt) < new Date()) {
+        global.appleMusicSyncCodes.delete(code);
+      }
+    }
+    
+    console.log('✅ Apple Music sync code generated:', {
+      syncCode: syncCode,
+      expiresAt: expiresAt.toISOString(),
+      totalActiveCodes: global.appleMusicSyncCodes.size
+    });
+    
+    res.json({
+      success: true,
+      syncCode,
+      expiresAt: expiresAt.toISOString(),
+      message: 'Sync code generated successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Sync code generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate sync code: ' + error.message
+    });
+  }
+});
+
+// Exchange sync code for Apple Music token (mobile endpoint)
+router.post('/apple/exchange-sync-code', async (req, res) => {
+  try {
+    const { syncCode } = req.body;
+    
+    console.log('📱 Mobile sync code exchange request:', {
+      syncCode: syncCode,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!syncCode || syncCode.length !== 6) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid 6-digit sync code required' 
+      });
+    }
+    
+    // Get sync data from memory
+    global.appleMusicSyncCodes = global.appleMusicSyncCodes || new Map();
+    const syncData = global.appleMusicSyncCodes.get(syncCode);
+    
+    if (!syncData) {
+      console.log('❌ Sync code not found:', syncCode);
+      return res.status(404).json({
+        success: false,
+        error: 'Sync code not found or expired'
+      });
+    }
+    
+    // Check if expired
+    if (new Date(syncData.expiresAt) < new Date()) {
+      global.appleMusicSyncCodes.delete(syncCode);
+      console.log('❌ Sync code expired:', syncCode);
+      return res.status(410).json({
+        success: false,
+        error: 'Sync code has expired'
+      });
+    }
+    
+    // Check if already used
+    if (syncData.used) {
+      console.log('❌ Sync code already used:', syncCode);
+      return res.status(409).json({
+        success: false,
+        error: 'Sync code has already been used'
+      });
+    }
+    
+    // Mark as used
+    syncData.used = true;
+    syncData.usedAt = new Date().toISOString();
+    global.appleMusicSyncCodes.set(syncCode, syncData);
+    
+    // Create user profile and save to database
+    const userProfile = {
+      id: 'apple_desktop_sync_user_' + Date.now(),
+      attributes: {
+        name: 'Apple Music User (Desktop Sync)',
+      },
+    };
+    
+    const tokenData = {
+      access_token: syncData.userToken,
+      expires_in: 3600 * 24 * 180, // 6 months (Apple Music tokens are long-lived)
+      token_type: 'Bearer'
+    };
+    
+    // Create or update user
+    const { user, token } = await oauthService.createOrUpdateUser(
+      'apple-music',
+      userProfile,
+      tokenData
+    );
+    
+    console.log('✅ Apple Music sync code exchanged successfully:', {
+      syncCode,
+      userId: user.id,
+      method: 'desktop_sync'
+    });
+    
+    // Clean up the sync code
+    setTimeout(() => {
+      global.appleMusicSyncCodes.delete(syncCode);
+    }, 5000);
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+      platform: 'apple-music',
+      method: 'desktop-sync'
+    });
+    
+  } catch (error) {
+    console.error('❌ Sync code exchange error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to exchange sync code: ' + error.message
+    });
   }
 });
 
