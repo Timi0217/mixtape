@@ -2924,22 +2924,53 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
       continueWithAppleMusic();
     }
     
-    function continueWithAppleMusic() {
+    async function continueWithAppleMusic() {
       console.log('✅ User confirmed Apple Music subscription');
       const status = document.getElementById('status');
       status.textContent = '✅ Creating Apple Music session...';
       
-      // Generate a session token for the user
-      const sessionToken = 'apple_music_session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      
-      console.log('🔗 Redirecting with Apple Music session');
-      
-      const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
-      const finalUrl = redirectUrl + '?token=' + encodeURIComponent(sessionToken) + '&source=app_redirect';
-      
-      setTimeout(() => {
-        window.location.href = finalUrl;
-      }, 1000);
+      try {
+        // Generate a session token for the user
+        const sessionToken = 'apple_music_session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Send token to backend for processing
+        const response = await fetch('/api/oauth/apple/app-redirect-callback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userConfirmed: true,
+            sessionToken: sessionToken,
+            source: 'app_redirect'
+          })
+        });
+        
+        const result = await response.json();
+        
+        console.log('🔄 Backend callback result:', result);
+        
+        if (result.success && result.token) {
+          console.log('✅ Backend processed Apple Music session');
+          status.textContent = '✅ Success! Redirecting back to app...';
+          
+          // Use the proper token from backend
+          const redirectUrl = '${redirect || 'mixtape://apple-music-success'}';
+          const finalUrl = redirectUrl + '?token=' + encodeURIComponent(result.token) + '&platform=apple-music';
+          
+          console.log('🔗 Final redirect URL:', finalUrl);
+          
+          setTimeout(() => {
+            window.location.href = finalUrl;
+          }, 1000);
+        } else {
+          throw new Error(result.error || 'Backend processing failed');
+        }
+        
+      } catch (error) {
+        console.error('❌ Apple Music session creation failed:', error);
+        status.textContent = '❌ Failed to create session: ' + error.message;
+      }
     }
   </script>
 </body>
@@ -2958,6 +2989,67 @@ router.get('/apple/app-redirect-auth', async (req, res) => {
   } catch (error) {
     console.error('Apple Music browser auth error:', error);
     res.status(500).send('System browser authentication page failed to load');
+  }
+});
+
+// Handle Apple Music app redirect callback
+router.post('/apple/app-redirect-callback', async (req, res) => {
+  try {
+    const { userConfirmed, sessionToken, source } = req.body;
+    
+    console.log('🍎 Apple Music app redirect callback:', {
+      userConfirmed,
+      sessionToken: sessionToken ? 'Present' : 'Missing',
+      source,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!userConfirmed) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User did not confirm Apple Music subscription' 
+      });
+    }
+    
+    // Create user profile for app redirect authentication
+    const userProfile = {
+      id: 'apple_app_redirect_user_' + Date.now(),
+      attributes: {
+        name: 'Apple Music User (App Redirect)',
+      },
+    };
+    
+    const tokenData = {
+      access_token: sessionToken,
+      expires_in: 3600 * 24 * 30, // 30 days
+      token_type: 'Bearer'
+    };
+    
+    // Create or update user in database
+    const { user, token } = await oauthService.createOrUpdateUser(
+      'apple-music',
+      userProfile,
+      tokenData
+    );
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+      platform: 'apple-music',
+      method: 'app-redirect'
+    });
+    
+  } catch (error) {
+    console.error('❌ Apple Music app redirect callback error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'App redirect callback failed: ' + error.message
+    });
   }
 });
 
