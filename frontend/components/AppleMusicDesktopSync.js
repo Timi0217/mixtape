@@ -47,10 +47,11 @@ const AppleMusicDesktopSync = ({ visible, onSuccess, onError, onCancel }) => {
       if (result.success && result.token) {
         console.log('✅ Apple Music desktop sync successful!');
         
-        // Call the success callback with the token
+        // Call the success callback in the format expected by LoginScreen
         onSuccess({
           success: true,
-          token: result.token,
+          userToken: result.token, // Use userToken key to match existing handler
+          token: result.token,     // Also include token key as backup
           user: result.user,
           platform: 'apple-music',
           method: 'desktop-sync'

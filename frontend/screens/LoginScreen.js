@@ -18,7 +18,7 @@ import { setAuthToken } from '../services/api';
 import api from '../services/api';
 import musicKitService from '../services/musicKitService';
 import { useAppleMusicAuth } from '../hooks/useAppleMusicAuth';
-import AppleMusicWebViewAuth from '../components/AppleMusicWebViewAuth';
+import AppleMusicDesktopSync from '../components/AppleMusicDesktopSync';
 
 const { width, height } = Dimensions.get('window');
 
@@ -121,7 +121,16 @@ const LoginScreen = ({ onLoginSuccess }) => {
     try {
       console.log('🔄 Exchanging Apple Music token with backend...');
       
-      // Exchange the Apple Music user token for our backend token
+      // For desktop sync, the token is already processed by the backend
+      // Just call handleOAuthSuccess directly
+      if (typeof musicUserToken === 'object' && musicUserToken.token) {
+        // Desktop sync already processed - use the returned token
+        console.log('✅ Desktop sync token received!');
+        handleOAuthSuccess(musicUserToken.token, 'apple-music');
+        return;
+      }
+      
+      // Fallback: Exchange the Apple Music user token for our backend token (legacy path)
       const response = await api.post('/oauth/apple-music/exchange', {
         musicUserToken: musicUserToken,
         platform: 'apple-music'
@@ -382,7 +391,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
               {loading === 'apple' || isAppleMusicAuthenticating ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.appleMusicButtonText}>Continue with Apple Music</Text>
+                <Text style={styles.appleMusicButtonText}>🖥️ Connect Apple Music (Desktop)</Text>
               )}
             </View>
           </TouchableOpacity>
@@ -393,8 +402,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
         </View>
       </View>
 
-      {/* Apple Music WebView Authentication Modal */}
-      <AppleMusicWebViewAuth
+      {/* Apple Music Desktop Sync Authentication Modal */}
+      <AppleMusicDesktopSync
         visible={showWebView}
         onSuccess={handleWebViewSuccess}
         onError={handleWebViewError}
