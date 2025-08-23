@@ -1155,66 +1155,24 @@ router.get('/apple/auth-page', async (req, res) => {
         <script>
           let musicKitReady = false;
           
-          // Comprehensive CSP debugging function
+          // Simple CSP debugging function
           function debugCSP() {
-            console.log('=== CSP TRIANGULATION DEBUG ===');
+            console.log('=== CSP DEBUG ===');
             
-            // 1. Check all meta tags
-            const allMetas = document.querySelectorAll('meta');
-            console.log('📄 All Meta Tags:');
-            allMetas.forEach((meta, i) => {
-              console.log('  ' + (i + 1) + '. ' + meta.outerHTML);
-            });
-            
-            // 2. Check response headers via fetch
-            fetch(window.location.href, { method: 'HEAD' })
-              .then(response => {
-                console.log('📡 Response Headers:');
-                for (let [key, value] of response.headers.entries()) {
-                  if (key.toLowerCase().includes('security') || key.toLowerCase().includes('csp')) {
-                    console.log('  ' + key + ': ' + value);
-                  }
-                }
-              })
-              .catch(e => console.log('❌ Could not fetch headers:', e));
-            
-            // 3. Check document.createElement CSP
-            try {
-              const script = document.createElement('script');
-              script.textContent = 'console.log("Direct script CSP test")';
-              document.head.appendChild(script);
-              console.log('✅ Direct script injection works');
-              document.head.removeChild(script);
-            } catch (e) {
-              console.log('❌ Direct script injection blocked:', e);
-            }
-            
-            // 4. Test different eval patterns
-            console.log('🧪 Testing eval() patterns:');
-            
-            // Basic eval
+            // Test eval
             try {
               eval('1 + 1');
-              console.log('✅ Basic eval() works');
+              console.log('✅ eval() works');
             } catch (e) {
-              console.log('❌ Basic eval() blocked:', e.message);
+              console.log('❌ eval() blocked:', e.message);
             }
             
-            // Function constructor
-            try {
-              new Function('return 1 + 1')();
-              console.log('✅ Function constructor works');
-            } catch (e) {
-              console.log('❌ Function constructor blocked:', e.message);
-            }
-            
-            // setTimeout with string
-            try {
-              const id = setTimeout('console.log("setTimeout string test")', 0);
-              clearTimeout(id);
-              console.log('✅ setTimeout with string works');
-            } catch (e) {
-              console.log('❌ setTimeout with string blocked:', e.message);
+            // Check CSP meta tag
+            const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+            if (cspMeta) {
+              console.log('📄 CSP Meta:', cspMeta.content);
+            } else {
+              console.log('❌ No CSP meta tag found');
             }
             
             console.log('=== END CSP DEBUG ===');
@@ -1225,26 +1183,11 @@ router.get('/apple/auth-page', async (req, res) => {
             const status = document.getElementById('status');
             
             try {
-              // Run comprehensive CSP debugging first
+              // Run CSP debugging first
               debugCSP();
               
-              // Add detailed debugging
-              console.log('🔍 MusicKit Debug Info:', {
-                musicKitExists: typeof MusicKit !== 'undefined',
-                windowLocation: window.location.href,
-                userAgent: navigator.userAgent.substring(0, 100),
-                cspMeta: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || 'not found'
-              });
-              
+              console.log('🔍 MusicKit Debug - exists:', typeof MusicKit !== 'undefined');
               console.log('Checking for MusicKit...');
-              
-              // Test eval() to check CSP
-              try {
-                eval('console.log("✅ eval() is working - CSP allows unsafe-eval")');
-              } catch (evalError) {
-                console.error('❌ eval() blocked by CSP:', evalError);
-                throw new Error('CSP is blocking eval() - unsafe-eval not allowed');
-              }
               
               // Check if MusicKit loaded
               if (typeof MusicKit === 'undefined') {
