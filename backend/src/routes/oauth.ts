@@ -3097,8 +3097,9 @@ router.get('/apple/desktop-auth', async (req, res) => {
     
     res.setHeader('Content-Security-Policy', 
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://js-cdn.music.apple.com; " +
-      "connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js-cdn.music.apple.com; " +
+      "connect-src 'self' https://api.music.apple.com https://authorize.music.apple.com https://play.itunes.apple.com; " +
+      "frame-src 'self' https://authorize.music.apple.com; " +
       "style-src 'self' 'unsafe-inline';"
     );
     
