@@ -515,4 +515,104 @@ router.get('/',
   }
 );
 
+// TEMPORARY: Test endpoint to create fake data for UI preview
+router.post('/test-ui/:groupId',
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      // Create a fake completed round with submissions
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const deadlineAt = new Date(today);
+      deadlineAt.setHours(23, 0, 0, 0);
+
+      // Create test round
+      const testRound = await prisma.dailyRound.create({
+        data: {
+          groupId,
+          date: today,
+          deadlineAt,
+          status: 'completed', // Mark as completed so it shows as yesterday's round
+        },
+      });
+
+      // Create fake songs
+      const fakeSongs = [
+        { title: 'Blinding Lights', artist: 'The Weeknd', spotifyId: 'fake1' },
+        { title: 'Good 4 U', artist: 'Olivia Rodrigo', spotifyId: 'fake2' },
+        { title: 'Heat Waves', artist: 'Glass Animals', spotifyId: 'fake3' },
+        { title: 'Anti-Hero', artist: 'Taylor Swift', spotifyId: 'fake4' },
+      ];
+
+      // Get group members to assign submissions
+      const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        include: { members: { include: { user: true } } }
+      });
+
+      if (!group) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+
+      // Create fake submissions
+      for (let i = 0; i < Math.min(fakeSongs.length, group.members.length); i++) {
+        const song = fakeSongs[i];
+        const member = group.members[i];
+
+        // Create song record
+        const songRecord = await prisma.song.create({
+          data: {
+            title: song.title,
+            artist: song.artist,
+            spotifyId: song.spotifyId,
+          },
+        });
+
+        // Create submission
+        await prisma.submission.create({
+          data: {
+            userId: member.user.id,
+            dailyRoundId: testRound.id,
+            songId: songRecord.id,
+          },
+        });
+      }
+
+      // Create fake playlist
+      const fakePlaylist = await prisma.groupPlaylist.create({
+        data: {
+          groupId,
+          platform: 'spotify',
+          platformPlaylistId: 'fake_playlist_id',
+          playlistName: `${group.name} - Test Mixtape`,
+          playlistUrl: 'https://open.spotify.com/playlist/fake',
+          isActive: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Test data created! You can now see the UI preview.',
+        testRound: testRound.id,
+        fakePlaylist: fakePlaylist.id,
+      });
+
+    } catch (error) {
+      console.error('Test UI creation error:', error);
+      res.status(500).json({ 
+        error: 'Failed to create test data',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
 export default router;
