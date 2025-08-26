@@ -117,6 +117,73 @@ const LoginScreen = ({ onLoginSuccess }) => {
     }
   }, [appleMusicAuthResult]);
 
+  // Handle OAuth success deep links
+  useEffect(() => {
+    const handleDeepLink = (url) => {
+      console.log('🔗 LoginScreen received deep link:', url);
+      
+      // Handle both string URLs and URL objects from Linking
+      const urlString = typeof url === 'string' ? url : url?.url || '';
+      
+      if (urlString.includes('auth/success')) {
+        console.log('🎉 OAuth success deep link detected');
+        
+        // Extract platform and token from URL
+        const urlObj = new URL(urlString);
+        const platform = urlObj.searchParams.get('platform');
+        const token = urlObj.searchParams.get('token');
+        
+        if (platform === 'spotify' && token) {
+          console.log('✅ Spotify OAuth success via deep link');
+          
+          // Stop any existing polling since we got direct success
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
+          
+          // Trigger polling once to get the token
+          handleDirectOAuthSuccess(token, platform);
+        }
+      }
+    };
+
+    // Set up deep link listener for OAuth success
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check if app was opened with an OAuth success deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [pollingInterval]);
+
+  const handleDirectOAuthSuccess = async (tokenId, platform) => {
+    try {
+      console.log('🚀 Handling direct OAuth success for:', platform);
+      
+      // Check for token data immediately
+      const response = await api.get(`/oauth/check-token/${tokenId}`);
+      
+      if (response.data.success) {
+        console.log('✅ Token found via direct success - completing login');
+        await handleOAuthSuccess(response.data.token, response.data.platform);
+      } else {
+        console.log('⏳ Token not ready yet, starting polling as fallback');
+        startTokenPolling(tokenId, platform);
+      }
+    } catch (error) {
+      console.error('❌ Direct OAuth success error:', error);
+      // Fallback to polling
+      startTokenPolling(tokenId, platform);
+    }
+  };
+
   const handleAppleMusicTokenExchange = async (musicUserToken) => {
     try {
       console.log('🔄 Exchanging Apple Music token with backend...');

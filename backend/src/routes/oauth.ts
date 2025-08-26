@@ -16,9 +16,8 @@ router.get('/spotify/login', async (req, res) => {
   try {
     console.log('🎵 Spotify login initiated');
     
-    // Generate state for CSRF protection
+    // Generate state for CSRF protection (use as both state and tokenId)
     const state = crypto.randomBytes(16).toString('hex');
-    const tokenId = crypto.randomBytes(16).toString('hex');
     
     // Store state for verification
     await OAuthSessionService.storeState(state, 'spotify');
@@ -40,7 +39,7 @@ router.get('/spotify/login', async (req, res) => {
       success: true,
       authUrl,
       state,
-      tokenId
+      tokenId: state  // Use state as tokenId for polling consistency
     });
     
   } catch (error) {
@@ -132,36 +131,213 @@ router.get('/spotify/callback', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login Success</title>
+  <title>Login Success - Mixtape</title>
   <style>
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-      text-align: center; 
-      padding: 40px 20px;
-      background: #1DB954;
-      color: white;
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="80" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="60" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="60" cy="10" r="1" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+      animation: float 20s linear infinite;
+      pointer-events: none;
+    }
+    
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      100% { transform: translateY(-100px); }
+    }
+    
     .container {
       max-width: 400px;
-      margin: 0 auto;
+      padding: 40px 20px;
+      position: relative;
+      z-index: 1;
     }
-    h1 { margin-bottom: 20px; }
-    p { font-size: 18px; margin-bottom: 30px; }
+    
+    .success-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      display: block;
+      animation: bounce 1s ease-out;
+    }
+    
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-10px); }
+      60% { transform: translateY(-5px); }
+    }
+    
+    h1 { 
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+    
+    .status {
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 1.5rem 0;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 0.5rem;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .close-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 1rem;
+      backdrop-filter: blur(10px);
+    }
+    
+    .close-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-1px);
+    }
+    
+    .countdown {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-top: 1rem;
+    }
+    
+    @media (max-width: 480px) {
+      .container { padding: 20px; }
+      h1 { font-size: 1.5rem; }
+      .subtitle { font-size: 1rem; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎵 Success!</h1>
-    <p>Spotify connected successfully!</p>
-    <p>You can now close this window and return to the app.</p>
+    <span class="success-icon">🎉</span>
+    <h1>Connected Successfully!</h1>
+    <p class="subtitle">Your Spotify account is now linked to Mixtape</p>
+    
+    <div class="status">
+      <div class="loader"></div>
+      <span id="status-text">Returning to app...</span>
+    </div>
+    
+    <button class="close-btn" onclick="closeWindow()">
+      Close Window
+    </button>
+    
+    <p class="countdown">
+      Redirecting in <span id="countdown">2</span> seconds
+    </p>
   </div>
   
   <script>
-    // Auto-redirect to app after 3 seconds
-    setTimeout(() => {
-      window.location.href = '${config.frontendUrl}auth/success?platform=spotify';
-    }, 3000);
+    let countdownValue = 2;
+    const countdownElement = document.getElementById('countdown');
+    const statusText = document.getElementById('status-text');
+    
+    function updateCountdown() {
+      countdownElement.textContent = countdownValue;
+      countdownValue--;
+      
+      if (countdownValue < 0) {
+        statusText.textContent = 'Redirecting now...';
+        setTimeout(() => {
+          // Try to redirect to the app first
+          window.location.href = '${config.frontendUrl}auth/success?platform=spotify&token=${state}';
+          
+          // Fallback: close the window after a short delay
+          setTimeout(() => {
+            window.close();
+          }, 1000);
+        }, 500);
+      } else {
+        setTimeout(updateCountdown, 1000);
+      }
+    }
+    
+    function closeWindow() {
+      // Try to redirect to app first
+      try {
+        window.location.href = '${config.frontendUrl}auth/success?platform=spotify&token=${state}';
+      } catch (e) {
+        console.log('Deep link failed, trying to close window');
+      }
+      
+      // Try to close the window
+      setTimeout(() => {
+        if (window.opener) {
+          window.opener.focus();
+          window.close();
+        } else {
+          window.close();
+        }
+      }, 500);
+    }
+    
+    // Start countdown
+    setTimeout(updateCountdown, 1000);
+    
+    // Try to notify the parent window if opened in a popup
+    try {
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'SPOTIFY_AUTH_SUCCESS',
+          platform: 'spotify',
+          token: '${state}'
+        }, '*');
+      }
+    } catch (e) {
+      console.log('Parent window notification failed:', e);
+    }
   </script>
 </body>
 </html>`;
