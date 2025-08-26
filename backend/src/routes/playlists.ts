@@ -572,7 +572,7 @@ router.post('/test-ui/:groupId',
           data: {
             title: song.title,
             artist: song.artist,
-            spotifyId: song.spotifyId,
+            platformIds: { spotify: song.spotifyId }, // Use correct field name
           },
         });
 
@@ -580,16 +580,17 @@ router.post('/test-ui/:groupId',
         await prisma.submission.create({
           data: {
             userId: member.user.id,
-            dailyRoundId: testRound.id,
+            roundId: testRound.id, // Use roundId not dailyRoundId
             songId: songRecord.id,
           },
         });
       }
 
-      // Create fake playlist
+      // Create fake playlist (need userId from schema)
       const fakePlaylist = await prisma.groupPlaylist.create({
         data: {
           groupId,
+          userId, // Add required userId field
           platform: 'spotify',
           platformPlaylistId: 'fake_playlist_id',
           playlistName: `${group.name} - Test Mixtape`,
