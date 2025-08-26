@@ -1175,7 +1175,7 @@ const AppNavigator = () => {
                     title="Open Playlist"
                     onPress={openYesterdayPlaylist}
                     variant="primary"
-                    style={[styles.playlistButton, { flex: yesterdayRound ? 1 : undefined }]}
+                    style={[styles.playlistButton, { flex: 1 }]}
                   />
                 )}
                 {yesterdayRound && yesterdayRound.submissions && (
@@ -1183,7 +1183,7 @@ const AppNavigator = () => {
                     title="View Songs"
                     onPress={() => setShowSongsModal(true)}
                     variant="secondary"
-                    style={[styles.playlistButton, { flex: yesterdayPlaylist ? 1 : undefined, marginLeft: yesterdayPlaylist ? 8 : 0 }]}
+                    style={[styles.playlistButton, { flex: 1 }]}
                   />
                 )}
               </View>
@@ -2333,11 +2333,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: theme.spacing.md,
     gap: 12,
-    paddingHorizontal: 2, // Prevent button cutoff
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   playlistButton: {
     marginTop: 0,
-    minWidth: 120, // Ensure minimum button width
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   
   // Songs Modal Styles
