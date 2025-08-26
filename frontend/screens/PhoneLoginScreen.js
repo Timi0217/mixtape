@@ -83,12 +83,14 @@ const theme = {
 const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [step, setStep] = useState('phone'); // 'phone' or 'verify'
+  const [username, setUsername] = useState('');
+  const [step, setStep] = useState('phone'); // 'phone', 'verify', or 'username'
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   
   const phoneInputRef = useRef(null);
   const codeInputRef = useRef(null);
+  const usernameInputRef = useRef(null);
 
   const formatPhoneNumber = (text) => {
     // Remove all non-numeric characters
@@ -154,9 +156,9 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
       });
 
       if (response.data.success) {
-        const { token, user } = response.data;
-        setAuthToken(token);
-        onLoginSuccess(token, user);
+        // Code verified successfully, proceed to username step
+        setStep('username');
+        setTimeout(() => usernameInputRef.current?.focus(), 100);
       } else {
         throw new Error(response.data.error || 'Verification failed');
       }
@@ -165,6 +167,40 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
       Alert.alert(
         'Verification Failed',
         error.response?.data?.error || 'Invalid verification code. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUsernameSubmit = async () => {
+    if (username.trim().length < 2) {
+      Alert.alert('Invalid Username', 'Username must be at least 2 characters long.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      const response = await api.post('/auth/phone/complete-signup', {
+        phoneNumber: `+1${cleanPhone}`,
+        code: verificationCode,
+        username: username.trim()
+      });
+
+      if (response.data.success) {
+        const { token, user } = response.data;
+        setAuthToken(token);
+        onLoginSuccess(token, user);
+      } else {
+        throw new Error(response.data.error || 'Account creation failed');
+      }
+    } catch (error) {
+      console.error('Username signup error:', error);
+      Alert.alert(
+        'Signup Failed',
+        error.response?.data?.error || 'Failed to create account. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -209,7 +245,7 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
 
           {/* Content */}
           <View style={styles.content}>
-            {step === 'phone' ? (
+            {step === 'phone' && (
               <>
                 {/* Phone Number Step */}
                 <View style={styles.heroSection}>
@@ -248,7 +284,9 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
                   </TouchableOpacity>
                 </View>
               </>
-            ) : (
+            )}
+
+            {step === 'verify' && (
               <>
                 {/* Verification Step */}
                 <View style={styles.heroSection}>
@@ -281,7 +319,7 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
                     {loading ? (
                       <ActivityIndicator color="white" size="small" />
                     ) : (
-                      <Text style={styles.primaryButtonText}>Verify & Login</Text>
+                      <Text style={styles.primaryButtonText}>Continue</Text>
                     )}
                   </TouchableOpacity>
 
@@ -301,6 +339,53 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
                   {/* Back to Phone */}
                   <TouchableOpacity style={styles.secondaryButton} onPress={handleBackToPhone}>
                     <Text style={styles.secondaryButtonText}>Change Phone Number</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {step === 'username' && (
+              <>
+                {/* Username Step */}
+                <View style={styles.heroSection}>
+                  <Text style={styles.title}>Choose Username</Text>
+                  <Text style={styles.subtitle}>
+                    Pick a username so your friends can find you
+                  </Text>
+                </View>
+
+                <View style={styles.inputSection}>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Username</Text>
+                    <TextInput
+                      ref={usernameInputRef}
+                      style={styles.textInput}
+                      value={username}
+                      onChangeText={setUsername}
+                      placeholder="johnsmith"
+                      placeholderTextColor={theme.colors.textTertiary}
+                      keyboardType="default"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      maxLength={30}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.primaryButton, (username.trim().length < 2 || loading) && styles.buttonDisabled]}
+                    onPress={handleUsernameSubmit}
+                    disabled={username.trim().length < 2 || loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Create Account</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Back to Verification */}
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => setStep('verify')}>
+                    <Text style={styles.secondaryButtonText}>Back to Verification</Text>
                   </TouchableOpacity>
                 </View>
               </>

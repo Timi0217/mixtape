@@ -273,6 +273,125 @@ router.post('/verify-code', async (req, res) => {
   }
 });
 
+// Complete signup with username
+router.post('/complete-signup', async (req, res) => {
+  try {
+    const { phoneNumber, code, username } = req.body;
+    
+    if (!phoneNumber || !code || !username) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Phone number, verification code, and username are required' 
+      });
+    }
+
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+    const trimmedUsername = username.trim();
+    
+    // Validate username
+    if (trimmedUsername.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username must be at least 2 characters long'
+      });
+    }
+
+    // Check if username already exists
+    const existingUser = await prisma.user.findFirst({
+      where: { 
+        displayName: trimmedUsername,
+        NOT: { email: formattedPhone } // Allow same user to update their username
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username already taken. Please choose a different one.'
+      });
+    }
+
+    console.log('🔐 Completing signup for:', formattedPhone, 'with username:', trimmedUsername);
+
+    // Verify the code again (for security)
+    const verificationResult = await checkVerification(formattedPhone, code);
+    
+    if (!verificationResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code. Please verify your phone number again.'
+      });
+    }
+
+    // For simulation mode, also check local storage
+    if (twilioClient === null) {
+      const storedData = verificationCodes.get(formattedPhone);
+      if (!storedData || storedData.code !== code) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid verification code. Please verify your phone number again.'
+        });
+      }
+      verificationCodes.delete(formattedPhone);
+    }
+
+    // Find or create user with username
+    let user = await prisma.user.findUnique({
+      where: { email: formattedPhone },
+      include: { musicAccounts: true }
+    });
+
+    if (!user) {
+      console.log('👤 Creating new user for phone:', formattedPhone, 'username:', trimmedUsername);
+      user = await prisma.user.create({
+        data: {
+          email: formattedPhone,
+          displayName: trimmedUsername,
+        },
+        include: { musicAccounts: true }
+      });
+    } else {
+      // Update existing user's display name
+      console.log('👤 Updating username for existing user:', formattedPhone);
+      user = await prisma.user.update({
+        where: { email: formattedPhone },
+        data: { displayName: trimmedUsername },
+        include: { musicAccounts: true }
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+      config.jwt.secret,
+      { expiresIn: '7d' }
+    );
+
+    console.log('🎉 Phone signup completed successfully');
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Complete signup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to complete signup'
+    });
+  }
+});
+
 // Health check
 router.get('/health', (req, res) => {
   res.json({ 
