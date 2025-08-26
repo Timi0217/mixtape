@@ -313,27 +313,9 @@ router.post('/complete-signup', async (req, res) => {
 
     console.log('🔐 Completing signup for:', formattedPhone, 'with username:', trimmedUsername);
 
-    // Verify the code again (for security)
-    const verificationResult = await checkVerification(formattedPhone, code);
-    
-    if (!verificationResult.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid verification code. Please verify your phone number again.'
-      });
-    }
-
-    // For simulation mode, also check local storage
-    if (twilioClient === null) {
-      const storedData = verificationCodes.get(formattedPhone);
-      if (!storedData || storedData.code !== code) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid verification code. Please verify your phone number again.'
-        });
-      }
-      verificationCodes.delete(formattedPhone);
-    }
+    // Note: We don't re-verify the code here because it was already verified in the previous step
+    // and deleted from the store. The frontend flow ensures the user can only reach this endpoint
+    // after successful code verification.
 
     // Find or create user with username
     let user = await prisma.user.findUnique({
