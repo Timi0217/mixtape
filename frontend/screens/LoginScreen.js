@@ -356,16 +356,16 @@ const LoginScreen = ({ onLoginSuccess }) => {
     setTimeout(() => {
       setLoading(null);
       Alert.alert(
-        '🎵 Apple Music Coming Soon!',
-        'Apple Music integration is coming soon. In the meantime, you can login with your phone number to start sharing music with friends.',
+        'Apple Music Coming Soon',
+        'In the meantime, sign in with your phone number to start sharing music with friends.',
         [
           {
-            text: 'Login with Phone',
+            text: 'Continue with Phone',
             onPress: () => handlePhoneNumberLogin(),
             style: 'default'
           },
           {
-            text: 'Use Spotify Instead',
+            text: 'Use Spotify',
             onPress: () => handleSpotifyLogin(),
             style: 'default'
           },

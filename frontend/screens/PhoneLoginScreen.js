@@ -15,28 +15,23 @@ import {
 import { setAuthToken } from '../services/api';
 import api from '../services/api';
 
-// Apple-style theme - clean, minimal, sophisticated
+// Mixtape theme with Apple design principles
 const theme = {
   colors: {
-    // Pure Apple aesthetic
-    bgPrimary: '#F2F2F7',      // iOS system gray 6 (light mode background)
-    bgSecondary: '#FFFFFF',    // Pure white for cards/surfaces
+    // Mixtape brand colors with Apple aesthetics
+    bgPrimary: '#e0d4ff',      // Mixtape purple background
+    bgSecondary: '#ffffff',    // Pure white for cards/surfaces
     
-    // Apple's text hierarchy
+    // Apple's text hierarchy with Mixtape context
     textPrimary: '#1C1C1E',    // iOS label - highest contrast
     textSecondary: '#3A3A3C',  // iOS secondary label
     textTertiary: '#48484A',   // iOS tertiary label
     textQuaternary: '#8E8E93', // iOS quaternary label
     
-    // Apple's button system
-    systemBlue: '#007AFF',     // Apple's signature blue
-    systemBlueSecondary: '#5AC8FA', // Lighter blue
-    systemGray: '#8E8E93',     // System gray
-    systemGray2: '#AEAEB2',    // System gray 2
-    systemGray3: '#C7C7CC',    // System gray 3
-    systemGray4: '#D1D1D6',    // System gray 4
-    systemGray5: '#E5E5EA',    // System gray 5
-    systemGray6: '#F2F2F7',    // System gray 6
+    // Mixtape button system
+    primaryButton: '#8B5CF6',  // Mixtape purple - primary actions
+    secondaryButton: '#F2F2F7', // iOS secondary background
+    accent: '#10B981',         // Mixtape emerald green
     
     // Apple's semantic colors
     systemRed: '#FF3B30',      // Destructive actions
@@ -47,10 +42,10 @@ const theme = {
     separator: 'rgba(60, 60, 67, 0.29)',      // Opaque separator
     separatorNonOpaque: 'rgba(60, 60, 67, 0.36)', // Non-opaque separator
     
-    // Apple's fills
-    fill: 'rgba(120, 120, 128, 0.2)',         // Primary fill
-    secondaryFill: 'rgba(120, 120, 128, 0.16)', // Secondary fill
-    tertiaryFill: 'rgba(118, 118, 128, 0.12)',  // Tertiary fill
+    // Apple's fills with purple tint
+    fill: 'rgba(139, 92, 246, 0.1)',          // Purple-tinted fill
+    secondaryFill: 'rgba(139, 92, 246, 0.06)', // Light purple fill
+    tertiaryFill: 'rgba(139, 92, 246, 0.03)',  // Very light purple fill
   },
   spacing: {
     xs: 2,
@@ -218,8 +213,7 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
               <>
                 {/* Phone Number Step */}
                 <View style={styles.heroSection}>
-                  <Text style={styles.emoji}>📱</Text>
-                  <Text style={styles.title}>Enter Your Phone Number</Text>
+                  <Text style={styles.title}>Phone Number</Text>
                   <Text style={styles.subtitle}>
                     We'll send you a verification code to confirm your number
                   </Text>
@@ -258,10 +252,9 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
               <>
                 {/* Verification Step */}
                 <View style={styles.heroSection}>
-                  <Text style={styles.emoji}>🔐</Text>
-                  <Text style={styles.title}>Enter Verification Code</Text>
+                  <Text style={styles.title}>Verification Code</Text>
                   <Text style={styles.subtitle}>
-                    We sent a 6-digit code to{'\n'}{phoneNumber}
+                    We sent a 6-digit code to {phoneNumber}
                   </Text>
                 </View>
 
@@ -362,11 +355,6 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xxxxl * 2,
     paddingTop: theme.spacing.xxxl,
   },
-  emoji: {
-    fontSize: 76, // Apple's large icon size
-    marginBottom: theme.spacing.xxxl,
-    textAlign: 'center',
-  },
   title: {
     fontSize: 34, // Apple's Large Title size
     fontWeight: theme.typography.bold,
@@ -426,17 +414,17 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'], // Monospace numbers
   },
   
-  // Buttons - Apple's modern button style
+  // Buttons - Mixtape purple with Apple style
   primaryButton: {
-    backgroundColor: theme.colors.systemBlue,
+    backgroundColor: theme.colors.primaryButton,
     borderRadius: theme.borderRadius.xl,
     paddingVertical: theme.spacing.xl,
     paddingHorizontal: theme.spacing.xxxl,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50, // Apple's recommended touch target
-    // Apple's button shadow
-    shadowColor: 'rgba(0, 122, 255, 0.3)',
+    // Mixtape purple button shadow
+    shadowColor: 'rgba(139, 92, 246, 0.3)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -466,7 +454,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 17,
     fontWeight: theme.typography.medium,
-    color: theme.colors.systemBlue,
+    color: theme.colors.primaryButton,
     letterSpacing: -0.24,
   },
   
@@ -484,7 +472,7 @@ const styles = StyleSheet.create({
   resendText: {
     fontSize: 15,
     fontWeight: theme.typography.medium,
-    color: theme.colors.systemBlue,
+    color: theme.colors.primaryButton,
     letterSpacing: -0.23,
   },
 });
