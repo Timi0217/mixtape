@@ -1136,11 +1136,9 @@ const AppNavigator = () => {
                   </View>
                 </View>
                 <View style={styles.groupSelectorRight}>
-                  {userGroups.length > 1 && (
-                    <View style={styles.groupSelectorArrowContainer}>
-                      <Text style={styles.groupSelectorArrow}>⌄</Text>
-                    </View>
-                  )}
+                  <View style={styles.groupSelectorArrowContainer}>
+                    <Text style={styles.groupSelectorArrow}>⌄</Text>
+                  </View>
                 </View>
               </View>
             </TouchableOpacity>
@@ -1430,7 +1428,7 @@ const AppNavigator = () => {
       </View>
 
       {/* Group Selector for History */}
-      {userGroups.length > 1 && (
+      {activeGroup && (
         <View style={styles.groupSelector}>
           <TouchableOpacity 
             style={styles.groupSelectorButton}
