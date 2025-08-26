@@ -1146,42 +1146,62 @@ const AppNavigator = () => {
           </View>
         )}
 
-        {userSubmission ? (
-          <CountdownTimer 
-            targetDate={dropTime} 
-            label="TIME TO NEW MIXTAPE DROP" 
-          />
-        ) : (
-          <CountdownTimer targetDate={deadline} />
-        )}
+        {/* Mixtape Player - Always prominent, Apple-style */}
+        <View style={styles.mixtapePlayerCard}>
+          {(yesterdayPlaylist || yesterdayRound) ? (
+            <>
+              <View style={styles.playerHeader}>
+                <Text style={styles.playerTitle}>Latest Mixtape</Text>
+                <Text style={styles.playerSubtitle}>
+                  {yesterdayRound?.submissions?.length || 0} songs from {activeGroup?.name}
+                </Text>
+              </View>
+              
+              <View style={styles.playlistButtonsContainer}>
+                {yesterdayPlaylist && (
+                  <Button
+                    title="Open Playlist"
+                    onPress={openYesterdayPlaylist}
+                    variant="primary"
+                    style={[styles.playlistButton, { flex: yesterdayRound ? 1 : undefined }]}
+                  />
+                )}
+                {yesterdayRound && yesterdayRound.submissions && (
+                  <Button
+                    title="View Songs"
+                    onPress={() => setShowSongsModal(true)}
+                    variant="secondary"
+                    style={[styles.playlistButton, { flex: yesterdayPlaylist ? 1 : undefined, marginLeft: yesterdayPlaylist ? 8 : 0 }]}
+                  />
+                )}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.playerHeader}>
+                <Text style={styles.playerTitle}>No Mixtape Yet</Text>
+                <Text style={styles.playerSubtitle}>
+                  Submit songs with friends to create your first mixtape
+                </Text>
+              </View>
+              <View style={styles.emptyPlayerActions}>
+                <Text style={styles.emptyPlayerHint}>🎵 Songs will appear here after completion</Text>
+              </View>
+            </>
+          )}
+        </View>
 
-        {/* Yesterday's Mixtape Banner - shown when there's a completed mixtape to listen to */}
-        {(yesterdayPlaylist || yesterdayRound) && (
-          <View style={styles.yesterdayBanner}>
-            <Text style={styles.yesterdayTitle}>🎧 Listen to Latest Mixtape</Text>
-            <Text style={styles.yesterdaySubtitle}>
-              From your group's completed round
-            </Text>
-            <View style={styles.playlistButtonsContainer}>
-              {yesterdayPlaylist && (
-                <Button
-                  title="Open Playlist"
-                  onPress={openYesterdayPlaylist}
-                  variant="secondary"
-                  style={[styles.playlistButton, { flex: yesterdayRound ? 1 : undefined }]}
-                />
-              )}
-              {yesterdayRound && yesterdayRound.submissions && (
-                <Button
-                  title="View Songs"
-                  onPress={() => setShowSongsModal(true)}
-                  variant="secondary"
-                  style={[styles.playlistButton, { flex: yesterdayPlaylist ? 1 : undefined, marginLeft: yesterdayPlaylist ? 8 : 0 }]}
-                />
-              )}
-            </View>
-          </View>
-        )}
+        {/* Submission Timer - Secondary */}
+        <View style={styles.timerSection}>
+          {userSubmission ? (
+            <CountdownTimer 
+              targetDate={dropTime} 
+              label="New mixtape drops in" 
+            />
+          ) : (
+            <CountdownTimer targetDate={deadline} label="Submit your song" />
+          )}
+        </View>
 
 
         {!userSubmission && (
@@ -2243,6 +2263,50 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  // Mixtape Player Card - Apple-style, always prominent
+  mixtapePlayerCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
+    borderWidth: 0.33,
+    borderColor: theme.colors.borderLight,
+  },
+  playerHeader: {
+    marginBottom: theme.spacing.md,
+  },
+  playerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  playerSubtitle: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  emptyPlayerActions: {
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  emptyPlayerHint: {
+    fontSize: 14,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  
+  // Timer Section - Secondary
+  timerSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  
   playlistButtonsContainer: {
     flexDirection: 'row',
     marginTop: theme.spacing.md,
