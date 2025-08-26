@@ -574,4 +574,77 @@ router.get('/test-ui-status',
   }
 );
 
+// TEMPORARY: Mark a round as completed to test UI (NO AUTH)
+router.post('/complete-round-for-ui',
+  async (req, res) => {
+    try {
+      // Find the most recent active round
+      const activeRound = await prisma.dailyRound.findFirst({
+        where: { status: 'active' },
+        include: { 
+          group: true,
+          submissions: { 
+            include: { user: true, song: true } 
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!activeRound) {
+        return res.status(404).json({ error: 'No active rounds found' });
+      }
+
+      if (activeRound.submissions.length === 0) {
+        return res.status(400).json({ error: 'Round has no submissions. Submit a song first.' });
+      }
+
+      // Mark it as completed
+      const completedRound = await prisma.dailyRound.update({
+        where: { id: activeRound.id },
+        data: { status: 'completed' }
+      });
+
+      // Create a fake playlist for this completed round
+      const fakePlaylist = await prisma.groupPlaylist.create({
+        data: {
+          groupId: activeRound.groupId,
+          userId: activeRound.submissions[0].userId, // Use first submitter as playlist owner
+          platform: 'spotify',
+          platformPlaylistId: 'test_playlist_' + Date.now(),
+          playlistName: `${activeRound.group.name} - ${new Date().toLocaleDateString()}`,
+          playlistUrl: `https://open.spotify.com/playlist/test${Date.now()}`,
+          isActive: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: `Round completed! Now submit a song to the NEW round to see the UI.`,
+        completedRound: {
+          id: completedRound.id,
+          submissions: activeRound.submissions.length,
+          group: activeRound.group.name
+        },
+        fakePlaylist: {
+          id: fakePlaylist.id,
+          url: fakePlaylist.playlistUrl
+        },
+        instructions: [
+          '1. This round is now marked as completed',
+          '2. A new round should be created automatically', 
+          '3. Submit a song to the NEW round',
+          '4. You should now see the playlist banner with both buttons!'
+        ]
+      });
+
+    } catch (error) {
+      console.error('Complete round error:', error);
+      res.status(500).json({ 
+        error: 'Failed to complete round',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
 export default router;
