@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, Modal, Animated, Easing, Dimensions, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, Modal, Animated, Easing, Dimensions, Image, Linking } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import MusicSearchScreen from '../screens/MusicSearchScreen';
@@ -412,6 +412,7 @@ const AppNavigator = () => {
   const [yesterdayPlaylist, setYesterdayPlaylist] = useState(null);
   const [yesterdayRound, setYesterdayRound] = useState(null);
   const [userVote, setUserVote] = useState(null);
+  const [showSongsModal, setShowSongsModal] = useState(false);
   const [groupCardTab, setGroupCardTab] = useState('progress'); // 'progress' or 'vote'
   const [showMusicSearch, setShowMusicSearch] = useState(false);
   const [showGroupCreate, setShowGroupCreate] = useState(false);
@@ -1155,18 +1156,30 @@ const AppNavigator = () => {
         )}
 
         {/* Yesterday's Mixtape Banner - shown after user submits */}
-        {userSubmission && yesterdayPlaylist && (
+        {userSubmission && (yesterdayPlaylist || yesterdayRound) && (
           <View style={styles.yesterdayBanner}>
             <Text style={styles.yesterdayTitle}>🎧 Listen to Current Mixtape</Text>
             <Text style={styles.yesterdaySubtitle}>
               While you wait for a new one
             </Text>
-            <Button
-              title="Open Mixtape"
-              onPress={openYesterdayPlaylist}
-              variant="secondary"
-              style={styles.yesterdayButton}
-            />
+            <View style={styles.playlistButtonsContainer}>
+              {yesterdayPlaylist && (
+                <Button
+                  title="Open Playlist"
+                  onPress={openYesterdayPlaylist}
+                  variant="secondary"
+                  style={[styles.playlistButton, { flex: yesterdayRound ? 1 : undefined }]}
+                />
+              )}
+              {yesterdayRound && yesterdayRound.submissions && (
+                <Button
+                  title="View Songs"
+                  onPress={() => setShowSongsModal(true)}
+                  variant="secondary"
+                  style={[styles.playlistButton, { flex: yesterdayPlaylist ? 1 : undefined, marginLeft: yesterdayPlaylist ? 8 : 0 }]}
+                />
+              )}
+            </View>
           </View>
         )}
 
@@ -1665,6 +1678,60 @@ const AppNavigator = () => {
           group={selectedGroupForSettings}
           onGroupUpdated={handleGroupUpdated}
         />
+      </Modal>
+
+      {/* Songs List Modal */}
+      <Modal visible={showSongsModal} animationType="slide">
+        <SafeAreaView style={styles.songsModalContainer}>
+          <View style={styles.songsModalHeader}>
+            <Text style={styles.songsModalTitle}>Songs in Mixtape</Text>
+            <TouchableOpacity 
+              onPress={() => setShowSongsModal(false)}
+              style={styles.songsModalClose}
+            >
+              <Text style={styles.songsModalCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.songsModalContent}>
+            {yesterdayRound?.submissions?.map((submission, index) => (
+              <View key={submission.id || index} style={styles.songItem}>
+                <View style={styles.songItemLeft}>
+                  <View style={styles.songNumber}>
+                    <Text style={styles.songNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.songInfo}>
+                    <Text style={styles.songTitle}>{submission.song.title}</Text>
+                    <Text style={styles.songArtist}>{submission.song.artist}</Text>
+                    <Text style={styles.songSubmitter}>by {submission.user.displayName}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.searchAppleMusicButton}
+                  onPress={() => {
+                    const query = encodeURIComponent(`${submission.song.title} ${submission.song.artist}`);
+                    const appleMusicURL = `https://music.apple.com/search?term=${query}`;
+                    Linking.openURL(appleMusicURL).catch(() => {
+                      Alert.alert(
+                        'Search Apple Music',
+                        `Search for: "${submission.song.title}" by ${submission.song.artist}`,
+                        [{ text: 'OK' }]
+                      );
+                    });
+                  }}
+                >
+                  <Text style={styles.searchAppleMusicText}>🍎</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+          
+          <View style={styles.songsModalFooter}>
+            <Text style={styles.songsModalFooterText}>
+              Tap 🍎 to search for songs in Apple Music
+            </Text>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Group Selection Modal for Song Submission */}
@@ -2175,6 +2242,116 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+  },
+  playlistButtonsContainer: {
+    flexDirection: 'row',
+    marginTop: theme.spacing.md,
+    gap: 8,
+  },
+  playlistButton: {
+    marginTop: 0,
+  },
+  
+  // Songs Modal Styles
+  songsModalContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.bgPrimary,
+  },
+  songsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  songsModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  songsModalClose: {
+    padding: theme.spacing.sm,
+  },
+  songsModalCloseText: {
+    fontSize: 20,
+    color: theme.colors.textSecondary,
+  },
+  songsModalContent: {
+    flex: 1,
+    padding: theme.spacing.lg,
+  },
+  songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.md,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  songItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  songNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.primaryButton,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  songNumberText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  songInfo: {
+    flex: 1,
+  },
+  songTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  songArtist: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 2,
+  },
+  songSubmitter: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  searchAppleMusicButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.secondaryButton,
+  },
+  searchAppleMusicText: {
+    fontSize: 20,
+  },
+  songsModalFooter: {
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
+  },
+  songsModalFooterText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
 
   // Voting Card - Apple Music-style matching group status card
