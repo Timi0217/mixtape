@@ -32,6 +32,12 @@ export const config = {
     teamId: process.env.APPLE_MUSIC_TEAM_ID!,
     privateKeyPath: process.env.APPLE_MUSIC_PRIVATE_KEY_PATH!,
   },
+
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    authToken: process.env.TWILIO_AUTH_TOKEN || '',
+    phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
+  },
   
   frontendUrl: process.env.FRONTEND_URL || 'mixtape://',
   apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000',

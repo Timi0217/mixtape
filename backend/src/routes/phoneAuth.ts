@@ -1,10 +1,20 @@
 import express from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import twilio from 'twilio';
 import { config } from '../config/env';
 import { prisma } from '../config/database';
 
 const router = express.Router();
+
+// Initialize Twilio client (only if credentials are provided)
+let twilioClient: twilio.Twilio | null = null;
+if (config.twilio.accountSid && config.twilio.authToken) {
+  twilioClient = twilio(config.twilio.accountSid, config.twilio.authToken);
+  console.log('✅ Twilio SMS service initialized');
+} else {
+  console.log('⚠️ Twilio credentials not provided - SMS will be simulated');
+}
 
 // In-memory store for verification codes (in production, use Redis)
 const verificationCodes = new Map<string, { code: string; expiresAt: Date; attempts: number }>();
@@ -22,6 +32,28 @@ setInterval(() => {
 // Generate a 6-digit verification code
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Send SMS via Twilio
+async function sendSMS(to: string, message: string): Promise<boolean> {
+  try {
+    if (!twilioClient || !config.twilio.phoneNumber) {
+      console.log('📱 SMS simulation - would send:', { to, message });
+      return true; // Simulate success when Twilio is not configured
+    }
+
+    const result = await twilioClient.messages.create({
+      body: message,
+      from: config.twilio.phoneNumber,
+      to: to
+    });
+
+    console.log('📤 SMS sent successfully:', result.sid);
+    return true;
+  } catch (error) {
+    console.error('❌ SMS sending failed:', error);
+    return false;
+  }
 }
 
 // Format phone number to E.164 format
@@ -73,16 +105,25 @@ router.post('/send-code', async (req, res) => {
     // Always log the code in local development
     console.log(`📱 Verification code for ${formattedPhone}: ${code}`);
 
-    // TODO: In production, integrate with SMS service (Twilio, AWS SNS, etc.)
-    // For now, we'll just store the code and return success
+    // Send SMS via Twilio
+    const smsMessage = `Your Mixtape verification code is: ${code}. Don't share this code with anyone.`;
+    const smsSent = await sendSMS(formattedPhone, smsMessage);
     
-    console.log('✅ Verification code generated successfully');
+    if (!smsSent && twilioClient) {
+      // If Twilio is configured but SMS failed, return error
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send verification code via SMS'
+      });
+    }
+    
+    console.log('✅ Verification code sent successfully');
     
     res.json({
       success: true,
       message: 'Verification code sent successfully',
-      // Always include the code in response for local testing
-      code: code
+      // Include code in development mode for testing
+      ...(config.nodeEnv === 'development' && { code })
     });
 
   } catch (error) {
