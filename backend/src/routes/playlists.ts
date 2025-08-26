@@ -515,101 +515,59 @@ router.get('/',
   }
 );
 
-// TEMPORARY: Public test endpoint to create fake data for UI preview (NO AUTH)
-router.post('/test-ui-public',
+// TEMPORARY: Public test endpoint to show existing data for UI preview (NO AUTH)
+router.get('/test-ui-status',
   async (req, res) => {
     try {
-      // Get the first available group and user for testing
-      const group = await prisma.group.findFirst({
-        include: { members: { include: { user: true } } }
+      // Get info about existing data
+      const groups = await prisma.group.findMany({
+        include: { 
+          members: { include: { user: true } },
+          rounds: { 
+            include: { 
+              submissions: { 
+                include: { user: true, song: true } 
+              } 
+            } 
+          },
+          groupPlaylists: true
+        }
       });
 
-      if (!group) {
-        return res.status(404).json({ error: 'No groups found. Create a group first.' });
-      }
-
-      const groupId = group.id;
-      const userId = group.members[0]?.user.id;
-
-      if (!userId) {
-        return res.status(404).json({ error: 'No users found in group' });
-      }
-
-      // Create a fake completed round with submissions
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const deadlineAt = new Date(today);
-      deadlineAt.setHours(23, 0, 0, 0);
-
-      // Create test round
-      const testRound = await prisma.dailyRound.create({
-        data: {
-          groupId,
-          date: today,
-          deadlineAt,
-          status: 'completed', // Mark as completed so it shows as yesterday's round
-        },
-      });
-
-      // Create fake songs
-      const fakeSongs = [
-        { title: 'Blinding Lights', artist: 'The Weeknd', spotifyId: 'fake1' },
-        { title: 'Good 4 U', artist: 'Olivia Rodrigo', spotifyId: 'fake2' },
-        { title: 'Heat Waves', artist: 'Glass Animals', spotifyId: 'fake3' },
-        { title: 'Anti-Hero', artist: 'Taylor Swift', spotifyId: 'fake4' },
-      ];
-
-      // Use the group we already found (no need to fetch again)
-
-      // Create fake submissions
-      for (let i = 0; i < Math.min(fakeSongs.length, group.members.length); i++) {
-        const song = fakeSongs[i];
-        const member = group.members[i];
-
-        // Create song record
-        const songRecord = await prisma.song.create({
-          data: {
-            title: song.title,
-            artist: song.artist,
-            platformIds: { spotify: song.spotifyId }, // Use correct field name
-          },
-        });
-
-        // Create submission
-        await prisma.submission.create({
-          data: {
-            userId: member.user.id,
-            roundId: testRound.id, // Use roundId not dailyRoundId
-            songId: songRecord.id,
-          },
-        });
-      }
-
-      // Create fake playlist (need userId from schema)
-      const fakePlaylist = await prisma.groupPlaylist.create({
-        data: {
-          groupId,
-          userId, // Add required userId field
-          platform: 'spotify',
-          platformPlaylistId: 'fake_playlist_id',
-          playlistName: `${group.name} - Test Mixtape`,
-          playlistUrl: 'https://open.spotify.com/playlist/fake',
-          isActive: true,
-        },
+      const users = await prisma.user.findMany();
+      const songs = await prisma.song.findMany();
+      const submissions = await prisma.submission.findMany({
+        include: { user: true, song: true, round: true }
       });
 
       res.json({
         success: true,
-        message: 'Test data created! You can now see the UI preview.',
-        testRound: testRound.id,
-        fakePlaylist: fakePlaylist.id,
+        message: 'Here\'s what data exists for UI testing',
+        stats: {
+          groups: groups.length,
+          users: users.length,
+          songs: songs.length,
+          submissions: submissions.length,
+        },
+        groups: groups.map(g => ({
+          id: g.id,
+          name: g.name,
+          members: g.members.length,
+          rounds: g.rounds.length,
+          playlists: g.groupPlaylists.length,
+          hasSubmissions: g.rounds.some(r => r.submissions.length > 0)
+        })),
+        recentSubmissions: submissions.slice(0, 5).map(s => ({
+          song: `${s.song.title} - ${s.song.artist}`,
+          user: s.user.displayName,
+          submittedAt: s.submittedAt
+        }))
       });
 
     } catch (error) {
-      console.error('Test UI creation error:', error);
+      console.error('Test status error:', error);
       res.status(500).json({ 
-        error: 'Failed to create test data',
+        error: 'Failed to get test status',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
