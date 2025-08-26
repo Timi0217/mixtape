@@ -515,16 +515,24 @@ router.get('/',
   }
 );
 
-// TEMPORARY: Test endpoint to create fake data for UI preview
-router.post('/test-ui/:groupId',
-  authenticateToken,
-  async (req: AuthRequest, res) => {
+// TEMPORARY: Public test endpoint to create fake data for UI preview (NO AUTH)
+router.post('/test-ui-public',
+  async (req, res) => {
     try {
-      const { groupId } = req.params;
-      const userId = req.user?.id;
+      // Get the first available group and user for testing
+      const group = await prisma.group.findFirst({
+        include: { members: { include: { user: true } } }
+      });
+
+      if (!group) {
+        return res.status(404).json({ error: 'No groups found. Create a group first.' });
+      }
+
+      const groupId = group.id;
+      const userId = group.members[0]?.user.id;
 
       if (!userId) {
-        return res.status(401).json({ error: 'User not authenticated' });
+        return res.status(404).json({ error: 'No users found in group' });
       }
 
       // Create a fake completed round with submissions
@@ -552,15 +560,7 @@ router.post('/test-ui/:groupId',
         { title: 'Anti-Hero', artist: 'Taylor Swift', spotifyId: 'fake4' },
       ];
 
-      // Get group members to assign submissions
-      const group = await prisma.group.findUnique({
-        where: { id: groupId },
-        include: { members: { include: { user: true } } }
-      });
-
-      if (!group) {
-        return res.status(404).json({ error: 'Group not found' });
-      }
+      // Use the group we already found (no need to fetch again)
 
       // Create fake submissions
       for (let i = 0; i < Math.min(fakeSongs.length, group.members.length); i++) {
