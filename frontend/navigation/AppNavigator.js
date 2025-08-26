@@ -1155,12 +1155,12 @@ const AppNavigator = () => {
           <CountdownTimer targetDate={deadline} />
         )}
 
-        {/* Yesterday's Mixtape Banner - shown after user submits */}
-        {userSubmission && (yesterdayPlaylist || yesterdayRound) && (
+        {/* Yesterday's Mixtape Banner - shown when there's a completed mixtape to listen to */}
+        {(yesterdayPlaylist || yesterdayRound) && (
           <View style={styles.yesterdayBanner}>
-            <Text style={styles.yesterdayTitle}>🎧 Listen to Current Mixtape</Text>
+            <Text style={styles.yesterdayTitle}>🎧 Listen to Latest Mixtape</Text>
             <Text style={styles.yesterdaySubtitle}>
-              While you wait for a new one
+              From your group's completed round
             </Text>
             <View style={styles.playlistButtonsContainer}>
               {yesterdayPlaylist && (
