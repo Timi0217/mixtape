@@ -379,6 +379,18 @@ function Button({ title, onPress, variant = 'primary', style }) {
 const AppNavigator = () => {
   const { user, logout } = useAuth();
   
+  // Detect user's music platform (phone users = Apple Music, OAuth = Spotify)
+  const getUserMusicPlatform = () => {
+    // If user has email with phone auth pattern, they're Apple Music users
+    if (user?.email?.includes('@phone.mixtape')) {
+      return 'apple-music';
+    }
+    // Otherwise they used Spotify OAuth
+    return 'spotify';
+  };
+  
+  const userPlatform = getUserMusicPlatform();
+  
   // Create deadline for 11 PM today (updated time)
   const getDeadline = () => {
     const now = new Date();
@@ -1727,20 +1739,30 @@ const AppNavigator = () => {
                   </View>
                 </View>
                 <TouchableOpacity 
-                  style={styles.searchAppleMusicButton}
+                  style={styles.playButton}
                   onPress={() => {
                     const query = encodeURIComponent(`${submission.song.title} ${submission.song.artist}`);
-                    const appleMusicURL = `https://music.apple.com/search?term=${query}`;
-                    Linking.openURL(appleMusicURL).catch(() => {
+                    let musicURL;
+                    let platformName;
+                    
+                    if (userPlatform === 'apple-music') {
+                      musicURL = `https://music.apple.com/search?term=${query}`;
+                      platformName = 'Apple Music';
+                    } else {
+                      musicURL = `https://open.spotify.com/search/${query}`;
+                      platformName = 'Spotify';
+                    }
+                    
+                    Linking.openURL(musicURL).catch(() => {
                       Alert.alert(
-                        'Search Apple Music',
+                        `Search ${platformName}`,
                         `Search for: "${submission.song.title}" by ${submission.song.artist}`,
                         [{ text: 'OK' }]
                       );
                     });
                   }}
                 >
-                  <Text style={styles.searchAppleMusicText}>🍎</Text>
+                  <Text style={styles.playButtonIcon}>▶️</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -1748,7 +1770,7 @@ const AppNavigator = () => {
           
           <View style={styles.songsModalFooter}>
             <Text style={styles.songsModalFooterText}>
-              Tap 🍎 to search for songs in Apple Music
+              Tap ▶️ to search for songs in {userPlatform === 'apple-music' ? 'Apple Music' : 'Spotify'}
             </Text>
           </View>
         </SafeAreaView>
@@ -2263,19 +2285,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  // Mixtape Player Card - Apple-style, always prominent
+  // Mixtape Player Card - Apple Music-esque, always prominent
   mixtapePlayerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
     marginBottom: theme.spacing.lg,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 10,
-    borderWidth: 0.33,
-    borderColor: theme.colors.borderLight,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
   playerHeader: {
     marginBottom: theme.spacing.md,
@@ -2310,10 +2332,12 @@ const styles = StyleSheet.create({
   playlistButtonsContainer: {
     flexDirection: 'row',
     marginTop: theme.spacing.md,
-    gap: 8,
+    gap: 12,
+    paddingHorizontal: 2, // Prevent button cutoff
   },
   playlistButton: {
     marginTop: 0,
+    minWidth: 120, // Ensure minimum button width
   },
   
   // Songs Modal Styles
@@ -2398,13 +2422,23 @@ const styles = StyleSheet.create({
     color: theme.colors.textTertiary,
     fontStyle: 'italic',
   },
-  searchAppleMusicButton: {
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.secondaryButton,
+  playButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.primaryButton,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.primaryButton,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  searchAppleMusicText: {
-    fontSize: 20,
+  playButtonIcon: {
+    fontSize: 16,
+    color: 'white',
+    marginLeft: 2, // Slight offset to center the play triangle
   },
   songsModalFooter: {
     padding: theme.spacing.lg,
