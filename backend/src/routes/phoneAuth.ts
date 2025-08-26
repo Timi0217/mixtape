@@ -9,11 +9,11 @@ const router = express.Router();
 
 // Initialize Twilio client (only if credentials are provided)
 let twilioClient: twilio.Twilio | null = null;
-if (config.twilio.accountSid && config.twilio.authToken) {
+if (config.twilio.accountSid && config.twilio.authToken && config.twilio.verifySid) {
   twilioClient = twilio(config.twilio.accountSid, config.twilio.authToken);
-  console.log('✅ Twilio SMS service initialized');
+  console.log('✅ Twilio Verify service initialized');
 } else {
-  console.log('⚠️ Twilio credentials not provided - SMS will be simulated');
+  console.log('⚠️ Twilio Verify credentials not provided - verification will be simulated');
 }
 
 // In-memory store for verification codes (in production, use Redis)
@@ -34,25 +34,55 @@ function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send SMS via Twilio
-async function sendSMS(to: string, message: string): Promise<boolean> {
+// Start verification via Twilio Verify
+async function startVerification(phoneNumber: string): Promise<{ success: boolean; status?: string }> {
   try {
-    if (!twilioClient || !config.twilio.phoneNumber) {
-      console.log('📱 SMS simulation - would send:', { to, message });
-      return true; // Simulate success when Twilio is not configured
+    if (!twilioClient || !config.twilio.verifySid) {
+      console.log('📱 Verification simulation - would send to:', phoneNumber);
+      return { success: true, status: 'simulated' };
     }
 
-    const result = await twilioClient.messages.create({
-      body: message,
-      from: config.twilio.phoneNumber,
-      to: to
-    });
+    const verification = await twilioClient.verify.v2
+      .services(config.twilio.verifySid)
+      .verifications
+      .create({ 
+        to: phoneNumber, 
+        channel: 'sms' 
+      });
 
-    console.log('📤 SMS sent successfully:', result.sid);
-    return true;
+    console.log('📤 Verification sent successfully:', verification.status);
+    return { success: true, status: verification.status };
   } catch (error) {
-    console.error('❌ SMS sending failed:', error);
-    return false;
+    console.error('❌ Verification sending failed:', error);
+    return { success: false };
+  }
+}
+
+// Check verification via Twilio Verify
+async function checkVerification(phoneNumber: string, code: string): Promise<{ success: boolean; status?: string }> {
+  try {
+    if (!twilioClient || !config.twilio.verifySid) {
+      console.log('📱 Verification check simulation - would verify:', phoneNumber, code);
+      // In simulation mode, check against our local store
+      return { success: true, status: 'approved' };
+    }
+
+    const verificationCheck = await twilioClient.verify.v2
+      .services(config.twilio.verifySid)
+      .verificationChecks
+      .create({ 
+        to: phoneNumber, 
+        code: code 
+      });
+
+    console.log('✅ Verification check result:', verificationCheck.status);
+    return { 
+      success: verificationCheck.status === 'approved', 
+      status: verificationCheck.status 
+    };
+  } catch (error) {
+    console.error('❌ Verification check failed:', error);
+    return { success: false };
   }
 }
 
@@ -80,54 +110,48 @@ router.post('/send-code', async (req, res) => {
     }
 
     const formattedPhone = formatPhoneNumber(phoneNumber);
-    console.log('📱 Sending verification code to:', formattedPhone);
+    console.log('📱 Starting verification for:', formattedPhone);
 
-    // Check rate limiting - max 3 attempts per 15 minutes
-    const existing = verificationCodes.get(formattedPhone);
-    if (existing && existing.attempts >= 3) {
-      return res.status(429).json({
-        success: false,
-        error: 'Too many attempts. Please try again later.'
-      });
-    }
-
-    // Generate verification code
-    const code = generateVerificationCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Store verification code
-    verificationCodes.set(formattedPhone, {
-      code,
-      expiresAt,
-      attempts: existing ? existing.attempts + 1 : 1
-    });
-
-    // Always log the code in local development
-    console.log(`📱 Verification code for ${formattedPhone}: ${code}`);
-
-    // Send SMS via Twilio
-    const smsMessage = `Your Mixtape verification code is: ${code}. Don't share this code with anyone.`;
-    const smsSent = await sendSMS(formattedPhone, smsMessage);
+    // Start verification using Twilio Verify
+    const verificationResult = await startVerification(formattedPhone);
     
-    if (!smsSent && twilioClient) {
-      // If Twilio is configured but SMS failed, return error
+    if (!verificationResult.success) {
       return res.status(500).json({
         success: false,
-        error: 'Failed to send verification code via SMS'
+        error: 'Failed to send verification code'
+      });
+    }
+
+    // In simulation mode, store a code for testing
+    if (verificationResult.status === 'simulated') {
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      
+      verificationCodes.set(formattedPhone, {
+        code,
+        expiresAt,
+        attempts: 1
+      });
+      
+      console.log(`📱 Simulation code for ${formattedPhone}: ${code}`);
+      
+      return res.json({
+        success: true,
+        message: 'Verification code sent successfully',
+        // Include code in development for testing
+        ...(config.nodeEnv === 'development' && { code })
       });
     }
     
-    console.log('✅ Verification code sent successfully');
+    console.log('✅ Verification sent via Twilio Verify');
     
     res.json({
       success: true,
-      message: 'Verification code sent successfully',
-      // Include code in development mode for testing
-      ...(config.nodeEnv === 'development' && { code })
+      message: 'Verification code sent successfully'
     });
 
   } catch (error) {
-    console.error('❌ Send code error:', error);
+    console.error('❌ Send verification error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to send verification code'
@@ -150,32 +174,52 @@ router.post('/verify-code', async (req, res) => {
     const formattedPhone = formatPhoneNumber(phoneNumber);
     console.log('🔐 Verifying code for:', formattedPhone);
 
-    // Check if verification code exists and is valid
-    const storedData = verificationCodes.get(formattedPhone);
-    if (!storedData) {
-      return res.status(400).json({
-        success: false,
-        error: 'No verification code found. Please request a new code.'
-      });
-    }
-
-    if (storedData.expiresAt < new Date()) {
-      verificationCodes.delete(formattedPhone);
-      return res.status(400).json({
-        success: false,
-        error: 'Verification code has expired. Please request a new code.'
-      });
-    }
-
-    if (storedData.code !== code) {
+    // Check verification using Twilio Verify
+    const verificationResult = await checkVerification(formattedPhone, code);
+    
+    if (!verificationResult.success) {
+      // Handle specific error cases
+      if (verificationResult.status === 'max_attempts_reached') {
+        return res.status(429).json({
+          success: false,
+          error: 'Maximum verification attempts reached. Please request a new code.'
+        });
+      }
+      
       return res.status(400).json({
         success: false,
         error: 'Invalid verification code.'
       });
     }
 
-    // Code is valid, remove it from store
-    verificationCodes.delete(formattedPhone);
+    // For simulation mode, check local storage
+    if (twilioClient === null) {
+      const storedData = verificationCodes.get(formattedPhone);
+      if (!storedData) {
+        return res.status(400).json({
+          success: false,
+          error: 'No verification code found. Please request a new code.'
+        });
+      }
+
+      if (storedData.expiresAt < new Date()) {
+        verificationCodes.delete(formattedPhone);
+        return res.status(400).json({
+          success: false,
+          error: 'Verification code has expired. Please request a new code.'
+        });
+      }
+
+      if (storedData.code !== code) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid verification code.'
+        });
+      }
+
+      // Remove from local store
+      verificationCodes.delete(formattedPhone);
+    }
 
     // Find or create user
     let user = await prisma.user.findUnique({
@@ -232,8 +276,9 @@ router.post('/verify-code', async (req, res) => {
 // Health check
 router.get('/health', (req, res) => {
   res.json({ 
-    status: 'phone auth router active',
-    codesInMemory: verificationCodes.size
+    status: 'phone auth router active (Twilio Verify)',
+    twilioConfigured: twilioClient !== null,
+    simulationCodesInMemory: verificationCodes.size
   });
 });
 

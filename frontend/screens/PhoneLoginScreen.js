@@ -266,7 +266,7 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
                       style={[styles.textInput, styles.codeInput]}
                       value={verificationCode}
                       onChangeText={setVerificationCode}
-                      placeholder="123456"
+                      placeholder=""
                       placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="number-pad"
                       maxLength={6}
