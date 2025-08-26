@@ -15,55 +15,74 @@ import {
 import { setAuthToken } from '../services/api';
 import api from '../services/api';
 
-// Apple Music-style theme matching main app
+// Apple-style theme - clean, minimal, sophisticated
 const theme = {
   colors: {
-    // Main Colors - Enhanced depth
-    bgPrimary: '#e0d4ff',      // Light purple background leading to purple theme
-    surfaceWhite: '#ffffff',   // Pure white cards
-    surfaceTinted: '#f1f3f4',  // Light gray tint
-    surfaceElevated: '#ffffff', // Elevated white surface
+    // Pure Apple aesthetic
+    bgPrimary: '#F2F2F7',      // iOS system gray 6 (light mode background)
+    bgSecondary: '#FFFFFF',    // Pure white for cards/surfaces
     
-    // Text - Apple-style hierarchy
-    textPrimary: '#000000',    // True black for maximum contrast
-    textSecondary: '#3c3c43',  // iOS secondary text
-    textTertiary: '#8e8e93',   // iOS tertiary text
+    // Apple's text hierarchy
+    textPrimary: '#1C1C1E',    // iOS label - highest contrast
+    textSecondary: '#3A3A3C',  // iOS secondary label
+    textTertiary: '#48484A',   // iOS tertiary label
+    textQuaternary: '#8E8E93', // iOS quaternary label
     
-    // Buttons & Actions - Purple and green theme
-    primaryButton: '#8B5CF6',  // Purple - primary actions
-    secondaryButton: '#F2F2F7', // iOS secondary background  
-    accent: '#10B981',         // Emerald green - accent color
+    // Apple's button system
+    systemBlue: '#007AFF',     // Apple's signature blue
+    systemBlueSecondary: '#5AC8FA', // Lighter blue
+    systemGray: '#8E8E93',     // System gray
+    systemGray2: '#AEAEB2',    // System gray 2
+    systemGray3: '#C7C7CC',    // System gray 3
+    systemGray4: '#D1D1D6',    // System gray 4
+    systemGray5: '#E5E5EA',    // System gray 5
+    systemGray6: '#F2F2F7',    // System gray 6
     
-    // States & Status
-    success: '#34C759',        // iOS green - success states
-    active: '#8B5CF6',         // Purple - active tabs
-    groupHeader: '#1d1d1f',    // Apple-style dark text
-    pending: '#D1D5DB',        // Light gray - pending states
-    error: '#FF3B30',          // iOS red - error states
-    warning: '#FF9500',        // iOS orange - warning states
+    // Apple's semantic colors
+    systemRed: '#FF3B30',      // Destructive actions
+    systemGreen: '#34C759',    // Success states
+    systemOrange: '#FF9500',   // Warning states
     
-    // Borders
-    borderLight: '#C6C6C8',    // iOS separator light
-    borderMedium: '#8E8E93',   // iOS separator medium
+    // Apple's separators
+    separator: 'rgba(60, 60, 67, 0.29)',      // Opaque separator
+    separatorNonOpaque: 'rgba(60, 60, 67, 0.36)', // Non-opaque separator
     
-    // Shadow - Apple-style depth
-    shadow: 'rgba(0, 0, 0, 0.04)', // Subtle shadow
-    shadowMedium: 'rgba(0, 0, 0, 0.08)', // Medium shadow
-    shadowStrong: 'rgba(0, 0, 0, 0.16)', // Strong shadow
+    // Apple's fills
+    fill: 'rgba(120, 120, 128, 0.2)',         // Primary fill
+    secondaryFill: 'rgba(120, 120, 128, 0.16)', // Secondary fill
+    tertiaryFill: 'rgba(118, 118, 128, 0.12)',  // Tertiary fill
   },
   spacing: {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
+    xs: 2,
+    sm: 4,
+    md: 8,
+    lg: 12,
+    xl: 16,
+    xxl: 20,
+    xxxl: 24,
+    xxxxl: 32,
   },
   borderRadius: {
-    sm: 8,
-    md: 16,
-    lg: 20,
-    xl: 24,
+    xs: 4,
+    sm: 6,
+    md: 8,
+    lg: 10,
+    xl: 12,
+    xxl: 16,
+    xxxl: 20,
   },
+  typography: {
+    // Apple's San Francisco font weights
+    ultraLight: '100',
+    thin: '200', 
+    light: '300',
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+    heavy: '800',
+    black: '900',
+  }
 };
 
 const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
@@ -311,139 +330,162 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  
+  // Header - Apple's minimal navigation style
   header: {
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xxxxl,
+    paddingTop: theme.spacing.xl,
+    paddingBottom: theme.spacing.lg,
   },
   backButton: {
     alignSelf: 'flex-start',
+    paddingHorizontal: 0,
+    paddingVertical: theme.spacing.sm,
   },
   backButtonText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: theme.colors.primaryButton,
+    fontWeight: theme.typography.regular,
+    color: theme.colors.systemBlue,
+    letterSpacing: -0.24, // Apple's SF Pro letter spacing
   },
+  
+  // Content - Apple's generous white space
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.xxxxl,
+    justifyContent: 'flex-start',
   },
   
-  // Hero Section
+  // Hero Section - Apple's large title style
   heroSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl * 2,
+    marginBottom: theme.spacing.xxxxl * 2,
+    paddingTop: theme.spacing.xxxl,
   },
   emoji: {
-    fontSize: 64,
-    marginBottom: theme.spacing.lg,
+    fontSize: 76, // Apple's large icon size
+    marginBottom: theme.spacing.xxxl,
+    textAlign: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 34, // Apple's Large Title size
+    fontWeight: theme.typography.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
-    marginBottom: theme.spacing.md,
-    letterSpacing: -0.5,
+    marginBottom: theme.spacing.xl,
+    letterSpacing: -0.41, // Apple's Large Title letter spacing
+    lineHeight: 41, // Apple's Large Title line height
   },
   subtitle: {
-    fontSize: 17,
-    fontWeight: '500',
+    fontSize: 17, // Apple's Body text size
+    fontWeight: theme.typography.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22, // Apple's Body line height
+    letterSpacing: -0.24,
+    paddingHorizontal: theme.spacing.lg,
   },
   
-  // Input Section
+  // Input Section - Apple's form styling
   inputSection: {
-    gap: theme.spacing.lg,
+    gap: theme.spacing.xxxl,
   },
   inputContainer: {
-    gap: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
   inputLabel: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: theme.typography.semibold,
     color: theme.colors.textPrimary,
+    letterSpacing: -0.24,
+    marginBottom: theme.spacing.sm,
   },
   textInput: {
-    backgroundColor: theme.colors.surfaceWhite,
-    borderRadius: theme.borderRadius.md,
-    padding: 18,
+    backgroundColor: theme.colors.bgSecondary,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.xl,
     fontSize: 17,
-    fontWeight: '500',
+    fontWeight: theme.typography.regular,
     color: theme.colors.textPrimary,
-    borderWidth: 2,
-    borderColor: theme.colors.borderLight,
-    // Shadow
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 0.5, // Apple's hairline border
+    borderColor: theme.colors.separator,
+    letterSpacing: -0.24,
+    // Apple's subtle shadow
+    shadowColor: 'rgba(0, 0, 0, 0.04)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 1,
   },
   codeInput: {
     textAlign: 'center',
-    letterSpacing: 8,
-    fontSize: 24,
-    fontWeight: '700',
+    letterSpacing: theme.spacing.lg, // Generous spacing for code
+    fontSize: 28, // Larger for better readability
+    fontWeight: theme.typography.medium,
+    fontVariant: ['tabular-nums'], // Monospace numbers
   },
   
-  // Buttons
+  // Buttons - Apple's modern button style
   primaryButton: {
-    backgroundColor: theme.colors.primaryButton,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 18,
+    backgroundColor: theme.colors.systemBlue,
+    borderRadius: theme.borderRadius.xl,
+    paddingVertical: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.xxxl,
     alignItems: 'center',
-    borderWidth: 3,
-    borderTopColor: 'rgba(255, 255, 255, 0.3)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.3)',
-    borderRightColor: 'rgba(0, 0, 0, 0.2)',
-    borderBottomColor: 'rgba(0, 0, 0, 0.3)',
-    // Shadow
-    shadowColor: theme.colors.primaryButton,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    justifyContent: 'center',
+    minHeight: 50, // Apple's recommended touch target
+    // Apple's button shadow
+    shadowColor: 'rgba(0, 122, 255, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: 'white',
-    letterSpacing: -0.2,
+    fontWeight: theme.typography.semibold,
+    color: '#FFFFFF',
+    letterSpacing: -0.24,
   },
   buttonDisabled: {
-    opacity: 0.5,
+    opacity: 0.6, // Apple's disabled state
+    shadowOpacity: 0,
   },
   secondaryButton: {
-    backgroundColor: theme.colors.secondaryButton,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 16,
+    backgroundColor: theme.colors.systemGray6,
+    borderRadius: theme.borderRadius.xl,
+    paddingVertical: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.xxxl,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
+    justifyContent: 'center',
+    minHeight: 50,
+    borderWidth: 0.5,
+    borderColor: theme.colors.separator,
   },
   secondaryButtonText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
+    fontWeight: theme.typography.medium,
+    color: theme.colors.systemBlue,
+    letterSpacing: -0.24,
   },
   
-  // Resend Section
+  // Resend Section - Apple's secondary text style
   resendSection: {
     alignItems: 'center',
-    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.xxxl,
   },
   countdownText: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 15, // Apple's Footnote size
+    fontWeight: theme.typography.regular,
     color: theme.colors.textTertiary,
+    letterSpacing: -0.23,
   },
   resendText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.primaryButton,
+    fontWeight: theme.typography.medium,
+    color: theme.colors.systemBlue,
+    letterSpacing: -0.23,
   },
 });
 
