@@ -53,6 +53,24 @@ export class GroupService {
         },
       });
 
+      // Create today's daily round immediately for the new group
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const deadlineAt = new Date(today);
+      deadlineAt.setHours(23, 0, 0, 0); // 11 PM deadline
+
+      await tx.dailyRound.create({
+        data: {
+          groupId: group.id,
+          date: today,
+          deadlineAt,
+          status: 'active',
+        },
+      });
+
+      console.log(`✅ Created daily round for new group: ${group.name}`);
+
       // Get the full group with members after creating the membership
       return tx.group.findUnique({
         where: { id: group.id },

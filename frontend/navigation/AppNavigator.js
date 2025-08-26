@@ -1088,7 +1088,10 @@ const AppNavigator = () => {
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateTitle}>No Active Round</Text>
             <Text style={styles.emptyStateText}>
-              Your group doesn't have an active round yet. Rounds start automatically each day.
+              {!activeGroup 
+                ? "Join or create a group to start sharing music with friends."
+                : "Loading your group's daily round..."
+              }
             </Text>
           </View>
         </ScrollView>
