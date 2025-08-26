@@ -2289,7 +2289,9 @@ const styles = StyleSheet.create({
   mixtapePlayerCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 20,
+    paddingTop: 20,
+    paddingHorizontal: 24, // More padding from card edges
+    paddingBottom: 24,
     marginBottom: theme.spacing.lg,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
@@ -2334,7 +2336,6 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     gap: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   playlistButton: {
     marginTop: 0,
