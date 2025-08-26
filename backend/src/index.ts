@@ -78,6 +78,10 @@ console.log('Importing oauth routes...');
 import oauthRoutes from './routes/oauth';
 console.log('✅ OAuth routes imported');
 
+console.log('Importing phone auth routes...');
+import phoneAuthRoutes from './routes/phoneAuth';
+console.log('✅ Phone auth routes imported');
+
 console.log('Importing user routes...');
 import userRoutes from './routes/users';
 console.log('✅ User routes imported');
@@ -121,6 +125,9 @@ console.log('✅ Auth routes registered at /api/auth');
 
 app.use('/api/oauth', oauthRoutes);
 console.log('✅ OAuth routes registered at /api/oauth');
+
+app.use('/api/auth/phone', phoneAuthRoutes);
+console.log('✅ Phone auth routes registered at /api/auth/phone');
 
 app.use('/api/users', userRoutes);
 console.log('✅ User routes registered at /api/users');

@@ -19,6 +19,7 @@ import api from '../services/api';
 import musicKitService from '../services/musicKitService';
 import { useAppleMusicAuth } from '../hooks/useAppleMusicAuth';
 import AppleMusicDesktopSync from '../components/AppleMusicDesktopSync';
+import PhoneLoginScreen from './PhoneLoginScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -76,6 +77,7 @@ const theme = {
 const LoginScreen = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
+  const [showPhoneLogin, setShowPhoneLogin] = useState(false);
   
   // Apple Music authentication hook
   const { 
@@ -348,52 +350,22 @@ const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   const handleAppleMusicLogin = async () => {
-    // Stop any existing polling
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
-    }
-    
     setLoading('apple');
     
-    try {
-      console.log('🦄 Starting Apple Music authentication with Safari hack...');
-      
-      // Try the Safari hack approach
-      const result = await authenticateWithAppleMusic();
-      
-      if (result.cancelled) {
-        console.log('🚫 User cancelled Apple Music authentication');
-        setLoading(null);
-        return;
-      }
-      
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      
-      if (result.inProgress) {
-        console.log('🔄 Apple Music authentication in progress...');
-        // Authentication continues via deep link - keep loading state
-        return;
-      }
-      
-    } catch (error) {
-      console.error('❌ Apple Music authentication failed:', error);
+    // Show coming soon alert with phone number option
+    setTimeout(() => {
       setLoading(null);
-      
-      // Show fallback options
       Alert.alert(
-        'Apple Music Authentication Failed',
-        'The Safari-based authentication encountered an issue. You can try again or use Spotify which works reliably.',
+        '🎵 Apple Music Coming Soon!',
+        'Apple Music integration is coming soon. In the meantime, you can login with your phone number to start sharing music with friends.',
         [
           {
-            text: 'Try Again',
-            onPress: () => handleAppleMusicLogin(),
+            text: 'Login with Phone',
+            onPress: () => handlePhoneNumberLogin(),
             style: 'default'
           },
           {
-            text: 'Use Spotify',
+            text: 'Use Spotify Instead',
             onPress: () => handleSpotifyLogin(),
             style: 'default'
           },
@@ -403,8 +375,22 @@ const LoginScreen = ({ onLoginSuccess }) => {
           }
         ]
       );
-    }
+    }, 800); // Small delay for better UX
   };
+
+  const handlePhoneNumberLogin = () => {
+    setShowPhoneLogin(true);
+  };
+
+  // Show phone login screen if selected
+  if (showPhoneLogin) {
+    return (
+      <PhoneLoginScreen 
+        onLoginSuccess={onLoginSuccess} 
+        onBack={() => setShowPhoneLogin(false)}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -458,7 +444,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
               {loading === 'apple' || isAppleMusicAuthenticating ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.appleMusicButtonText}>🖥️ Connect Apple Music (Desktop)</Text>
+                <Text style={styles.appleMusicButtonText}>Continue with Apple Music</Text>
               )}
             </View>
           </TouchableOpacity>
