@@ -13,8 +13,8 @@ import {
   Share,
   Clipboard,
   Modal,
-  FlatList,
   Linking,
+  FlatList,
   Haptics,
 } from 'react-native';
 import api from '../services/api';
@@ -356,22 +356,12 @@ const GroupPlaylistsSection = ({ groupId }) => {
           { 
             text: 'Open', 
             onPress: () => {
-              // Note: In a real app, you'd use Linking.openURL(playlist.playlistUrl)
-              // For now, show URL for testing
-              Alert.alert(
-                'Opening Playlist',
-                `This would open your ${getPlatformName(playlist.platform)} app with the playlist.\n\nURL: ${playlist.playlistUrl}`,
-                [
-                  { 
-                    text: 'Copy URL', 
-                    onPress: () => {
-                      // In a real app: Clipboard.setString(playlist.playlistUrl);
-                      Alert.alert('Copied!', 'Playlist URL copied to clipboard');
-                    }
-                  },
-                  { text: 'OK' }
-                ]
-              );
+              Linking.openURL(playlist.playlistUrl).catch(() => {
+                Alert.alert(
+                  'Can\'t Open Playlist',
+                  `Unable to open ${getPlatformName(playlist.platform)}. Make sure the app is installed.`
+                );
+              });
             }
           },
         ]
