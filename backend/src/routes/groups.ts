@@ -426,18 +426,22 @@ router.get('/:id/playlist-permissions',
       const { id } = req.params;
       const userId = req.user!.id;
 
-      // Verify user is admin of this group
+      // Verify user is a member of this group
       const group = await prisma.group.findFirst({
         where: {
           id,
-          adminUserId: userId,
+          members: {
+            some: {
+              userId,
+            },
+          },
         },
       });
 
       if (!group) {
         return res.status(403).json({ 
           error: 'Access denied',
-          message: 'Only group admins can view playlist permissions'
+          message: 'You must be a member of this group to view playlist permissions'
         });
       }
 

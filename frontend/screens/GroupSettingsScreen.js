@@ -204,6 +204,16 @@ const PlaylistPermissionsSection = ({ groupId, members }) => {
         ...prev,
         [userId]: newPermission
       }));
+      
+      // Get user name for success message
+      const user = members.find(m => m.user.id === userId);
+      const userName = user?.user.displayName || 'User';
+      const permissionText = newPermission ? 'can create playlists' : 'cannot create playlists';
+      
+      Alert.alert(
+        'Success! 🎉', 
+        `${userName} ${permissionText}.`
+      );
     } catch (error) {
       console.error('Failed to update playlist permission:', error);
       Alert.alert('Error', 'Failed to update playlist permissions. Please try again.');
@@ -499,14 +509,11 @@ const GroupPlaylistsSection = ({ groupId }) => {
 
   return (
     <View style={styles.playlistsCard}>
-      <Text style={styles.playlistsDescription}>
-        Daily playlists update at 8 AM.
-      </Text>
-      
       {playlists.length === 0 ? (
         <View style={styles.emptyPlaylistsState}>
-          <View style={styles.emptyPlaylistIcon}>
-            <Text style={styles.emptyPlaylistIconText}>🎵</Text>
+          <View style={styles.playlistsHeaderRow}>
+            <Text style={styles.emptyPlaylistIconText}>♪</Text>
+            <Text style={styles.playlistsUpdateText}>Daily playlists update at 8 AM.</Text>
           </View>
           <Text style={styles.emptyPlaylistsTitle}>No Playlists</Text>
           <Text style={styles.emptyPlaylistsText}>
@@ -656,14 +663,29 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
   const [toggleLoading, setToggleLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('😀');
+  const [userHasPlaylistPermission, setUserHasPlaylistPermission] = useState(false);
 
   const isAdmin = groupData?.adminUserId === user?.id;
 
   useEffect(() => {
     if (group?.id) {
       loadGroupData();
+      checkUserPlaylistPermissions();
     }
   }, [group?.id]);
+
+  const checkUserPlaylistPermissions = async () => {
+    if (!user?.id || !group?.id) return;
+    
+    try {
+      const response = await api.get(`/groups/${group.id}/playlist-permissions`);
+      const permissions = response.data.permissions || {};
+      setUserHasPlaylistPermission(permissions[user.id] || false);
+    } catch (error) {
+      console.log('Could not check playlist permissions (user might not be admin)');
+      setUserHasPlaylistPermission(false);
+    }
+  };
 
   const loadGroupData = async () => {
     if (!group?.id) return;
@@ -1076,8 +1098,8 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
           </View>
         </View>
 
-        {/* Group Playlists Section (Admin Only) */}
-        {isAdmin && (
+        {/* Group Playlists Section (Admin or Users with Permissions) */}
+        {(isAdmin || userHasPlaylistPermission) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Group Playlists</Text>
             <GroupPlaylistsSection groupId={group?.id} />
@@ -1704,18 +1726,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.lg,
   },
-  emptyPlaylistIcon: {
-    width: 56,
-    height: 56,
-    backgroundColor: theme.colors.primaryButton + '15',
-    borderRadius: 28,
+  playlistsHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: theme.spacing.md,
+    justifyContent: 'center',
   },
   emptyPlaylistIconText: {
-    fontSize: 28,
-    color: theme.colors.primaryButton,
+    fontSize: 20,
+    color: theme.colors.textSecondary,
+    marginRight: theme.spacing.sm,
+  },
+  playlistsUpdateText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '400',
   },
   emptyPlaylistsTitle: {
     fontSize: 18,
