@@ -130,14 +130,6 @@ export default function HistoryScreen({ onClose, activeGroup, embedded = false }
               <Text style={styles.songComment}>"{submission.comment}"</Text>
             )}
           </View>
-          <View style={[
-            styles.statusBadge,
-            { backgroundColor: submission.roundStatus === 'completed' ? theme.colors.success : theme.colors.error }
-          ]}>
-            <Text style={styles.statusText}>
-              {submission.roundStatus === 'completed' ? 'Success' : 'Failed'}
-            </Text>
-          </View>
         </View>
       </View>
     ));

@@ -1301,10 +1301,7 @@ const AppNavigator = () => {
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{submission.user.displayName}</Text>
                     <Text style={styles.songInfo}>
-                      {isCurrentUser 
-                        ? `${submission.song.title} • ${submission.song.artist}` 
-                        : "Song submitted ✓"
-                      }
+                      {`${submission.song.title} • ${submission.song.artist}`}
                     </Text>
                   </View>
                 </View>
@@ -1784,7 +1781,7 @@ const AppNavigator = () => {
           
           <View style={styles.songsModalFooter}>
             <Text style={styles.songsModalFooterText}>
-              Tap ▶ to search for songs in {userPlatform === 'apple-music' ? 'Apple Music' : 'Spotify'}
+              Tap ▶ to listen
             </Text>
           </View>
         </SafeAreaView>
