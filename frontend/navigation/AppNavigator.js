@@ -2182,24 +2182,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   buttonPrimary: {
-    backgroundColor: theme.colors.primaryButton,
-    shadowColor: theme.colors.primaryButton,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 12,
-    borderWidth: 0.33,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#007AFF', // Apple's system blue
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 0,
   },
   buttonSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderWidth: 0.33,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: '#F2F2F7', // Apple's gray background
+    borderWidth: 0,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   buttonMusic: {
     backgroundColor: theme.colors.primaryButton,
@@ -2333,15 +2331,17 @@ const styles = StyleSheet.create({
   
   playlistButtonsContainer: {
     flexDirection: 'row',
-    marginTop: theme.spacing.md,
-    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 16,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   playlistButton: {
+    flex: 1,
     marginTop: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    minWidth: 140, // Ensure consistent button sizes
+    height: 50, // Fixed height for consistency
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   
   // Songs Modal Styles
