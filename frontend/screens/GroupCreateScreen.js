@@ -13,6 +13,8 @@ import {
   Modal,
   ScrollView,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 // Apple-level extensive emoji collection with iOS categories
@@ -270,7 +272,11 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
 
         {/* Emoji Picker Modal */}
         <Modal visible={showEmojiPicker} animationType="slide">
-          <SafeAreaView style={styles.emojiPickerContainer}>
+          <KeyboardAvoidingView 
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <SafeAreaView style={styles.emojiPickerContainer}>
             <View style={styles.emojiPickerHeader}>
               <TouchableOpacity 
                 onPress={() => setShowEmojiPicker(false)}
@@ -357,6 +363,7 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
               )}
             />
           </SafeAreaView>
+          </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>

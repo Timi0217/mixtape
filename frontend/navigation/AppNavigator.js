@@ -381,6 +381,13 @@ const AppNavigator = () => {
   
   // Detect user's music platform (phone users = Apple Music, OAuth = Spotify)
   const getUserMusicPlatform = () => {
+    // Debug logging
+    console.log('🎵 Platform Detection Debug:', {
+      userEmail: user?.email,
+      hasPhoneEmail: user?.email?.includes('@phone.mixtape'),
+      detectedPlatform: user?.email?.includes('@phone.mixtape') ? 'apple-music' : 'spotify'
+    });
+    
     // If user has email with phone auth pattern, they're Apple Music users
     if (user?.email?.includes('@phone.mixtape')) {
       return 'apple-music';
@@ -1393,6 +1400,7 @@ const AppNavigator = () => {
         <Button
           title="Create Group"
           onPress={() => setShowGroupCreate(true)}
+          variant="secondary"
           style={styles.actionButton}
         />
         <Button

@@ -156,9 +156,18 @@ const PhoneLoginScreen = ({ onLoginSuccess, onBack }) => {
       });
 
       if (response.data.success) {
-        // Code verified successfully, proceed to username step
-        setStep('username');
-        setTimeout(() => usernameInputRef.current?.focus(), 100);
+        if (response.data.isExistingUser && response.data.token) {
+          // Existing user with proper username - log them in directly
+          const { token, user } = response.data;
+          setAuthToken(token);
+          onLoginSuccess(token, user);
+        } else if (response.data.requiresUsername) {
+          // New user or user needs username - proceed to username step
+          setStep('username');
+          setTimeout(() => usernameInputRef.current?.focus(), 100);
+        } else {
+          throw new Error('Unexpected response format');
+        }
       } else {
         throw new Error(response.data.error || 'Verification failed');
       }

@@ -221,48 +221,63 @@ router.post('/verify-code', async (req, res) => {
       verificationCodes.delete(formattedPhone);
     }
 
-    // Find or create user
+    // Find user
     let user = await prisma.user.findUnique({
       where: { email: formattedPhone }, // Using phone as email for phone auth
       include: { musicAccounts: true }
     });
 
-    if (!user) {
-      console.log('👤 Creating new user for phone:', formattedPhone);
-      // Create new user with phone number
-      user = await prisma.user.create({
-        data: {
-          email: formattedPhone,
-          displayName: `User ${formattedPhone.slice(-4)}`, // Default display name
+    if (user && !user.displayName.startsWith('User ')) {
+      // Existing user with proper display name - log them in directly
+      console.log('✅ Found existing user with proper username for phone:', formattedPhone);
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          email: user.email,
+          displayName: user.displayName,
         },
-        include: { musicAccounts: true }
+        config.jwt.secret,
+        { expiresIn: '7d' }
+      );
+
+      console.log('🎉 Phone authentication successful for existing user');
+
+      res.json({
+        success: true,
+        isExistingUser: true,
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        }
       });
     } else {
-      console.log('✅ Found existing user for phone:', formattedPhone);
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      },
-      config.jwt.secret,
-      { expiresIn: '7d' }
-    );
-
-    console.log('🎉 Phone authentication successful');
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
+      // New user or user with default name - needs username step
+      if (!user) {
+        console.log('👤 Creating temporary user for phone:', formattedPhone);
+        user = await prisma.user.create({
+          data: {
+            email: formattedPhone,
+            displayName: `User ${formattedPhone.slice(-4)}`, // Default display name
+          },
+          include: { musicAccounts: true }
+        });
+      } else {
+        console.log('👤 Found user with default name for phone:', formattedPhone);
       }
-    });
+
+      console.log('🔄 User needs to set username');
+
+      res.json({
+        success: true,
+        isExistingUser: false,
+        requiresUsername: true,
+        message: 'Verification successful. Please choose a username.'
+      });
+    }
 
   } catch (error) {
     console.error('❌ Verify code error:', error);
