@@ -1397,18 +1397,18 @@ const AppNavigator = () => {
       </View>
 
       <View style={styles.quickActions}>
-        <Button
-          title="Create Group"
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.createGroupButton]}
           onPress={() => setShowGroupCreate(true)}
-          variant="secondary"
-          style={styles.actionButton}
-        />
-        <Button
-          title="Join Group"
+        >
+          <Text style={[styles.actionButtonText, styles.primaryActionText]}>Create Group</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.joinGroupButton]}
           onPress={() => setShowJoinGroup(true)}
-          variant="secondary"
-          style={styles.actionButton}
-        />
+        >
+          <Text style={styles.actionButtonText}>Join Group</Text>
+        </TouchableOpacity>
       </View>
 
       {userGroups.length > 0 ? (
@@ -2204,13 +2204,14 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   buttonSecondary: {
-    backgroundColor: '#F2F2F7', // Apple's gray background
-    borderWidth: 0,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#F2F2F7', // Apple's gray background  
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.08)', // Subtle border for depth
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   buttonMusic: {
     backgroundColor: theme.colors.primaryButton,
@@ -2238,6 +2239,8 @@ const styles = StyleSheet.create({
   buttonTextSecondary: {
     color: theme.colors.textPrimary,
     fontWeight: '600',
+    fontSize: 16,
+    letterSpacing: 0.1,
   },
   buttonTextMusic: {
     color: '#ffffff',
@@ -2250,9 +2253,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.md,
     marginBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.sm,
   },
   actionButton: {
     flex: 1,
+    minHeight: 52, // Apple's recommended touch target
+    borderRadius: theme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  createGroupButton: {
+    backgroundColor: theme.colors.surfaceWhite,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primaryButton,
+    shadowColor: theme.colors.primaryButton,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  joinGroupButton: {
+    backgroundColor: theme.colors.surfaceWhite,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    letterSpacing: 0.1,
+  },
+  primaryActionText: {
+    color: theme.colors.primaryButton,
+    fontWeight: '600',
   },
   backButton: {
     marginTop: theme.spacing.lg,
