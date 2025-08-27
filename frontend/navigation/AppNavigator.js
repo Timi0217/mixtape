@@ -1175,7 +1175,13 @@ const AppNavigator = () => {
                     title="Open Playlist"
                     onPress={openYesterdayPlaylist}
                     variant="primary"
-                    style={styles.playlistButton}
+                    style={[
+                      styles.playlistButton,
+                      {
+                        backgroundColor: activeGroup?.backgroundColor || '#007AFF',
+                        shadowColor: activeGroup?.backgroundColor || '#007AFF',
+                      }
+                    ]}
                   />
                 )}
                 {yesterdayRound && yesterdayRound.submissions && (
@@ -2182,8 +2188,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   buttonPrimary: {
-    backgroundColor: '#007AFF', // Apple's system blue
-    shadowColor: '#007AFF',
+    // backgroundColor and shadowColor now set dynamically via inline styles
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
