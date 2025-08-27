@@ -368,7 +368,7 @@ function Button({ title, onPress, variant = 'primary', style }) {
           }
         ]}
       >
-        <Text style={[styles.buttonText, getTextStyle()]} numberOfLines={1}>
+        <Text style={[styles.buttonText, getTextStyle()]} textAlign="center">
           {title}
         </Text>
       </Animated.View>
@@ -657,18 +657,234 @@ const AppNavigator = () => {
   };
 
   const openYesterdayPlaylist = () => {
+    console.log('=== PLAYLIST DEBUG INFO ===');
+    console.log('yesterdayPlaylist:', JSON.stringify(yesterdayPlaylist, null, 2));
+    
     if (yesterdayPlaylist && yesterdayPlaylist.playlistUrl) {
-      Linking.openURL(yesterdayPlaylist.playlistUrl).catch(() => {
+      const url = yesterdayPlaylist.playlistUrl;
+      console.log('Raw URL:', url);
+      console.log('URL type:', typeof url);
+      console.log('URL length:', url.length);
+      console.log('Platform:', yesterdayPlaylist.platform);
+      
+      // More comprehensive URL validation
+      const isValidSpotifyUrl = url && url.includes('open.spotify.com/playlist/') && !url.includes('example.com') && !url.includes('mock_');
+      const isValidAppleMusicUrl = url && url.includes('music.apple.com');
+      
+      console.log('isValidSpotifyUrl:', isValidSpotifyUrl);
+      console.log('isValidAppleMusicUrl:', isValidAppleMusicUrl);
+      
+      // Check for null or mock URLs
+      if (!url || url === 'null' || url.includes('mock_') || url.includes('example.com')) {
+        Alert.alert(
+          'Playlist Not Ready',
+          'This playlist hasn\'t been created yet or is still being generated. Please try again later.'
+        );
+        return;
+      }
+      
+      if (!isValidSpotifyUrl && !isValidAppleMusicUrl) {
+        Alert.alert(
+          'Invalid Playlist Link',
+          `This playlist link appears to be invalid: ${url}\n\nPlease try creating a new playlist.`
+        );
+        return;
+      }
+      
+      console.log('Attempting to open URL:', url);
+      
+      // Try multiple URL opening methods
+      const tryOpenURL = async (url) => {
+        try {
+          // Method 1: Direct Linking.openURL
+          await Linking.openURL(url);
+          console.log('✅ Successfully opened URL with Linking.openURL');
+        } catch (firstError) {
+          console.log('❌ Linking.openURL failed:', firstError);
+          
+          try {
+            // Method 2: Check if URL can be opened first
+            const canOpen = await Linking.canOpenURL(url);
+            console.log('Can open URL?', canOpen);
+            
+            if (canOpen) {
+              await Linking.openURL(url);
+              console.log('✅ Successfully opened URL after canOpenURL check');
+            } else {
+              throw new Error('URL cannot be opened on this device');
+            }
+          } catch (secondError) {
+            console.log('❌ Second method failed:', secondError);
+            
+            // Method 3: Try Spotify URI format if it's a Spotify URL
+            if (url.includes('open.spotify.com/playlist/')) {
+              try {
+                const playlistId = url.split('/playlist/')[1].split('?')[0];
+                const spotifyUri = `spotify:playlist:${playlistId}`;
+                console.log('Trying Spotify URI:', spotifyUri);
+                
+                await Linking.openURL(spotifyUri);
+                console.log('✅ Successfully opened with Spotify URI');
+              } catch (uriError) {
+                console.log('❌ Spotify URI failed:', uriError);
+                throw new Error(`All URL opening methods failed. Original error: ${firstError.message}`);
+              }
+            } else {
+              throw new Error(`All URL opening methods failed. Original error: ${firstError.message}`);
+            }
+          }
+        }
+      };
+      
+      tryOpenURL(url).catch((error) => {
+        console.error('All URL opening attempts failed:', error);
         Alert.alert(
           'Can\'t Open Playlist',
-          `Unable to open ${yesterdayPlaylist.platform === 'spotify' ? 'Spotify' : 'Apple Music'}. Make sure the app is installed.`
+          `Unable to open playlist.\n\nURL: ${url}\n\nError: ${error.message || 'Unknown error'}\n\nMake sure ${yesterdayPlaylist.platform === 'spotify' ? 'Spotify' : 'Apple Music'} is installed.`
         );
       });
     } else {
+      // No playlist exists - trigger creation flow if user is admin
+      const currentGroup = userGroups.find(g => g.id === activeGroup?.id);
+      const isAdmin = currentGroup?.adminUserId === user?.id;
+      
+      if (isAdmin) {
+        // Admin can create playlist - trigger creation flow directly
+        createGroupPlaylist(currentGroup.id);
+      } else {
+        // Non-admin gets helpful message
+        Alert.alert(
+          'No Playlist Available',
+          'Your group doesn\'t have any playlists yet. Ask your group admin to create one in the group settings.'
+        );
+      }
+    }
+  };
+
+  const createGroupPlaylist = async (groupId) => {
+    try {
+      console.log(`🎵 Creating playlist for group ${groupId}`);
+      
+      // Check if admin can create playlists directly
+      const userPlatform = getUserMusicPlatform();
+      console.log('Admin platform:', userPlatform);
+      
+      if (userPlatform === 'spotify') {
+        // Admin is Spotify user - create directly
+        const response = await api.post(`/playlists/group/${groupId}/create`);
+        
+        if (response.data.success) {
+          const playlistCount = response.data.groupPlaylists?.length || 0;
+          if (playlistCount > 0) {
+            Alert.alert(
+              'Success!', 
+              `Created ${playlistCount} group playlists successfully!\n\nPlaylists will be updated daily with fresh submissions.`
+            );
+            // Reload playlists to show the new ones
+            await loadYesterdayPlaylist(groupId);
+          } else {
+            Alert.alert(
+              'No Playlists Created', 
+              'No playlists were created. Make sure you have connected your music accounts (Spotify or Apple Music) before creating playlists.'
+            );
+          }
+        } else {
+          throw new Error(response.data.error || 'Unknown error occurred');
+        }
+      } else {
+        // Admin is iPhone user - show delegation modal
+        showPlaylistDelegationModal(groupId);
+      }
+    } catch (error) {
+      console.error('Failed to create group playlist:', error);
+      
+      let errorMessage = 'Failed to create group playlist.';
+      
+      if (error.response?.status === 403) {
+        errorMessage = error.response.data?.message || 'You must be the group admin to create playlists.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response.data?.message || 'Make sure you have connected your music accounts first.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const showPlaylistDelegationModal = async (groupId) => {
+    try {
+      // Get users who have playlist creation permissions
+      const response = await api.get(`/groups/${groupId}/playlist-permissions`);
+      const permissions = response.data.permissions || {};
+      
+      // Filter to get users with permissions
+      const currentGroup = userGroups.find(g => g.id === groupId);
+      const delegateUsers = currentGroup?.members?.filter(member => {
+        const isSpotifyUser = !member.user.email?.startsWith('+');
+        const hasPermission = permissions[member.user.id];
+        return isSpotifyUser && hasPermission;
+      }) || [];
+      
+      if (delegateUsers.length === 0) {
+        Alert.alert(
+          'No Delegate Available',
+          'No users have been given playlist creation permissions yet. Go to Group Settings → Playlist Creation Permissions to set this up.',
+          [
+            { text: 'Cancel' },
+            { 
+              text: 'Open Settings', 
+              onPress: () => {
+                const group = userGroups.find(g => g.id === groupId);
+                handleOpenGroupSettings(group);
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Show picker modal for delegates
+      const buttons = delegateUsers.map(member => ({
+        text: member.user.displayName,
+        onPress: () => delegatePlaylistCreation(groupId, member.user.id, member.user.displayName)
+      }));
+      
       Alert.alert(
-        'No Playlist Available',
-        'Yesterday\'s mixtape is not available yet. This could be your first day in the group or the playlist hasn\'t been created.'
+        'Choose Playlist Creator',
+        'Since you use Apple Music, please choose a Spotify user to create the playlist:',
+        [
+          ...buttons,
+          { text: 'Cancel', style: 'cancel' }
+        ]
       );
+      
+    } catch (error) {
+      console.error('Failed to load playlist permissions:', error);
+      Alert.alert('Error', 'Failed to load playlist permissions. Please try again.');
+    }
+  };
+
+  const delegatePlaylistCreation = async (groupId, delegateUserId, delegateUserName) => {
+    try {
+      console.log(`🎵 Delegating playlist creation to ${delegateUserName}`);
+      
+      // Send delegation request to backend
+      const response = await api.post(`/playlists/group/${groupId}/delegate`, {
+        delegateUserId
+      });
+      
+      if (response.data.success) {
+        Alert.alert(
+          'Request Sent!',
+          `Playlist creation request sent to ${delegateUserName}. They will receive a notification to create the playlist.`
+        );
+      } else {
+        throw new Error(response.data.error || 'Failed to send delegation request');
+      }
+    } catch (error) {
+      console.error('Failed to delegate playlist creation:', error);
+      Alert.alert('Error', 'Failed to send playlist creation request. Please try again.');
     }
   };
 
@@ -861,6 +1077,8 @@ const AppNavigator = () => {
       // Reload user groups to get the updated list
       await loadUserData();
       setActiveGroup(joinedGroup);
+      // Close the modal
+      setShowJoinGroup(false);
     } catch (error) {
       console.error('Failed to handle joined group:', error);
     }
@@ -892,6 +1110,8 @@ const AppNavigator = () => {
       console.error('Failed to refresh groups after deletion:', error);
     }
   };
+
+
 
   if (loading) {
     return (
@@ -1059,14 +1279,32 @@ const AppNavigator = () => {
               }
             ]}
           >
-            <Button
-              title="Create your first group"
+            <TouchableOpacity
               onPress={() => setShowGroupCreate(true)}
-              variant="primary"
-              style={styles.onboardingPrimaryButton}
-            />
+              style={[styles.onboardingPrimaryButton, { marginBottom: 12 }]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.onboardingPrimaryButtonText}>Create your first group</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => {
+                console.log('Join a group button pressed');
+                console.log('showJoinGroup before:', showJoinGroup);
+                setShowJoinGroup(true);
+                console.log('setShowJoinGroup(true) called');
+                // Check state after a delay
+                setTimeout(() => {
+                  console.log('showJoinGroup after delay:', showJoinGroup);
+                }, 100);
+              }}
+              style={styles.onboardingSecondaryButton}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.onboardingSecondaryButtonText}>Join a group</Text>
+            </TouchableOpacity>
             <Text style={styles.onboardingHint}>
-              You can invite friends after creating.
+              Create a new group or join an existing one with an invite code.
             </Text>
           </Animated.View>
         </ScrollView>
@@ -1075,6 +1313,13 @@ const AppNavigator = () => {
           <GroupCreateScreen
             onClose={() => setShowGroupCreate(false)}
             onCreateGroup={handleCreateGroup}
+          />
+        </Modal>
+
+        <Modal visible={showJoinGroup} animationType="slide">
+          <JoinGroupScreen
+            onClose={() => setShowJoinGroup(false)}
+            onJoinGroup={handleJoinGroup}
           />
         </Modal>
       </SafeAreaView>
@@ -1168,20 +1413,18 @@ const AppNavigator = () => {
               </View>
               
               <View style={styles.playlistButtonsContainer}>
-                {yesterdayPlaylist && (
-                  <Button
-                    title="Open Playlist"
-                    onPress={openYesterdayPlaylist}
-                    variant="primary"
-                    style={[
-                      styles.playlistButton,
-                      {
-                        backgroundColor: activeGroup?.backgroundColor || '#007AFF',
-                        shadowColor: activeGroup?.backgroundColor || '#007AFF',
-                      }
-                    ]}
-                  />
-                )}
+                <Button
+                  title="Open Playlist"
+                  onPress={openYesterdayPlaylist}
+                  variant="primary"
+                  style={[
+                    styles.playlistButton,
+                    {
+                      backgroundColor: activeGroup?.backgroundColor || '#8B5CF6', // Use group's icon color
+                      shadowColor: activeGroup?.backgroundColor || '#8B5CF6',
+                    }
+                  ]}
+                />
                 {yesterdayRound && yesterdayRound.submissions && (
                   <Button
                     title="View Songs"
@@ -1292,7 +1535,7 @@ const AppNavigator = () => {
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{submission.user.displayName}</Text>
                     <Text style={styles.songInfo}>
-                      {`${submission.song.title} • ${submission.song.artist}`}
+                      Has submitted their song
                     </Text>
                   </View>
                 </View>
@@ -1386,16 +1629,16 @@ const AppNavigator = () => {
 
       <View style={styles.quickActions}>
         <TouchableOpacity 
-          style={[styles.actionButton, styles.createGroupButton]}
+          style={[styles.actionButton, styles.joinGroupButton]}
           onPress={() => setShowGroupCreate(true)}
         >
-          <Text style={[styles.actionButtonText, styles.primaryActionText]}>Create Group</Text>
+          <Text style={styles.actionButtonText}>Create Group</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.actionButton, styles.joinGroupButton]}
+          style={[styles.actionButton, styles.createGroupButton]}
           onPress={() => setShowJoinGroup(true)}
         >
-          <Text style={styles.actionButtonText}>Join Group</Text>
+          <Text style={[styles.actionButtonText, styles.primaryActionText]}>Join Group</Text>
         </TouchableOpacity>
       </View>
 
@@ -1406,8 +1649,15 @@ const AppNavigator = () => {
               style={styles.groupCardMain}
               onPress={() => {
                 if (group.id !== activeGroup?.id) {
-                  performGroupSwitchAnimation(() => {
-                    setActiveGroup(group);
+                  performGroupSwitchAnimation(async () => {
+                    // Refresh group data to get latest member count
+                    await loadUserData();
+                    // Find the updated group with current member count
+                    const groupsResponse = await api.get('/groups');
+                    const updatedGroups = groupsResponse.data.groups.map(gm => gm.group);
+                    const updatedGroup = updatedGroups.find(g => g.id === group.id);
+                    
+                    setActiveGroup(updatedGroup || group);
                     setCurrentScreen('today');
                     loadCurrentRound(group.id);
                     loadYesterdayPlaylist(group.id);
@@ -1461,7 +1711,7 @@ const AppNavigator = () => {
       <Button
         title="‹  Back to Today"
         onPress={() => setCurrentScreen('today')}
-        variant="secondary"
+        variant="primary"
         style={styles.backButton}
       />
     </ScrollView>
@@ -1884,6 +2134,22 @@ const AppNavigator = () => {
         </View>
       </Modal>
 
+      {/* Group Create Modal */}
+      <Modal visible={showGroupCreate} animationType="slide">
+        <GroupCreateScreen
+          onClose={() => setShowGroupCreate(false)}
+          onCreateGroup={handleCreateGroup}
+        />
+      </Modal>
+
+      {/* Join Group Modal */}
+      <Modal visible={showJoinGroup} animationType="slide">
+        <JoinGroupScreen
+          onClose={() => setShowJoinGroup(false)}
+          onJoinGroup={handleJoinGroup}
+        />
+      </Modal>
+
       {/* Confetti Animation */}
       <ConfettiBurst 
         show={showConfetti} 
@@ -2176,29 +2442,29 @@ const styles = StyleSheet.create({
   button: {
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: 16, // Clean rounded corners like in reference
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   buttonPrimary: {
-    // backgroundColor and shadowColor now set dynamically via inline styles
+    backgroundColor: '#8B5CF6', // Use app's purple theme color
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 6,
     borderWidth: 0,
   },
   buttonSecondary: {
-    backgroundColor: '#F2F2F7', // Apple's gray background  
-    borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.08)', // Subtle border for depth
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#8B5CF6', // Purple accent to match theme
+    shadowColor: 'rgba(139, 92, 246, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonMusic: {
     backgroundColor: theme.colors.primaryButton,
@@ -2213,7 +2479,7 @@ const styles = StyleSheet.create({
     backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0))',
   },
   buttonText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.2,
     textAlign: 'center',
@@ -2224,7 +2490,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   buttonTextSecondary: {
-    color: theme.colors.textPrimary,
+    color: '#8B5CF6', // Purple to match border and theme
     fontWeight: '600',
     fontSize: 16,
     letterSpacing: 0.1,
@@ -2252,14 +2518,14 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
   },
   createGroupButton: {
-    backgroundColor: theme.colors.surfaceWhite,
-    borderWidth: 1.5,
-    borderColor: theme.colors.primaryButton,
-    shadowColor: theme.colors.primaryButton,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#8B5CF6', // Purple accent to match view songs button
+    shadowColor: 'rgba(139, 92, 246, 0.3)',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   joinGroupButton: {
     backgroundColor: theme.colors.surfaceWhite,
@@ -2371,15 +2637,15 @@ const styles = StyleSheet.create({
   
   playlistButtonsContainer: {
     flexDirection: 'row',
+    gap: 12,
     marginTop: 20,
-    gap: 16,
+    paddingHorizontal: 20,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   playlistButton: {
     flex: 1,
-    marginTop: 0,
-    height: 50, // Fixed height for consistency
+    minHeight: 50,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2670,11 +2936,11 @@ const styles = StyleSheet.create({
   appIcon: {
     width: 90,
     height: 90,
-    backgroundColor: '#007AFF', // iOS blue
+    backgroundColor: '#8B5CF6', // Use app's purple theme color
     borderRadius: 20, // iOS app icon corner radius
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: '#8B5CF6', // Use app's purple theme color
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -2759,18 +3025,49 @@ const styles = StyleSheet.create({
   },
   onboardingCTA: {
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
   },
   onboardingPrimaryButton: {
-    minHeight: 50, // iOS standard button height
+    minHeight: 56,
     minWidth: '100%',
-    borderRadius: 14, // iOS button corner radius
-    shadowColor: '#007AFF',
+    borderRadius: 16, // Rounded rectangle like other buttons
+    backgroundColor: '#8B5CF6', // Use app's purple theme color
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#8B5CF6', // Use app's purple theme color
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  onboardingPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  onboardingSecondaryButton: {
+    minHeight: 56,
+    minWidth: '100%',
+    borderRadius: 16, // Rounded rectangle like other buttons
+    backgroundColor: 'transparent', // Transparent like view songs button
+    borderWidth: 2, // Same as view songs button
+    borderColor: '#8B5CF6', // Use app's purple theme color
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(139, 92, 246, 0.3)', // Hazy purple shadow like view songs
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 1,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 2,
+  },
+  onboardingSecondaryButtonText: {
+    color: '#8B5CF6', // Use app's purple theme color
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   onboardingHint: {
     fontSize: 13,

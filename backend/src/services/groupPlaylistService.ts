@@ -637,9 +637,20 @@ export class GroupPlaylistService {
 
       console.log(`✅ Created Spotify playlist: ${playlistResponse.data.id}`);
       
+      const playlistId = playlistResponse.data.id;
+      const playlistUrl = playlistResponse.data.external_urls?.spotify;
+      
+      // Validate the URL format
+      if (!playlistUrl || !playlistUrl.includes('open.spotify.com/playlist/')) {
+        console.error('Invalid Spotify playlist URL received:', playlistUrl);
+        throw new Error('Invalid playlist URL received from Spotify API');
+      }
+      
+      console.log(`✅ Created Spotify playlist with valid URL: ${playlistUrl}`);
+      
       return {
-        playlistId: playlistResponse.data.id,
-        playlistUrl: playlistResponse.data.external_urls.spotify,
+        playlistId,
+        playlistUrl,
       };
     } catch (error) {
       console.error(`❌ Spotify playlist creation failed:`, error.response?.data || error.message);
@@ -1199,9 +1210,9 @@ export class GroupPlaylistService {
       playlistUrl = `https://music.apple.com/library/playlist/${mockPlaylistId}`;
       logMessage = `✅ Created Apple Music demo playlist. To create real playlists, please integrate MusicKit.js on the frontend.`;
     } else if (platform === 'spotify') {
-      console.log(`🎭 Creating MOCK ${platform} playlist for development`);
-      playlistUrl = `https://open.spotify.com/playlist/${mockPlaylistId}`;
-      logMessage = `✅ Successfully created mock ${platform} playlist for development`;
+      console.log(`🎭 WARNING: Creating MOCK ${platform} playlist - these URLs will NOT work when opened!`);
+      playlistUrl = null; // Don't create fake Spotify URLs that fail when opened
+      logMessage = `⚠️ Created mock ${platform} playlist entry - URL disabled to prevent "can't open link" errors`;
     } else {
       console.log(`🎭 Creating MOCK ${platform} playlist for development`);
       playlistUrl = `https://example.com/${platform}/playlist/${mockPlaylistId}`;

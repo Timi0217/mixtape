@@ -414,4 +414,128 @@ router.get('/invite/:inviteCode',
   }
 );
 
+// Get playlist permissions for a group
+router.get('/:id/playlist-permissions',
+  authenticateToken,
+  [
+    param('id').isString().notEmpty(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user is admin of this group
+      const group = await prisma.group.findFirst({
+        where: {
+          id,
+          adminUserId: userId,
+        },
+      });
+
+      if (!group) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'Only group admins can view playlist permissions'
+        });
+      }
+
+      // Get playlist permissions from database
+      const permissions = await prisma.playlistPermission.findMany({
+        where: {
+          groupId: id,
+        },
+        select: {
+          userId: true,
+          canCreatePlaylists: true,
+        },
+      });
+
+      // Convert to object format expected by frontend
+      const permissionsObj = permissions.reduce((acc, perm) => {
+        acc[perm.userId] = perm.canCreatePlaylists;
+        return acc;
+      }, {} as Record<string, boolean>);
+
+      res.json({ permissions: permissionsObj });
+    } catch (error) {
+      console.error('Get playlist permissions error:', error);
+      res.status(500).json({ error: 'Failed to get playlist permissions' });
+    }
+  }
+);
+
+// Set playlist permission for a user in a group
+router.put('/:id/playlist-permissions',
+  authenticateToken,
+  [
+    param('id').isString().notEmpty(),
+    body('userId').isString().notEmpty(),
+    body('canCreatePlaylists').isBoolean(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { userId, canCreatePlaylists } = req.body;
+      const adminUserId = req.user!.id;
+
+      // Verify admin is admin of this group
+      const group = await prisma.group.findFirst({
+        where: {
+          id,
+          adminUserId,
+        },
+        include: {
+          members: {
+            select: {
+              userId: true,
+            },
+          },
+        },
+      });
+
+      if (!group) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'Only group admins can modify playlist permissions'
+        });
+      }
+
+      // Verify target user is a member of this group
+      const isMember = group.members.some(member => member.userId === userId);
+      if (!isMember) {
+        return res.status(400).json({ 
+          error: 'User not found',
+          message: 'User is not a member of this group'
+        });
+      }
+
+      // Upsert playlist permission
+      await prisma.playlistPermission.upsert({
+        where: {
+          groupId_userId: {
+            groupId: id,
+            userId,
+          },
+        },
+        update: {
+          canCreatePlaylists,
+        },
+        create: {
+          groupId: id,
+          userId,
+          canCreatePlaylists,
+        },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Set playlist permission error:', error);
+      res.status(500).json({ error: 'Failed to set playlist permission' });
+    }
+  }
+);
+
 export default router;

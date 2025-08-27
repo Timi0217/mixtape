@@ -302,7 +302,12 @@ router.get('/group/:groupId',
         },
       });
 
-      res.json({
+      // Log playlist URLs for debugging
+      groupPlaylists.forEach(playlist => {
+        console.log(`📋 Playlist Debug - ID: ${playlist.id}, Platform: ${playlist.platform}, URL: ${playlist.playlistUrl}`);
+      });
+
+      const responseData = {
         groupPlaylists: groupPlaylists.map(playlist => ({
           id: playlist.id,
           platform: playlist.platform,
@@ -316,7 +321,10 @@ router.get('/group/:groupId',
         message: groupPlaylists.length === 0 ? 
           'No playlists found for this group. Ask your group admin to create playlists.' : 
           undefined
-      });
+      };
+
+      console.log(`📤 Sending ${groupPlaylists.length} playlists to frontend`);
+      res.json(responseData);
     } catch (error) {
       console.error('❌ GET GROUP PLAYLISTS ERROR - FULL DETAILS:');
       console.error('Error object:', error);
@@ -638,6 +646,98 @@ router.post('/complete-round-for-ui',
         error: 'Failed to complete round',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
+    }
+  }
+);
+
+// Delegate playlist creation to another user
+router.post('/group/:groupId/delegate',
+  authenticateToken,
+  [
+    param('groupId').isString().notEmpty(),
+    body('delegateUserId').isString().notEmpty(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { groupId } = req.params;
+      const { delegateUserId } = req.body;
+      const adminUserId = req.user!.id;
+
+      console.log(`🎵 Delegating playlist creation for group ${groupId} from admin ${adminUserId} to user ${delegateUserId}`);
+
+      // Verify admin is admin of this group
+      const group = await prisma.group.findFirst({
+        where: {
+          id: groupId,
+          adminUserId,
+        },
+        include: {
+          members: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!group) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'Only group admins can delegate playlist creation'
+        });
+      }
+
+      // Verify delegate user is a member of this group
+      const delegateMember = group.members.find(member => member.userId === delegateUserId);
+      if (!delegateMember) {
+        return res.status(400).json({ 
+          error: 'Delegate not found',
+          message: 'Delegate user is not a member of this group'
+        });
+      }
+
+      // Check if delegate has playlist permissions
+      const permission = await prisma.playlistPermission.findFirst({
+        where: {
+          groupId,
+          userId: delegateUserId,
+          canCreatePlaylists: true,
+        },
+      });
+
+      if (!permission) {
+        return res.status(400).json({ 
+          error: 'No permission',
+          message: 'Delegate user does not have playlist creation permissions'
+        });
+      }
+
+      // Create delegation request record (for future notification system)
+      // For now, we'll just return success - in the future this could trigger push notifications
+      const delegationRequest = await prisma.playlistDelegationRequest.create({
+        data: {
+          groupId,
+          adminUserId,
+          delegateUserId,
+          status: 'pending',
+          requestedAt: new Date(),
+        },
+      });
+
+      console.log(`✅ Created delegation request ${delegationRequest.id}`);
+
+      // TODO: Send push notification to delegate user
+      // await NotificationService.sendPlaylistDelegationRequest(delegateUserId, group.name);
+
+      res.json({
+        success: true,
+        delegationRequestId: delegationRequest.id,
+        message: `Playlist creation delegated to ${delegateMember.user.displayName}`,
+      });
+    } catch (error) {
+      console.error('Delegate playlist creation error:', error);
+      res.status(500).json({ error: 'Failed to delegate playlist creation' });
     }
   }
 );

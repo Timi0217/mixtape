@@ -24,6 +24,9 @@ model User {
   musicPreferences      UserMusicPreferences?
   emailAliases          UserEmailAlias[]
   groupPlaylists        GroupPlaylist[]
+  playlistPermissions   PlaylistPermission[]
+  adminDelegations      PlaylistDelegationRequest[] @relation("AdminDelegations")
+  delegateDelegations   PlaylistDelegationRequest[] @relation("DelegateDelegations")
   
   @@map("users")
 }
@@ -52,10 +55,12 @@ model Group {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
   
-  admin       User           @relation(fields: [adminUserId], references: [id])
-  members     GroupMember[]
-  rounds      DailyRound[]
-  groupPlaylists GroupPlaylist[]
+  admin                     User           @relation(fields: [adminUserId], references: [id])
+  members                   GroupMember[]
+  rounds                    DailyRound[]
+  groupPlaylists            GroupPlaylist[]
+  playlistPermissions       PlaylistPermission[]
+  playlistDelegationRequests PlaylistDelegationRequest[]
   
   @@map("groups")
 }
@@ -235,4 +240,37 @@ model Vote {
   
   @@unique([roundId, userId])
   @@map("votes")
+}
+
+model PlaylistPermission {
+  id                 String   @id @default(cuid())
+  groupId            String   @map("group_id")
+  userId             String   @map("user_id")
+  canCreatePlaylists Boolean  @default(false) @map("can_create_playlists")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  
+  group              Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, userId])
+  @@map("playlist_permissions")
+}
+
+model PlaylistDelegationRequest {
+  id             String   @id @default(cuid())
+  groupId        String   @map("group_id")
+  adminUserId    String   @map("admin_user_id")
+  delegateUserId String   @map("delegate_user_id")
+  status         String   @default("pending") // pending, accepted, declined, expired
+  requestedAt    DateTime @default(now()) @map("requested_at")
+  respondedAt    DateTime? @map("responded_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  group          Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  admin          User     @relation("AdminDelegations", fields: [adminUserId], references: [id], onDelete: Cascade)
+  delegate       User     @relation("DelegateDelegations", fields: [delegateUserId], references: [id], onDelete: Cascade)
+  
+  @@map("playlist_delegation_requests")
 }

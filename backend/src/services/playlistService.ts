@@ -360,6 +360,6 @@ export class PlaylistService {
       day: 'numeric',
       year: 'numeric'
     });
-    return `${groupName} Mixtape - ${dateStr}`;
+    return `${groupName.toLowerCase()} mixtape - ${dateStr}`;
   }
 }

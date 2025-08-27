@@ -160,6 +160,96 @@ const theme = {
   },
 };
 
+// Playlist Permissions Management Component
+const PlaylistPermissionsSection = ({ groupId, members }) => {
+  const [permissions, setPermissions] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  // Filter to only show Spotify users (non-phone users)
+  const spotifyUsers = members.filter(member => {
+    const isPhoneUser = member.user.email?.startsWith('+');
+    return !isPhoneUser;
+  });
+
+  useEffect(() => {
+    loadPlaylistPermissions();
+  }, [groupId]);
+
+  const loadPlaylistPermissions = async () => {
+    try {
+      const response = await api.get(`/groups/${groupId}/playlist-permissions`);
+      setPermissions(response.data.permissions || {});
+    } catch (error) {
+      console.log('Failed to load playlist permissions, using empty permissions');
+      // If endpoint fails, start with empty permissions
+      setPermissions({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleUserPermission = async (userId) => {
+    const currentPermission = permissions[userId] || false;
+    const newPermission = !currentPermission;
+    
+    setUpdating(true);
+    try {
+      await api.put(`/groups/${groupId}/playlist-permissions`, {
+        userId,
+        canCreatePlaylists: newPermission
+      });
+      
+      setPermissions(prev => ({
+        ...prev,
+        [userId]: newPermission
+      }));
+    } catch (error) {
+      console.error('Failed to update playlist permission:', error);
+      Alert.alert('Error', 'Failed to update playlist permissions. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) {
+    return <ActivityIndicator style={{ margin: 20 }} />;
+  }
+
+  if (spotifyUsers.length === 0) {
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyStateText}>
+          No Spotify users in this group yet.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.permissionsContainer}>
+      {spotifyUsers.map((member) => (
+        <View key={member.user.id} style={styles.permissionItem}>
+          <View style={styles.permissionUserInfo}>
+            <Text style={styles.permissionUserName}>{member.user.displayName}</Text>
+            <Text style={styles.permissionUserEmail}>{member.user.email}</Text>
+          </View>
+          <Switch
+            value={permissions[member.user.id] || false}
+            onValueChange={() => toggleUserPermission(member.user.id)}
+            disabled={updating}
+            trackColor={{ false: '#f2f2f7', true: '#8B5CF6' }}
+            thumbColor={permissions[member.user.id] ? '#ffffff' : '#f2f2f7'}
+          />
+        </View>
+      ))}
+      <Text style={styles.permissionHint}>
+        Enabled users can create playlists when delegated.
+      </Text>
+    </View>
+  );
+};
+
 // Group Playlists Management Component
 const GroupPlaylistsSection = ({ groupId }) => {
   const [playlists, setPlaylists] = useState([]);
@@ -420,7 +510,7 @@ const GroupPlaylistsSection = ({ groupId }) => {
           </View>
           <Text style={styles.emptyPlaylistsTitle}>No Playlists</Text>
           <Text style={styles.emptyPlaylistsText}>
-            Create playlists that update daily with group songs.
+            Create playlists for your group.
           </Text>
           <TouchableOpacity
             style={styles.createPlaylistButton}
@@ -991,6 +1081,17 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Group Playlists</Text>
             <GroupPlaylistsSection groupId={group?.id} />
+          </View>
+        )}
+
+        {/* Playlist Permissions Section (Admin Only) */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Playlist Permissions</Text>
+            <Text style={styles.sectionDescription}>
+              Choose who can create playlists.
+            </Text>
+            <PlaylistPermissionsSection groupId={group?.id} members={groupData.members || []} />
           </View>
         )}
 
@@ -1645,8 +1746,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
   },
   createPlaylistIcon: {
     fontSize: 20,
@@ -1815,5 +1916,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.success,
     fontWeight: '600',
+  },
+  
+  // Playlist permissions styles
+  sectionDescription: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.md,
+    lineHeight: 20,
+  },
+  permissionsContainer: {
+    marginTop: theme.spacing.sm,
+  },
+  permissionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  permissionUserInfo: {
+    flex: 1,
+  },
+  permissionUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  permissionUserEmail: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  permissionHint: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    textAlign: 'center',
+    marginTop: theme.spacing.md,
+    fontStyle: 'italic',
   },
 });
