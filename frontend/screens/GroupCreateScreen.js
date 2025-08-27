@@ -271,12 +271,18 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
         </View>
 
         {/* Emoji Picker Modal */}
-        <Modal visible={showEmojiPicker} animationType="slide">
+        <Modal 
+          visible={showEmojiPicker} 
+          animationType="slide"
+          onShow={() => Keyboard.dismiss()}
+        >
           <KeyboardAvoidingView 
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
-            <SafeAreaView style={styles.emojiPickerContainer}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <SafeAreaView style={styles.emojiPickerContainer}>
             <View style={styles.emojiPickerHeader}>
               <TouchableOpacity 
                 onPress={() => setShowEmojiPicker(false)}
@@ -350,6 +356,8 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
               keyExtractor={(item, index) => `${selectedCategory}-${index}`}
               contentContainerStyle={styles.emojiGrid}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
@@ -362,7 +370,8 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
                 </TouchableOpacity>
               )}
             />
-          </SafeAreaView>
+              </SafeAreaView>
+            </TouchableWithoutFeedback>
           </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
