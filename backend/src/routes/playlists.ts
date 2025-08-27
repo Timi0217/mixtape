@@ -604,30 +604,25 @@ router.post('/complete-round-for-ui',
         data: { status: 'completed' }
       });
 
-      // Create a fake playlist for this completed round
-      const fakePlaylist = await prisma.groupPlaylist.create({
-        data: {
-          groupId: activeRound.groupId,
-          userId: activeRound.submissions[0].userId, // Use first submitter as playlist owner
-          platform: 'spotify',
-          platformPlaylistId: 'test_playlist_' + Date.now(),
-          playlistName: `${activeRound.group.name} - ${new Date().toLocaleDateString()}`,
-          playlistUrl: `https://open.spotify.com/playlist/test${Date.now()}`,
-          isActive: true,
-        },
-      });
+      // Create real playlist using GroupPlaylistService instead of fake test playlist
+      try {
+        const groupPlaylists = await import('../services/groupPlaylistService');
+        await groupPlaylists.GroupPlaylistService.ensureGroupPlaylists(activeRound.groupId);
+        await groupPlaylists.GroupPlaylistService.updateGroupPlaylistsForRound(activeRound.id);
+        
+        console.log('✅ Created real group playlists instead of fake test playlist');
+      } catch (error) {
+        console.error('❌ Failed to create real playlist, falling back to no playlist:', error);
+        // Don't create fake playlists - better to have no playlist than broken links
+      }
 
       res.json({
         success: true,
-        message: `Round completed! Now submit a song to the NEW round to see the UI.`,
+        message: `Round completed! Real group playlists created. Submit a song to the NEW round to see the UI.`,
         completedRound: {
           id: completedRound.id,
           submissions: activeRound.submissions.length,
           group: activeRound.group.name
-        },
-        fakePlaylist: {
-          id: fakePlaylist.id,
-          url: fakePlaylist.playlistUrl
         },
         instructions: [
           '1. This round is now marked as completed',
