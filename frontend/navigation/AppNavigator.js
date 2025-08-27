@@ -1768,7 +1768,7 @@ const AppNavigator = () => {
                     });
                   }}
                 >
-                  <Text style={styles.playButtonIcon}>▶️</Text>
+                  <Text style={styles.playButtonIcon}>▶</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -1776,7 +1776,7 @@ const AppNavigator = () => {
           
           <View style={styles.songsModalFooter}>
             <Text style={styles.songsModalFooterText}>
-              Tap ▶️ to search for songs in {userPlatform === 'apple-music' ? 'Apple Music' : 'Spotify'}
+              Tap ▶ to search for songs in {userPlatform === 'apple-music' ? 'Apple Music' : 'Spotify'}
             </Text>
           </View>
         </SafeAreaView>
@@ -2434,19 +2434,12 @@ const styles = StyleSheet.create({
   playButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.primaryButton,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: theme.colors.primaryButton,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   playButtonIcon: {
-    fontSize: 16,
-    color: 'white',
+    fontSize: 20,
+    color: '#000000',
     marginLeft: 2, // Slight offset to center the play triangle
   },
   songsModalFooter: {
