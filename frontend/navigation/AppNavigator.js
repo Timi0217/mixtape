@@ -658,24 +658,12 @@ const AppNavigator = () => {
 
   const openYesterdayPlaylist = () => {
     if (yesterdayPlaylist && yesterdayPlaylist.playlistUrl) {
-      Alert.alert(
-        'Listen to Yesterday\'s Mixtape',
-        `Open ${yesterdayPlaylist.playlistName} in ${yesterdayPlaylist.platform === 'spotify' ? 'Spotify' : 'Apple Music'}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Open', 
-            onPress: () => {
-              // Note: In a real app, you'd use Linking.openURL(yesterdayPlaylist.playlistUrl)
-              Alert.alert(
-                'Opening Playlist',
-                `This would open your ${yesterdayPlaylist.platform === 'spotify' ? 'Spotify' : 'Apple Music'} app with yesterday's mixtape.\n\nURL: ${yesterdayPlaylist.playlistUrl}`,
-                [{ text: 'OK' }]
-              );
-            }
-          },
-        ]
-      );
+      Linking.openURL(yesterdayPlaylist.playlistUrl).catch(() => {
+        Alert.alert(
+          'Can\'t Open Playlist',
+          `Unable to open ${yesterdayPlaylist.platform === 'spotify' ? 'Spotify' : 'Apple Music'}. Make sure the app is installed.`
+        );
+      });
     } else {
       Alert.alert(
         'No Playlist Available',
