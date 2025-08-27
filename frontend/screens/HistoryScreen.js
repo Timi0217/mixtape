@@ -120,9 +120,6 @@ export default function HistoryScreen({ onClose, activeGroup, embedded = false }
           <View style={styles.songInfo}>
             <Text style={styles.songTitle}>{submission.song.title}</Text>
             <Text style={styles.songArtist}>{submission.song.artist}</Text>
-            {submission.song.album && (
-              <Text style={styles.songAlbum}>{submission.song.album}</Text>
-            )}
             <Text style={styles.submissionMeta}>
               by {submission.user.displayName}
             </Text>
@@ -156,9 +153,6 @@ export default function HistoryScreen({ onClose, activeGroup, embedded = false }
           <View style={styles.songInfo}>
             <Text style={styles.songTitle}>{submission.song.title}</Text>
             <Text style={styles.songArtist}>{submission.song.artist}</Text>
-            {submission.song.album && (
-              <Text style={styles.songAlbum}>{submission.song.album}</Text>
-            )}
             <Text style={styles.submissionMeta}>
               {new Date(submission.createdAt || submission.round.date).toLocaleDateString()}
             </Text>

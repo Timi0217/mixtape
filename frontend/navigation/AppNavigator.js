@@ -1779,11 +1779,6 @@ const AppNavigator = () => {
             ))}
           </ScrollView>
           
-          <View style={styles.songsModalFooter}>
-            <Text style={styles.songsModalFooterText}>
-              Tap ▶ to listen
-            </Text>
-          </View>
         </SafeAreaView>
       </Modal>
 
