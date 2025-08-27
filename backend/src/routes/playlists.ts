@@ -127,12 +127,11 @@ router.post('/group/:groupId/create',
         return res.status(400).json({ error: 'Group ID is required' });
       }
 
-      // Verify user is admin of this group
-      console.log(`🔍 Checking if user ${userId} is admin of group ${groupId}`);
+      // Verify user is admin OR has playlist creation permissions
+      console.log(`🔍 Checking if user ${userId} can create playlists for group ${groupId}`);
       const group = await prisma.group.findFirst({
         where: {
           id: groupId,
-          adminUserId: userId,
         },
         include: {
           members: {
@@ -148,14 +147,38 @@ router.post('/group/:groupId/create',
       });
 
       if (!group) {
-        console.log(`❌ User ${userId} is not admin of group ${groupId} or group doesn't exist`);
-        return res.status(403).json({ 
-          error: 'Access denied',
-          message: 'You must be the admin of this group to create playlists'
+        console.log(`❌ Group ${groupId} doesn't exist`);
+        return res.status(404).json({ 
+          error: 'Group not found',
+          message: 'The requested group does not exist'
         });
       }
 
-      console.log(`✅ User ${userId} is admin of group "${group.name}" with ${group.members.length} members`);
+      // Check if user is admin or has playlist permissions
+      const isAdmin = group.adminUserId === userId;
+      let hasPlaylistPermission = false;
+      
+      if (!isAdmin) {
+        const permission = await prisma.playlistPermission.findFirst({
+          where: {
+            groupId,
+            userId,
+            canCreatePlaylists: true,
+          },
+        });
+        hasPlaylistPermission = !!permission;
+      }
+
+      if (!isAdmin && !hasPlaylistPermission) {
+        console.log(`❌ User ${userId} is not admin and doesn't have playlist creation permissions for group ${groupId}`);
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You must be the admin or have playlist creation permissions to create playlists'
+        });
+      }
+
+      const userRole = isAdmin ? 'admin' : 'delegated user with permissions';
+      console.log(`✅ User ${userId} is ${userRole} of group "${group.name}" with ${group.members.length} members`);
 
       // Check if any members have music accounts
       const membersWithMusic = group.members.filter(member => 
@@ -172,13 +195,13 @@ router.post('/group/:groupId/create',
         });
       }
 
-      // Check if admin has any music accounts (since only admin can create playlists)
-      const adminMember = group.members.find(member => member.user.id === group.adminUserId);
-      if (!adminMember || !adminMember.user.musicAccounts || adminMember.user.musicAccounts.length === 0) {
-        console.log('❌ Admin has no connected music accounts');
+      // Check if current user has any music accounts (since they're creating the playlist)
+      const currentUserMember = group.members.find(member => member.user.id === userId);
+      if (!currentUserMember || !currentUserMember.user.musicAccounts || currentUserMember.user.musicAccounts.length === 0) {
+        console.log('❌ Current user has no connected music accounts');
         return res.status(400).json({
-          error: 'Admin has no music accounts',
-          message: 'Only the group admin can create playlists, and the admin needs to have connected music accounts (Spotify or Apple Music).'
+          error: 'No music accounts connected',
+          message: 'You need to have connected music accounts (Spotify or Apple Music) to create playlists.'
         });
       }
 
