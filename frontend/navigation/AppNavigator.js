@@ -381,15 +381,18 @@ const AppNavigator = () => {
   
   // Detect user's music platform (phone users = Apple Music, OAuth = Spotify)
   const getUserMusicPlatform = () => {
+    // Phone users have email like "+15551234567", OAuth users have real emails
+    const isPhoneUser = user?.email?.startsWith('+');
+    
     // Debug logging
     console.log('🎵 Platform Detection Debug:', {
       userEmail: user?.email,
-      hasPhoneEmail: user?.email?.includes('@phone.mixtape'),
-      detectedPlatform: user?.email?.includes('@phone.mixtape') ? 'apple-music' : 'spotify'
+      isPhoneUser,
+      detectedPlatform: isPhoneUser ? 'apple-music' : 'spotify'
     });
     
-    // If user has email with phone auth pattern, they're Apple Music users
-    if (user?.email?.includes('@phone.mixtape')) {
+    // If user's email is a phone number, they're Apple Music users
+    if (isPhoneUser) {
       return 'apple-music';
     }
     // Otherwise they used Spotify OAuth
