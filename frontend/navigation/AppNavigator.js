@@ -1597,18 +1597,22 @@ const AppNavigator = () => {
         </View>
 
         <View style={styles.profileActions}>
-          <Button
-            title="🔔 Notifications"
+          <TouchableOpacity 
+            style={styles.profileActionButton}
             onPress={() => setShowNotifications(true)}
-            variant="secondary"
-            style={styles.profileActionButton}
-          />
-          <Button
-            title="📱 About Mixtape"
+          >
+            <Text style={styles.profileActionIcon}>🔔</Text>
+            <Text style={styles.profileActionText}>Notifications</Text>
+            <Text style={styles.profileActionChevron}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.profileActionButton, styles.profileActionButtonLast]}
             onPress={() => setShowAbout(true)}
-            variant="secondary"
-            style={styles.profileActionButton}
-          />
+          >
+            <Text style={styles.profileActionIcon}>📱</Text>
+            <Text style={styles.profileActionText}>About Mixtape</Text>
+            <Text style={styles.profileActionChevron}>›</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.dangerZone}>
@@ -2856,12 +2860,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   profileActions: {
-    gap: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceWhite,
+    borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.xl,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   profileActionButton: {
-    justifyContent: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.lg,
     paddingHorizontal: theme.spacing.lg,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  profileActionIcon: {
+    fontSize: 20,
+    marginRight: theme.spacing.md,
+    width: 24,
+    textAlign: 'center',
+  },
+  profileActionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '400',
+    color: theme.colors.textPrimary,
+    letterSpacing: 0.1,
+  },
+  profileActionChevron: {
+    fontSize: 20,
+    color: 'rgba(0, 0, 0, 0.3)',
+    fontWeight: '300',
+  },
+  profileActionButtonLast: {
+    borderBottomWidth: 0,
   },
   dangerZone: {
     marginTop: theme.spacing.xl,
