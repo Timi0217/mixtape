@@ -3,7 +3,7 @@ import { body } from 'express-validator';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { validateRequest } from '../utils/validation';
 import { prisma } from '../config/database';
-import pushNotificationService from '../services/pushNotificationService';
+// import pushNotificationService from '../services/pushNotificationService'; // Disabled
 
 const router = express.Router();
 
@@ -74,70 +74,8 @@ router.put('/settings',
   }
 );
 
-// Register push token
-router.post('/register-token',
-  authenticateToken,
-  [
-    body('pushToken').isString().notEmpty(),
-    body('deviceInfo').optional().isObject(),
-  ],
-  validateRequest,
-  async (req: AuthRequest, res) => {
-    try {
-      const userId = req.user!.id;
-      const { pushToken, deviceInfo } = req.body;
+// Push notifications temporarily disabled
 
-      await prisma.userPushToken.upsert({
-        where: { userId },
-        update: {
-          token: pushToken,
-          deviceInfo: deviceInfo || {},
-          updatedAt: new Date(),
-        },
-        create: {
-          userId,
-          token: pushToken,
-          deviceInfo: deviceInfo || {},
-        },
-      });
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Register push token error:', error);
-      res.status(500).json({ error: 'Failed to register push token' });
-    }
-  }
-);
-
-// Send test notification
-router.post('/test',
-  authenticateToken,
-  async (req: AuthRequest, res) => {
-    try {
-      const userId = req.user!.id;
-      
-      // Get user's push token
-      const userToken = await prisma.userPushToken.findUnique({
-        where: { userId },
-      });
-
-      if (!userToken) {
-        return res.status(400).json({ error: 'No push token registered' });
-      }
-
-      // Send test notification
-      const success = await pushNotificationService.sendTestNotification(userId);
-
-      if (success) {
-        res.json({ success: true, message: 'Test notification sent!' });
-      } else {
-        res.status(500).json({ error: 'Failed to send test notification' });
-      }
-    } catch (error) {
-      console.error('Send test notification error:', error);
-      res.status(500).json({ error: 'Failed to send test notification' });
-    }
-  }
-);
+// Test notifications temporarily disabled
 
 export default router;

@@ -586,9 +586,6 @@ router.get('/:id/leaderboard',
                 groupId,
                 // Only count votes from completed rounds where voting has ended
                 status: 'completed',
-                votingEndsAt: {
-                  lte: new Date(),
-                },
               },
             },
             include: {
@@ -614,9 +611,6 @@ router.get('/:id/leaderboard',
               round: {
                 groupId,
                 status: 'completed',
-                votingEndsAt: {
-                  lte: new Date(),
-                },
               },
             },
           });
@@ -702,9 +696,6 @@ router.get('/:id/personal-stats',
                 round: {
                   groupId,
                   status: 'completed',
-                  votingEndsAt: {
-                    lte: new Date(),
-                  },
                 },
               },
             },
@@ -714,9 +705,6 @@ router.get('/:id/personal-stats',
               round: {
                 groupId,
                 status: 'completed',
-                votingEndsAt: {
-                  lte: new Date(),
-                },
               },
             },
           ],
@@ -739,9 +727,6 @@ router.get('/:id/personal-stats',
           round: {
             groupId,
             status: 'completed',
-            votingEndsAt: {
-              lte: new Date(),
-            },
           },
         },
         include: {

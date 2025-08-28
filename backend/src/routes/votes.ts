@@ -239,13 +239,13 @@ router.get('/rounds/:roundId/counts', authenticateToken, [
 
     // Check if voting period has ended
     const now = new Date();
-    const votingEnded = !round.votingEndsAt || now >= round.votingEndsAt;
+    const votingEnded = false; // Voting always available for now
 
     if (!votingEnded) {
       return res.json({ 
         voteCounts: [], 
         votingInProgress: true,
-        votingEndsAt: round.votingEndsAt 
+        votingEndsAt: null 
       });
     }
 
@@ -264,7 +264,7 @@ router.get('/rounds/:roundId/counts', authenticateToken, [
     res.json({ 
       voteCounts, 
       votingInProgress: false,
-      votingEndsAt: round.votingEndsAt 
+      votingEndsAt: null 
     });
   } catch (error) {
     console.error('❌ GET VOTE COUNTS ERROR:', error);
@@ -310,7 +310,7 @@ router.get('/rounds/:roundId/status', authenticateToken, [
     }
 
     const now = new Date();
-    const votingEnded = !round.votingEndsAt || now >= round.votingEndsAt;
+    const votingEnded = false; // Voting always available for now
 
     // Check if user has voted
     const userVote = await prisma.vote.findUnique({
@@ -324,7 +324,7 @@ router.get('/rounds/:roundId/status', authenticateToken, [
 
     res.json({ 
       votingEnded,
-      votingEndsAt: round.votingEndsAt,
+      votingEndsAt: null,
       userHasVoted: !!userVote,
       canVote: round.status === 'completed' && !votingEnded && !userVote
     });
