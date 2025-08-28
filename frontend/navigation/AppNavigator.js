@@ -1357,9 +1357,9 @@ const AppNavigator = () => {
 
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateTitle}>No Active Round</Text>
-            <Text style={styles.emptyStateText}>
+            <Text style={styles.emptyStateText} numberOfLines={2}>
               {!activeGroup 
-                ? "Join or create a group to start sharing music with friends."
+                ? "Join or create a group to start sharing music!"
                 : "Loading your group's daily round..."
               }
             </Text>
@@ -1889,7 +1889,7 @@ const AppNavigator = () => {
       ) : (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No Groups Yet</Text>
-          <Text style={styles.emptyStateText}>
+          <Text style={styles.emptyStateText} numberOfLines={2}>
             Create your first group to start sharing music with friends!
           </Text>
         </View>
@@ -2096,7 +2096,7 @@ const AppNavigator = () => {
       </Animated.View>
 
       {/* Music Search Modal */}
-      <Modal visible={showMusicSearch} animationType="slide">
+      <Modal visible={showMusicSearch} animationType="slide" presentationStyle="fullScreen">
         <MusicSearchScreen
           onClose={() => setShowMusicSearch(false)}
           onSelectSong={handleSongSubmission}
@@ -2104,7 +2104,7 @@ const AppNavigator = () => {
       </Modal>
 
       {/* Group Create Modal */}
-      <Modal visible={showGroupCreate} animationType="slide">
+      <Modal visible={showGroupCreate} animationType="slide" presentationStyle="fullScreen">
         <GroupCreateScreen
           onClose={() => setShowGroupCreate(false)}
           onCreateGroup={handleCreateGroup}
@@ -2120,7 +2120,7 @@ const AppNavigator = () => {
       </Modal>
 
       {/* Join Group Modal */}
-      <Modal visible={showJoinGroup} animationType="slide">
+      <Modal visible={showJoinGroup} animationType="slide" presentationStyle="fullScreen">
         <JoinGroupScreen
           onClose={() => setShowJoinGroup(false)}
           onJoinGroup={handleJoinGroup}
@@ -2143,7 +2143,7 @@ const AppNavigator = () => {
       </Modal>
 
       {/* Group Settings Modal */}
-      <Modal visible={showGroupSettings} animationType="slide">
+      <Modal visible={showGroupSettings} animationType="slide" presentationStyle="fullScreen">
         <GroupSettingsScreen
           onClose={() => {
             setShowGroupSettings(false);
@@ -2322,7 +2322,7 @@ const AppNavigator = () => {
       </Modal>
 
       {/* Group Create Modal */}
-      <Modal visible={showGroupCreate} animationType="slide">
+      <Modal visible={showGroupCreate} animationType="slide" presentationStyle="fullScreen">
         <GroupCreateScreen
           onClose={() => setShowGroupCreate(false)}
           onCreateGroup={handleCreateGroup}
@@ -2330,7 +2330,7 @@ const AppNavigator = () => {
       </Modal>
 
       {/* Join Group Modal */}
-      <Modal visible={showJoinGroup} animationType="slide">
+      <Modal visible={showJoinGroup} animationType="slide" presentationStyle="fullScreen">
         <JoinGroupScreen
           onClose={() => setShowJoinGroup(false)}
           onJoinGroup={handleJoinGroup}
@@ -3320,6 +3320,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
+    fontWeight: '500',
   },
 
   // Profile styles - Apple Music-style
