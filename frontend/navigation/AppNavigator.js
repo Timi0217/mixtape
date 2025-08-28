@@ -432,7 +432,6 @@ const AppNavigator = () => {
   const [votingStatus, setVotingStatus] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [personalStats, setPersonalStats] = useState(null);
-  const [leaderboardTab, setLeaderboardTab] = useState('group'); // 'group' or 'personal'
   const [showSongsModal, setShowSongsModal] = useState(false);
   const [groupCardTab, setGroupCardTab] = useState('progress'); // 'progress', 'vote', or 'leaderboard'
   const [showMusicSearch, setShowMusicSearch] = useState(false);
@@ -1683,29 +1682,8 @@ const AppNavigator = () => {
           ) : (
             /* Leaderboard Tab Content */
             <ScrollView style={styles.leaderboardTabContent} showsVerticalScrollIndicator={false}>
-              {/* Leaderboard Sub-tabs */}
-              <View style={styles.leaderboardTabContainer}>
-                <TouchableOpacity
-                  style={[styles.leaderboardTab, leaderboardTab === 'group' && styles.leaderboardTabActive]}
-                  onPress={() => setLeaderboardTab('group')}
-                >
-                  <Text style={[styles.leaderboardTabText, leaderboardTab === 'group' && styles.leaderboardTabTextActive]}>
-                    Leaderboard
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.leaderboardTab, leaderboardTab === 'personal' && styles.leaderboardTabActive]}
-                  onPress={() => setLeaderboardTab('personal')}
-                >
-                  <Text style={[styles.leaderboardTabText, leaderboardTab === 'personal' && styles.leaderboardTabTextActive]}>
-                    Personal Stats
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {leaderboardTab === 'group' ? (
-                /* Group Leaderboard */
-                <View style={styles.leaderboardContent}>
+              {/* Group Leaderboard */}
+              <View style={styles.leaderboardContent}>
                   {leaderboard.length === 0 ? (
                     <View style={styles.emptyLeaderboardState}>
                       <Text style={styles.emptyLeaderboardIcon}>🏆</Text>
@@ -1732,9 +1710,9 @@ const AppNavigator = () => {
                     ))
                   )}
                 </View>
-              ) : (
-                /* Personal Stats */
-                <View style={styles.personalStatsContent}>
+
+              {/* Personal Stats */}
+              <View style={styles.personalStatsContent}>
                   {!personalStats ? (
                     <View style={styles.emptyLeaderboardState}>
                       <Text style={styles.emptyLeaderboardIcon}>📊</Text>
@@ -1798,7 +1776,6 @@ const AppNavigator = () => {
                     </>
                   )}
                 </View>
-              )}
             </ScrollView>
           )}
         </View>
