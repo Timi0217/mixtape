@@ -3719,7 +3719,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
-    borderRadius: theme.borders.radius.lg,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
   },
   votingStatusText: {
@@ -3753,7 +3753,7 @@ const styles = StyleSheet.create({
   leaderboardTabContainer: {
     flexDirection: 'row',
     backgroundColor: theme.colors.backgroundSecondary,
-    borderRadius: theme.borders.radius.md,
+    borderRadius: theme.borderRadius.md,
     padding: 3,
     marginBottom: theme.spacing.md,
   },
@@ -3761,7 +3761,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.borders.radius.sm,
+    borderRadius: theme.borderRadius.sm,
     alignItems: 'center',
   },
   leaderboardTabActive: {
@@ -3810,7 +3810,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.cardBackground,
     padding: theme.spacing.md,
-    borderRadius: theme.borders.radius.lg,
+    borderRadius: theme.borderRadius.lg,
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -3861,7 +3861,7 @@ const styles = StyleSheet.create({
   },
   personalStatsSummary: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borders.radius.lg,
+    borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
@@ -3891,7 +3891,7 @@ const styles = StyleSheet.create({
   },
   bestSongSection: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borders.radius.lg,
+    borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
@@ -3907,7 +3907,7 @@ const styles = StyleSheet.create({
   },
   bestSongCard: {
     backgroundColor: theme.colors.backgroundSecondary,
-    borderRadius: theme.borders.radius.md,
+    borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     alignItems: 'center',
   },
@@ -3931,7 +3931,7 @@ const styles = StyleSheet.create({
   },
   recentSubmissionsSection: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borders.radius.lg,
+    borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
