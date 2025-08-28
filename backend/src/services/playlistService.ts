@@ -16,7 +16,6 @@ export class PlaylistService {
    * Create playlists for all group members based on their preferred platform
    */
   static async createPlaylistsForCompletedRound(roundId: string): Promise<PlaylistCreationResult[]> {
-    console.log(`🎵 Creating playlists for completed round: ${roundId}`);
 
     const round = await prisma.dailyRound.findUnique({
       where: { id: roundId },
@@ -56,7 +55,6 @@ export class PlaylistService {
 
     // Create playlists for each platform
     for (const [platform, members] of Object.entries(membersByPlatform)) {
-      console.log(`📱 Creating ${platform} playlist for ${members.length} members`);
 
       try {
         // Extract songs and attempt cross-platform matching if needed
@@ -92,7 +90,6 @@ export class PlaylistService {
             });
           } else {
             // Try to find the song on this platform using cross-platform matching
-            console.log(`🔍 Song "${song.title}" not available on ${platform}, attempting cross-platform match...`);
             
             try {
               const { musicService } = await import('./musicService');
@@ -103,7 +100,6 @@ export class PlaylistService {
               
               if (matchResults[0]?.bestMatch && matchResults[0].confidence > 0.7) {
                 const bestMatch = matchResults[0].bestMatch;
-                console.log(`✅ Found cross-platform match with confidence ${matchResults[0].confidence.toFixed(2)}`);
                 
                 songs.push({
                   id: bestMatch.platformId,
@@ -119,7 +115,6 @@ export class PlaylistService {
                   isCrossPlatformMatch: true,
                 });
               } else {
-                console.log(`❌ No suitable cross-platform match found for "${song.title}"`);
               }
             } catch (matchError) {
               console.error(`Failed to find cross-platform match for "${song.title}":`, matchError);
@@ -128,7 +123,6 @@ export class PlaylistService {
         }
 
         if (songs.length === 0) {
-          console.log(`⚠️ No valid songs found for ${platform}`);
           continue;
         }
 
@@ -144,7 +138,6 @@ export class PlaylistService {
             );
             results.push(result);
           } catch (error) {
-            console.error(`❌ Failed to create playlist for user ${member.user.id} on ${platform}:`, error);
             results.push({
               success: false,
               error: error instanceof Error ? error.message : 'Unknown error',
@@ -154,7 +147,6 @@ export class PlaylistService {
           }
         }
       } catch (error) {
-        console.error(`❌ Failed to process ${platform} playlists:`, error);
         // Add failed results for all members of this platform
         members.forEach(member => {
           results.push({
@@ -167,7 +159,6 @@ export class PlaylistService {
       }
     }
 
-    console.log(`✅ Playlist creation completed: ${results.filter(r => r.success).length}/${results.length} successful`);
     return results;
   }
 
@@ -208,7 +199,6 @@ export class PlaylistService {
     songs: any[],
     round: any
   ): Promise<PlaylistCreationResult> {
-    console.log(`🎶 Creating ${platform} playlist "${playlistName}" for user ${user.displayName}`);
 
     // Find user's music account for this platform
     const musicAccount = user.musicAccounts?.find((account: any) => account.platform === platform);
@@ -254,7 +244,7 @@ export class PlaylistService {
       };
 
     } catch (error) {
-      console.error(`❌ Error creating ${platform} playlist:`, error);
+      console.error(`Error creating ${platform} playlist:`, error);
       throw error;
     }
   }
@@ -316,7 +306,6 @@ export class PlaylistService {
    * Create an Apple Music playlist
    */
   private static async createAppleMusicPlaylist(accessToken: string, name: string, songs: any[], round: any) {
-    console.log(`🍎 Creating Apple Music playlist "${name}"`);
     
     try {
       const { appleMusicService } = await import('./appleMusicService');

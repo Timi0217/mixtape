@@ -542,4 +542,274 @@ router.put('/:id/playlist-permissions',
   }
 );
 
+// Get group leaderboard - shows voting stats for all members
+router.get('/:id/leaderboard',
+  authenticateToken,
+  [
+    param('id').isString().notEmpty(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id: groupId } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user is a member of this group
+      const group = await prisma.group.findFirst({
+        where: {
+          id: groupId,
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+        include: {
+          members: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!group) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Get voting statistics for each member
+      const leaderboard = await Promise.all(
+        group.members.map(async (member) => {
+          const stats = await prisma.vote.findMany({
+            where: {
+              round: {
+                groupId,
+                // Only count votes from completed rounds where voting has ended
+                status: 'completed',
+                votingEndsAt: {
+                  lte: new Date(),
+                },
+              },
+            },
+            include: {
+              submission: {
+                include: {
+                  user: true,
+                  song: true,
+                },
+              },
+              round: true,
+            },
+          });
+
+          // Calculate wins for this member (votes received for their submissions)
+          const wins = stats.filter(
+            vote => vote.submission.userId === member.userId
+          ).length;
+
+          // Calculate votes cast by this member
+          const votesCast = await prisma.vote.count({
+            where: {
+              userId: member.userId,
+              round: {
+                groupId,
+                status: 'completed',
+                votingEndsAt: {
+                  lte: new Date(),
+                },
+              },
+            },
+          });
+
+          // Get submission count
+          const submissions = await prisma.submission.count({
+            where: {
+              userId: member.userId,
+              round: {
+                groupId,
+                status: 'completed',
+              },
+            },
+          });
+
+          return {
+            user: {
+              id: member.user.id,
+              displayName: member.user.displayName,
+            },
+            stats: {
+              wins,
+              submissions,
+              votesCast,
+              winRate: submissions > 0 ? ((wins / submissions) * 100).toFixed(1) : '0.0',
+            },
+          };
+        })
+      );
+
+      // Sort by wins, then by win rate
+      leaderboard.sort((a, b) => {
+        if (b.stats.wins !== a.stats.wins) {
+          return b.stats.wins - a.stats.wins;
+        }
+        return parseFloat(b.stats.winRate) - parseFloat(a.stats.winRate);
+      });
+
+      res.json({ leaderboard });
+    } catch (error) {
+      console.error('Get group leaderboard error:', error);
+      res.status(500).json({ error: 'Failed to get leaderboard' });
+    }
+  }
+);
+
+// Get personal stats for the current user in a group
+router.get('/:id/personal-stats',
+  authenticateToken,
+  [
+    param('id').isString().notEmpty(),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id: groupId } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user is a member of this group
+      const group = await prisma.group.findFirst({
+        where: {
+          id: groupId,
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+      });
+
+      if (!group) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Get detailed personal stats
+      const personalStats = await prisma.vote.findMany({
+        where: {
+          OR: [
+            // Votes received for user's submissions
+            {
+              submission: {
+                userId,
+                round: {
+                  groupId,
+                  status: 'completed',
+                  votingEndsAt: {
+                    lte: new Date(),
+                  },
+                },
+              },
+            },
+            // Votes cast by user
+            {
+              userId,
+              round: {
+                groupId,
+                status: 'completed',
+                votingEndsAt: {
+                  lte: new Date(),
+                },
+              },
+            },
+          ],
+        },
+        include: {
+          submission: {
+            include: {
+              user: true,
+              song: true,
+            },
+          },
+          round: true,
+        },
+      });
+
+      // Get user's submissions with vote counts
+      const userSubmissions = await prisma.submission.findMany({
+        where: {
+          userId,
+          round: {
+            groupId,
+            status: 'completed',
+            votingEndsAt: {
+              lte: new Date(),
+            },
+          },
+        },
+        include: {
+          song: true,
+          round: {
+            select: {
+              date: true,
+              id: true,
+            },
+          },
+          _count: {
+            select: {
+              votes: true,
+            },
+          },
+        },
+        orderBy: {
+          round: {
+            date: 'desc',
+          },
+        },
+      });
+
+      // Calculate aggregate stats
+      const totalWins = personalStats.filter(
+        vote => vote.submission.userId === userId
+      ).length;
+
+      const totalSubmissions = userSubmissions.length;
+      
+      const votesCast = personalStats.filter(
+        vote => vote.userId === userId
+      ).length;
+
+      const winRate = totalSubmissions > 0 ? ((totalWins / totalSubmissions) * 100).toFixed(1) : '0.0';
+
+      // Find best performing song
+      const bestSong = userSubmissions.reduce((best, current) => {
+        if (!best || current._count.votes > best._count.votes) {
+          return current;
+        }
+        return best;
+      }, null);
+
+      res.json({
+        summary: {
+          totalWins,
+          totalSubmissions,
+          votesCast,
+          winRate,
+        },
+        bestSong: bestSong ? {
+          song: bestSong.song,
+          votes: bestSong._count.votes,
+          date: bestSong.round.date,
+        } : null,
+        recentSubmissions: userSubmissions.slice(0, 10).map(submission => ({
+          song: submission.song,
+          votes: submission._count.votes,
+          date: submission.round.date,
+          roundId: submission.round.id,
+        })),
+      });
+    } catch (error) {
+      console.error('Get personal stats error:', error);
+      res.status(500).json({ error: 'Failed to get personal stats' });
+    }
+  }
+);
+
 export default router;

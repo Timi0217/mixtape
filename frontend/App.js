@@ -1,12 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import AppNavigator from './navigation/AppNavigator';
 import LoginScreen from './screens/LoginScreen';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import notificationService from './services/notificationService';
+import networkService from './services/networkService';
+import OfflineBanner from './components/OfflineBanner';
 
 const AppContent = () => {
   const { isAuthenticated, loading, login } = useAuth();
+
+  useEffect(() => {
+    // Initialize network monitoring
+    networkService.initialize();
+
+    // Initialize notifications when user is authenticated
+    if (isAuthenticated) {
+      notificationService.initialize().catch(console.error);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      notificationService.cleanup();
+    };
+  }, [isAuthenticated]);
 
   if (loading) {
     return (
@@ -17,10 +35,20 @@ const AppContent = () => {
   }
 
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={login} />;
+    return (
+      <>
+        <OfflineBanner />
+        <LoginScreen onLoginSuccess={login} />
+      </>
+    );
   }
 
-  return <AppNavigator />;
+  return (
+    <>
+      <OfflineBanner />
+      <AppNavigator />
+    </>
+  );
 };
 
 export default function App() {

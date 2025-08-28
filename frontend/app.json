@@ -22,30 +22,29 @@
       "usesNonExemptEncryption": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSUserNotificationsUsageDescription": "This app uses notifications to remind you about daily song submissions and notify you when playlists are ready.",
+        "NSMicrophoneUsageDescription": "This app may need microphone access for music recognition features with Apple Music.",
+        "NSCameraUsageDescription": "This app may use camera access for profile pictures or group photos in future updates.",
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
-          "NSAllowsArbitraryLoadsInWebContent": true,
-          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoads": false,
           "NSExceptionDomains": {
             "js-cdn.music.apple.com": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSExceptionMinimumTLSVersion": "TLSv1.0",
-              "NSExceptionRequiresForwardSecrecy": false
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSExceptionMinimumTLSVersion": "TLSv1.2",
+              "NSExceptionRequiresForwardSecrecy": true,
+              "NSIncludesSubdomains": true
             },
             "api.music.apple.com": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSExceptionMinimumTLSVersion": "TLSv1.0",
-              "NSExceptionRequiresForwardSecrecy": false
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSExceptionMinimumTLSVersion": "TLSv1.2",
+              "NSExceptionRequiresForwardSecrecy": true,
+              "NSIncludesSubdomains": true
             },
             "authorize.music.apple.com": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSExceptionMinimumTLSVersion": "TLSv1.0",
-              "NSExceptionRequiresForwardSecrecy": false
-            },
-            "mixtape-production.up.railway.app": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSExceptionMinimumTLSVersion": "TLSv1.0",
-              "NSExceptionRequiresForwardSecrecy": false
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSExceptionMinimumTLSVersion": "TLSv1.2",
+              "NSExceptionRequiresForwardSecrecy": true,
+              "NSIncludesSubdomains": true
             }
           }
         }
@@ -66,7 +65,15 @@
       "expo-web-browser",
       "expo-apple-authentication",
       "expo-dev-client",
-      "./plugins/withMusicKit"
+      "./plugins/withMusicKit",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#8B5CF6",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "extra": {
       "API_BASE_URL": "https://mixtape-production.up.railway.app/api",

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
+  Modal,
 } from 'react-native';
+import PrivacyPolicyScreen from './PrivacyPolicyScreen';
+import TermsOfServiceScreen from './TermsOfServiceScreen';
 
 const theme = {
   colors: {
@@ -38,6 +41,8 @@ const theme = {
 };
 
 export default function AboutScreen({ onClose }) {
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
   const handleLinkPress = (url) => {
     Linking.openURL(url).catch(() => {
       Alert.alert('Error', 'Could not open link. Please try again later.');
@@ -118,13 +123,13 @@ export default function AboutScreen({ onClose }) {
       icon: '📄',
       title: 'Terms of Service',
       description: 'Read our terms and conditions',
-      onPress: () => Alert.alert('Coming Soon', 'Terms of Service will be available soon.'),
+      onPress: () => setShowTermsOfService(true),
     },
     {
       icon: '🔒',
       title: 'Privacy Policy',
       description: 'Learn how we protect your data',
-      onPress: () => Alert.alert('Coming Soon', 'Privacy Policy will be available soon.'),
+      onPress: () => setShowPrivacyPolicy(true),
     },
     {
       icon: '⚖️',
@@ -235,6 +240,22 @@ export default function AboutScreen({ onClose }) {
           </Text>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showPrivacyPolicy}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <PrivacyPolicyScreen onClose={() => setShowPrivacyPolicy(false)} />
+      </Modal>
+
+      <Modal
+        visible={showTermsOfService}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <TermsOfServiceScreen onClose={() => setShowTermsOfService(false)} />
+      </Modal>
     </SafeAreaView>
   );
 }

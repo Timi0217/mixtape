@@ -19,11 +19,6 @@ router.post('/', authenticateToken, [
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    console.log(`🗳️ Vote submission attempt:`, {
-      roundId,
-      submissionId,
-      userId
-    });
 
     // Verify the round exists and is completed
     const round = await prisma.dailyRound.findUnique({
@@ -114,12 +109,6 @@ router.post('/', authenticateToken, [
       }
     });
 
-    console.log(`✅ Vote created successfully:`, {
-      voteId: vote.id,
-      roundId,
-      userId,
-      submissionId
-    });
 
     res.status(201).json({ vote });
   } catch (error) {
@@ -143,7 +132,6 @@ router.get('/rounds/:roundId/user', authenticateToken, [
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    console.log(`🔍 Checking user vote for round ${roundId}, user ${userId}`);
 
     // Verify the round exists
     const round = await prisma.dailyRound.findUnique({
@@ -189,10 +177,6 @@ router.get('/rounds/:roundId/user', authenticateToken, [
       return res.status(404).json({ error: 'No vote found for this round' });
     }
 
-    console.log(`✅ User vote found:`, {
-      voteId: vote.id,
-      submissionId: vote.submissionId
-    });
 
     res.json({ vote });
   } catch (error) {
@@ -204,7 +188,7 @@ router.get('/rounds/:roundId/user', authenticateToken, [
   }
 });
 
-// Get vote counts for a round (only visible to users who voted)
+// Get vote counts for a round (only visible to users who voted, and only after voting ends)
 router.get('/rounds/:roundId/counts', authenticateToken, [
   param('roundId').isString().notEmpty(),
 ], validateRequest, async (req: AuthRequest, res) => {
@@ -216,7 +200,6 @@ router.get('/rounds/:roundId/counts', authenticateToken, [
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    console.log(`📊 Getting vote counts for round ${roundId}, user ${userId}`);
 
     // Verify the round exists
     const round = await prisma.dailyRound.findUnique({
@@ -254,6 +237,18 @@ router.get('/rounds/:roundId/counts', authenticateToken, [
       return res.status(403).json({ error: 'You must vote to see results' });
     }
 
+    // Check if voting period has ended
+    const now = new Date();
+    const votingEnded = !round.votingEndsAt || now >= round.votingEndsAt;
+
+    if (!votingEnded) {
+      return res.json({ 
+        voteCounts: [], 
+        votingInProgress: true,
+        votingEndsAt: round.votingEndsAt 
+      });
+    }
+
     // Get vote counts grouped by submission
     const voteCounts = await prisma.vote.groupBy({
       by: ['submissionId'],
@@ -265,13 +260,78 @@ router.get('/rounds/:roundId/counts', authenticateToken, [
       }
     });
 
-    console.log(`✅ Vote counts retrieved:`, voteCounts);
 
-    res.json({ voteCounts });
+    res.json({ 
+      voteCounts, 
+      votingInProgress: false,
+      votingEndsAt: round.votingEndsAt 
+    });
   } catch (error) {
     console.error('❌ GET VOTE COUNTS ERROR:', error);
     res.status(500).json({
       error: 'Failed to get vote counts',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Get voting status for a round (whether voting is still active)
+router.get('/rounds/:roundId/status', authenticateToken, [
+  param('roundId').isString().notEmpty(),
+], validateRequest, async (req: AuthRequest, res) => {
+  try {
+    const { roundId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Verify the round exists
+    const round = await prisma.dailyRound.findUnique({
+      where: { id: roundId },
+      include: {
+        group: {
+          include: {
+            members: true
+          }
+        }
+      }
+    });
+
+    if (!round) {
+      return res.status(404).json({ error: 'Round not found' });
+    }
+
+    // Verify user is a member of the group
+    const isMember = round.group.members.some(member => member.userId === userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You must be a member of this group to view voting status' });
+    }
+
+    const now = new Date();
+    const votingEnded = !round.votingEndsAt || now >= round.votingEndsAt;
+
+    // Check if user has voted
+    const userVote = await prisma.vote.findUnique({
+      where: {
+        roundId_userId: {
+          roundId,
+          userId
+        }
+      }
+    });
+
+    res.json({ 
+      votingEnded,
+      votingEndsAt: round.votingEndsAt,
+      userHasVoted: !!userVote,
+      canVote: round.status === 'completed' && !votingEnded && !userVote
+    });
+  } catch (error) {
+    console.error('❌ GET VOTING STATUS ERROR:', error);
+    res.status(500).json({
+      error: 'Failed to get voting status',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

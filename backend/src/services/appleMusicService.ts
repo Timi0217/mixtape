@@ -41,45 +41,24 @@ class AppleMusicService {
       let privateKey = process.env.APPLE_MUSIC_PRIVATE_KEY;
       let keySource = 'unknown';
       
-      console.log('🔍 Apple Music Private Key Debug:');
-      console.log('- Raw env var exists:', !!process.env.APPLE_MUSIC_PRIVATE_KEY);
-      console.log('- Base64 env var exists:', !!process.env.APPLE_MUSIC_PRIVATE_KEY_BASE64);
-      
       if (privateKey) {
         keySource = 'environment variable (direct)';
-        console.log('- Using direct env var, length:', privateKey.length);
-        console.log('- Direct env var preview:', privateKey.substring(0, 200) + '...');
       } else if (process.env.APPLE_MUSIC_PRIVATE_KEY_BASE64) {
         keySource = 'environment variable (base64)';
-        console.log('- Using base64 env var, decoding...');
         // Remove any whitespace, line breaks, or spaces from base64 string
         const cleanBase64 = process.env.APPLE_MUSIC_PRIVATE_KEY_BASE64.replace(/\s+/g, '');
-        console.log('- Original base64 length:', process.env.APPLE_MUSIC_PRIVATE_KEY_BASE64.length);
-        console.log('- Cleaned base64 length:', cleanBase64.length);
         privateKey = Buffer.from(cleanBase64, 'base64').toString('utf8');
-        console.log('- Decoded length:', privateKey.length);
-        console.log('- Decoded preview:', privateKey.substring(0, 200) + '...');
       }
-      
-      console.log('- Key source:', keySource);
       
       if (!privateKey) {
         // Fallback to reading from file (for local development)
         privateKey = fs.readFileSync(path.resolve(privateKeyPath), 'utf8');
-        console.log('- Read from file, length:', privateKey.length);
       } else {
-        console.log('- Original env var length:', privateKey.length);
-        console.log('- Contains newlines before processing:', privateKey.includes('\n'));
-        console.log('- Contains escaped newlines:', privateKey.includes('\\n'));
-        console.log('- First 100 chars:', privateKey.substring(0, 100));
-        
         // Environment variable might have escaped newlines, fix them
         privateKey = privateKey.replace(/\\n/g, '\n');
-        console.log('- After escape replacement, contains newlines:', privateKey.includes('\n'));
         
         // If it's still one line, try to format it properly
         if (!privateKey.includes('\n') && privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-          console.log('- Formatting single-line key...');
           // Split the key into proper format
           privateKey = privateKey
             .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
@@ -87,29 +66,19 @@ class AppleMusicService {
             .replace(/(.{64})/g, '$1\n') // Add newlines every 64 chars for the key data
             .replace(/\n\n/g, '\n') // Remove double newlines
             .trim();
-          console.log('- After formatting, length:', privateKey.length);
         }
         
         // Check if key is truncated and try to fix
         if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
-          console.log('- Key appears truncated, attempting to fix...');
           if (!privateKey.includes('-----END PRIVATE KEY-----')) {
             privateKey = privateKey.trim() + '\n-----END PRIVATE KEY-----';
-            console.log('- Added missing END marker');
           } else {
             // END marker exists but not at the end, reformat
             const parts = privateKey.split('-----END PRIVATE KEY-----');
             privateKey = parts[0].trim() + '\n-----END PRIVATE KEY-----';
-            console.log('- Reformatted END marker position');
           }
         }
       }
-      
-      console.log('- Final key format check:');
-      console.log('- Starts with BEGIN:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
-      console.log('- Ends with END:', privateKey.endsWith('-----END PRIVATE KEY-----'));
-      console.log('- Has newlines:', privateKey.includes('\n'));
-      console.log('- Line count:', privateKey.split('\n').length);
 
       // Create JWT payload (Apple Music requires specific claims)
       const payload = {
@@ -125,20 +94,11 @@ class AppleMusicService {
         kid: keyId,
       };
 
-      console.log('🔐 JWT Generation Debug:');
-      console.log('- Payload:', JSON.stringify(payload, null, 2));
-      console.log('- Header:', JSON.stringify(header, null, 2));
-      console.log('- Algorithm: ES256');
-      console.log('- Key ID:', keyId);
-      console.log('- Team ID:', teamId);
-
       // Generate the developer token
-      console.log('- Attempting JWT sign...');
       const token = jwt.sign(payload, privateKey, { 
         algorithm: 'ES256',
         header: header 
       });
-      console.log('✅ JWT sign successful, token length:', token.length);
 
       // Cache the token
       this.developerToken = token;
@@ -147,13 +107,6 @@ class AppleMusicService {
       return token;
     } catch (error) {
       console.error('Failed to generate Apple Music developer token:', error);
-      console.error('Error details:', {
-        keyId: process.env.APPLE_MUSIC_KEY_ID ? 'present' : 'missing',
-        teamId: process.env.APPLE_MUSIC_TEAM_ID ? 'present' : 'missing',
-        privateKeyEnvVar: process.env.APPLE_MUSIC_PRIVATE_KEY ? 'present' : 'missing',
-        errorMessage: error.message,
-        errorStack: error.stack
-      });
       throw new Error(`Failed to generate Apple Music developer token: ${error.message}`);
     }
   }
@@ -271,7 +224,6 @@ class AppleMusicService {
 
       // Apple Music doesn't have a direct "replace all tracks" API
       // For now, we'll just log a warning since this is complex to implement
-      console.warn('Apple Music playlist track updating not yet implemented. Playlist ID:', playlistId);
       
       // TODO: Implement proper track replacement:
       // 1. Get current tracks in playlist
@@ -288,28 +240,14 @@ class AppleMusicService {
   // Validate a user token
   async validateUserToken(userToken: string): Promise<boolean> {
     try {
-      console.log('🔍 DEBUG: Token validation started');
-      console.log('🔍 DEBUG: Token type check:', {
-        length: userToken.length,
-        startsWithDemo: userToken.startsWith('demo_apple_music_'),
-        startsWithServer: userToken.startsWith('server_apple_music_'),
-        startsWithSimulated: userToken.startsWith('simulated_'),
-        preview: userToken.substring(0, 50) + '...'
-      });
-      
       // Allow demo tokens for development only
       if (userToken.startsWith('demo_apple_music_') || 
           userToken.startsWith('server_apple_music_') ||
           userToken.startsWith('simulated_')) {
-        console.log('🎭 Accepting development/demo token');
         return true;
       }
 
-      console.log('🔍 DEBUG: Getting developer token for validation...');
       const developerToken = await this.getDeveloperToken();
-      console.log('🔍 DEBUG: Developer token obtained, length:', developerToken.length);
-
-      console.log('🔍 DEBUG: Making Apple Music API validation request...');
       const response = await axios.get('https://api.music.apple.com/v1/me/storefront', {
         headers: {
           'Authorization': `Bearer ${developerToken}`,
@@ -318,32 +256,9 @@ class AppleMusicService {
         timeout: 10000
       });
 
-      console.log('🔍 DEBUG: Apple Music API response:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data
-      });
-
-      const isValid = response.status === 200;
-      console.log('🔍 DEBUG: Token validation result:', isValid);
-      return isValid;
+      return response.status === 200;
     } catch (error) {
-      console.error('🔍 DEBUG: Token validation error:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers
-      });
-      
-      // Handle specific Apple Music API errors
-      if (error.response?.status === 401) {
-        console.log('🔍 DEBUG: 401 Unauthorized - likely causes:');
-        console.log('  - User does not have Apple Music subscription');
-        console.log('  - Token is expired or invalid format');
-        console.log('  - Developer token is invalid (but we validated it)');
-      }
-      
+      console.error('Apple Music token validation error:', error.message);
       return false;
     }
   }

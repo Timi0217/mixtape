@@ -10,7 +10,6 @@ export class CronService {
    * This ensures rounds are created proactively, not on-demand
    */
   static async createDailyRounds() {
-    console.log('🕛 Creating daily rounds for all groups...');
     
     try {
       const today = new Date();
@@ -58,7 +57,6 @@ export class CronService {
         createdCount++;
       }
 
-      console.log(`✅ Daily round creation completed: ${createdCount} created, ${skippedCount} skipped`);
     } catch (error) {
       console.error('❌ Error creating daily rounds:', error);
     }
@@ -69,7 +67,6 @@ export class CronService {
    * This runs at 8 AM UTC to update persistent group playlists with today's submissions
    */
   static async processCompletedRounds() {
-    console.log('🎵 Processing completed rounds...');
     
     try {
       const yesterday = new Date();
@@ -116,15 +113,22 @@ export class CronService {
             
             // Update round status based on completion
             const newStatus = submissionCount === totalMembers ? 'completed' : 'partial';
+            
+            // Set voting deadline for completed rounds (24 hours from now)
+            let updateData: any = { status: newStatus };
+            if (newStatus === 'completed') {
+              const votingDeadline = new Date();
+              votingDeadline.setHours(votingDeadline.getHours() + 24); // 24 hour voting period
+              updateData.votingEndsAt = votingDeadline;
+            }
+            
             await prisma.dailyRound.update({
               where: { id: round.id },
-              data: { status: newStatus },
+              data: updateData,
             });
 
             if (submissionCount === totalMembers) {
-              console.log(`✅ Round ${round.id} completed: Group playlists updated with ${submissionCount} songs`);
             } else {
-              console.log(`⚠️ Round ${round.id} partial: Group playlists updated with ${submissionCount}/${totalMembers} songs`);
             }
             processedCount++;
           } catch (playlistError) {
@@ -142,7 +146,6 @@ export class CronService {
         }
       }
 
-      console.log(`✅ Round processing completed: ${processedCount} successful, ${failedCount} failed`);
     } catch (error) {
       console.error('❌ Error processing completed rounds:', error);
     }
@@ -153,11 +156,9 @@ export class CronService {
    * Runs every 4 hours to check and refresh tokens that are about to expire
    */
   static async refreshExpiredTokens() {
-    console.log('🔄 Refreshing expired music tokens...');
     
     try {
       await musicService.refreshAllExpiredTokens();
-      console.log('✅ Token refresh job completed');
     } catch (error) {
       console.error('❌ Error refreshing expired tokens:', error);
     }
@@ -168,7 +169,6 @@ export class CronService {
    * Runs weekly to clean up data older than 30 days
    */
   static async cleanupOldData() {
-    console.log('🧹 Cleaning up old data...');
     
     try {
       const thirtyDaysAgo = new Date();
@@ -183,7 +183,6 @@ export class CronService {
         },
       });
 
-      console.log(`✅ Cleaned up ${deleteResult.count} old rounds`);
     } catch (error) {
       console.error('❌ Error cleaning up old data:', error);
     }
@@ -193,11 +192,9 @@ export class CronService {
    * Start all scheduled tasks
    */
   static startScheduledTasks() {
-    console.log('🚀 Starting scheduled tasks...');
 
     // Create daily rounds at midnight UTC
     cron.schedule('0 0 * * *', () => {
-      console.log('⏰ Running daily round creation job');
       this.createDailyRounds();
     }, {
       scheduled: true,
@@ -206,7 +203,6 @@ export class CronService {
 
     // Process completed rounds at 8 AM UTC  
     cron.schedule('0 8 * * *', () => {
-      console.log('⏰ Running group playlist update job');
       this.processCompletedRounds();
     }, {
       scheduled: true,
@@ -215,7 +211,6 @@ export class CronService {
 
     // Refresh expired tokens every 4 hours
     cron.schedule('0 */4 * * *', () => {
-      console.log('⏰ Running token refresh job');
       this.refreshExpiredTokens();
     }, {
       scheduled: true,
@@ -224,37 +219,31 @@ export class CronService {
 
     // Clean up old data weekly on Sundays at 2 AM UTC
     cron.schedule('0 2 * * 0', () => {
-      console.log('⏰ Running weekly cleanup job');
       this.cleanupOldData();
     }, {
       scheduled: true,
       timezone: "UTC"
     });
 
-    console.log('✅ All scheduled tasks started');
   }
 
   /**
    * Stop all scheduled tasks (for graceful shutdown)
    */
   static stopScheduledTasks() {
-    console.log('🛑 Stopping scheduled tasks...');
     cron.getTasks().forEach((task) => {
       task.stop();
     });
-    console.log('✅ All scheduled tasks stopped');
   }
 }
 
 // Graceful shutdown handling
 process.on('SIGINT', () => {
-  console.log('📳 Received SIGINT, stopping scheduled tasks...');
   CronService.stopScheduledTasks();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('📳 Received SIGTERM, stopping scheduled tasks...');
   CronService.stopScheduledTasks();
   process.exit(0);
 });

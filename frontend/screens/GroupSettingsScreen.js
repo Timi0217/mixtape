@@ -161,7 +161,7 @@ const theme = {
 };
 
 // Playlist Permissions Management Component
-const PlaylistPermissionsSection = ({ groupId, members }) => {
+const PlaylistPermissionsSection = ({ groupId, members, groupColor }) => {
   const [permissions, setPermissions] = useState({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -248,7 +248,7 @@ const PlaylistPermissionsSection = ({ groupId, members }) => {
             value={permissions[member.user.id] || false}
             onValueChange={() => toggleUserPermission(member.user.id)}
             disabled={updating}
-            trackColor={{ false: '#f2f2f7', true: '#8B5CF6' }}
+            trackColor={{ false: theme.colors.borderLight, true: groupColor }}
             thumbColor={permissions[member.user.id] ? '#ffffff' : '#f2f2f7'}
           />
         </View>
@@ -261,7 +261,7 @@ const PlaylistPermissionsSection = ({ groupId, members }) => {
 };
 
 // Group Playlists Management Component
-const GroupPlaylistsSection = ({ groupId }) => {
+const GroupPlaylistsSection = ({ groupId, groupData }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -520,7 +520,10 @@ const GroupPlaylistsSection = ({ groupId }) => {
             Create playlists for your group.
           </Text>
           <TouchableOpacity
-            style={styles.createPlaylistButton}
+            style={[styles.createPlaylistButton, {
+              backgroundColor: groupData?.backgroundColor || '#8B5CF6',
+              shadowColor: groupData?.backgroundColor || '#8B5CF6',
+            }]}
             onPress={createGroupPlaylists}
             disabled={creating}
             activeOpacity={0.8}
@@ -631,7 +634,9 @@ const GroupPlaylistsSection = ({ groupId }) => {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
+              style={[styles.button, styles.primaryButton, {
+                backgroundColor: groupData?.backgroundColor || '#8B5CF6',
+              }]}
               onPress={updatePlaylistNames}
               disabled={updatingNames || creating}
               activeOpacity={0.8}
@@ -991,7 +996,9 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
                   <Text style={styles.secondaryButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, styles.primaryButton]}
+                  style={[styles.button, styles.primaryButton, {
+                    backgroundColor: groupData?.backgroundColor || '#8B5CF6',
+                  }]}
                   onPress={handleSaveBasicInfo}
                   disabled={updating}
                 >
@@ -1053,7 +1060,7 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
               <Switch
                 value={groupData.isPublic}
                 onValueChange={handleTogglePublic}
-                trackColor={{ false: theme.colors.borderLight, true: theme.colors.primaryButton }}
+                trackColor={{ false: theme.colors.borderLight, true: groupData?.backgroundColor || '#8B5CF6' }}
                 thumbColor={toggleLoading ? theme.colors.textTertiary : undefined}
                 disabled={updating || toggleLoading}
               />
@@ -1067,7 +1074,7 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
           
           <View style={styles.inviteCard}>
             <Text style={styles.inviteTitle}>Invite Code</Text>
-            <Text style={styles.inviteCode}>{groupData.inviteCode}</Text>
+            <Text style={[styles.inviteCode, { color: groupData?.backgroundColor || '#8B5CF6' }]}>{groupData.inviteCode}</Text>
             <Text style={styles.inviteDescription}>
               Share this code with friends to invite them to your group
             </Text>
@@ -1080,7 +1087,9 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
                 <Text style={styles.secondaryButtonText}>Copy Code</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, styles.primaryButton]}
+                style={[styles.button, styles.primaryButton, {
+                  backgroundColor: groupData?.backgroundColor || '#8B5CF6',
+                }]}
                 onPress={handleShareInviteCode}
               >
                 <Text style={styles.primaryButtonText}>Share</Text>
@@ -1102,7 +1111,7 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
         {(isAdmin || userHasPlaylistPermission) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Group Playlists</Text>
-            <GroupPlaylistsSection groupId={group?.id} />
+            <GroupPlaylistsSection groupId={group?.id} groupData={groupData} />
           </View>
         )}
 
@@ -1113,7 +1122,11 @@ export default function GroupSettingsScreen({ onClose, group, onGroupUpdated }) 
             <Text style={styles.sectionDescription}>
               Choose who can create playlists.
             </Text>
-            <PlaylistPermissionsSection groupId={group?.id} members={groupData.members || []} />
+            <PlaylistPermissionsSection 
+              groupId={group?.id} 
+              members={groupData.members || []} 
+              groupColor={groupData?.backgroundColor || '#8B5CF6'}
+            />
           </View>
         )}
 

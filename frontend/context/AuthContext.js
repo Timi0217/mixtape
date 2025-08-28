@@ -31,7 +31,6 @@ export const AuthProvider = ({ children }) => {
         
         // Check if token looks like a mock token (contains 'mock_jwt_token')
         if (storedToken.includes('mock_jwt_token')) {
-          console.log('Found mock token, clearing stored auth');
           await clearStoredAuth();
           setLoading(false);
           return;
@@ -61,7 +60,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const baseUrl = API_BASE_URL.replace('/api', '');
       if (config.ENABLE_DEBUG_LOGS) {
-        console.log('🔐 AuthContext using baseUrl:', baseUrl);
       }
       
       const response = await fetch(`${baseUrl}/api/oauth/me`, {
@@ -75,7 +73,6 @@ export const AuthProvider = ({ children }) => {
         setUser(userData.user);
       } else {
         // Token is invalid, clear stored auth and log out
-        console.log('Token verification failed, clearing stored auth');
         await clearStoredAuth();
         setAuthToken(null);
         setToken(null);
@@ -85,7 +82,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Token verification failed:', error);
       // On network error or invalid token, clear stored auth
-      console.log('Network error during token verification, clearing stored auth');
       await clearStoredAuth();
       setAuthToken(null);
       setToken(null);
@@ -96,28 +92,21 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (newToken, userData) => {
     try {
-      console.log('🔐 AuthContext.login called with:');
-      console.log('  Token:', newToken ? `${newToken.substring(0, 20)}...` : 'null');
-      console.log('  User data:', userData);
       
-      console.log('💾 Storing auth data in AsyncStorage...');
       // Store in AsyncStorage
       await Promise.all([
         AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken),
         AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData)),
       ]);
 
-      console.log('🔑 Setting token in API client...');
       // Set token in API client
       setAuthToken(newToken);
 
-      console.log('📱 Updating auth state...');
       // Update state
       setToken(newToken);
       setUser(userData);
       setIsAuthenticated(true);
       
-      console.log('✅ Login completed successfully! isAuthenticated:', true);
     } catch (error) {
       console.error('❌ Failed to store auth data:', error);
       throw new Error('Failed to complete login');

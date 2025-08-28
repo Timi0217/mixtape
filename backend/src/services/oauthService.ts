@@ -44,7 +44,6 @@ class OAuthService {
 
   // Spotify OAuth URLs and token exchange
   getSpotifyAuthUrl(state: string, isLinking: boolean = false, customRedirectUri?: string): string {
-    console.log(`🎵 getSpotifyAuthUrl called with isLinking: ${isLinking}, customRedirectUri: ${customRedirectUri}`);
     
     const scope = [
       'user-read-email',
@@ -58,15 +57,12 @@ class OAuthService {
     // Use custom redirect URI if provided, otherwise default behavior
     let redirectUri: string;
     if (customRedirectUri) {
-      console.log(`🎵 Using custom redirect URI: ${customRedirectUri}`);
       redirectUri = customRedirectUri;
     } else if (isLinking) {
       // Use the same registered callback - we'll detect linking in the callback handler
       redirectUri = process.env.SPOTIFY_REDIRECT_URI!;
-      console.log(`🎵 Using registered redirect URI for linking: ${redirectUri}`);
     } else {
       redirectUri = process.env.SPOTIFY_REDIRECT_URI!;
-      console.log(`🎵 Using default redirect URI: ${redirectUri}`);
     }
 
     const params = new URLSearchParams({
@@ -108,7 +104,6 @@ class OAuthService {
 
   async exchangeSpotifyCodeWithUri(code: string, redirectUri: string): Promise<SpotifyTokenResponse> {
     try {
-      console.log('Exchanging code with custom redirect URI:', redirectUri);
       const response = await axios.post(
         'https://accounts.spotify.com/api/token',
         new URLSearchParams({
@@ -129,7 +124,6 @@ class OAuthService {
       return response.data;
     } catch (error) {
       console.error('Spotify token exchange error:', error);
-      console.error('Error details:', error.response?.data);
       throw new Error('Failed to exchange Spotify authorization code');
     }
   }
@@ -193,7 +187,6 @@ class OAuthService {
     profileData: SpotifyUserProfile | AppleMusicUserProfile,
     tokenData: SpotifyTokenResponse | any
   ) {
-    console.log(`🔗 Linking ${platform} account to user ${userId}`);
     
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -251,12 +244,10 @@ class OAuthService {
     }
 
     if (existingUserWithPlatform && existingUserWithPlatform.id !== userId) {
-      console.log(`🔄 Account ${platformEmail} is already linked to another user (${existingUserWithPlatform.id}). Auto-merging accounts...`);
       
       // Auto-merge: keep current user as primary, merge existing user's data
       await this.mergeMusicProfiles(user.id, existingUserWithPlatform, platform, tokenData);
       
-      console.log(`✅ Auto-merged accounts successfully. Primary user: ${user.id}`);
       
       // Account is now merged, return the updated user account
       return await prisma.userMusicAccount.findUnique({
@@ -280,7 +271,6 @@ class OAuthService {
       });
 
       if (existingAccount) {
-        console.log(`🔄 Updating existing ${platform} account for user ${userId}`);
         // Update existing account
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
         
@@ -293,7 +283,6 @@ class OAuthService {
           },
         });
       } else {
-        console.log(`➕ Adding new ${platform} account for user ${userId}`);
         // Create new music account
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
         
@@ -309,7 +298,6 @@ class OAuthService {
       }
     }
 
-    console.log(`✅ Successfully linked ${platform} account to user ${userId}`);
     return user;
   }
 
@@ -320,7 +308,6 @@ class OAuthService {
     platform: 'spotify' | 'apple-music',
     tokenData: SpotifyTokenResponse | any
   ) {
-    console.log(`🔄 User chose ${chosenPrimaryUserId} as primary, merging ${secondaryUserId}`);
     
     const secondaryUser = await prisma.user.findUnique({
       where: { id: secondaryUserId },
@@ -347,7 +334,6 @@ class OAuthService {
     platform: 'spotify' | 'apple-music',
     tokenData: SpotifyTokenResponse | any
   ) {
-    console.log(`🔄 Merging profile ${secondaryUser.id} into ${primaryUserId}`);
 
     return await prisma.$transaction(async (tx) => {
       // 1. Move music accounts to primary user
@@ -439,7 +425,6 @@ class OAuthService {
         where: { id: secondaryUser.id }
       });
 
-      console.log(`✅ Successfully merged profile ${secondaryUser.id} into ${primaryUserId}`);
     });
   }
 
@@ -490,7 +475,6 @@ class OAuthService {
       
       if (emailAlias) {
         user = emailAlias.user;
-        console.log(`📧 Found user via email alias: ${email} -> ${user.email}`);
       }
     }
 
@@ -548,7 +532,6 @@ class OAuthService {
   // Create or update user from Apple Music authentication with proper MusicKit integration
   async createOrUpdateUserFromAppleMusic(musicUserToken: string, userInfo?: any): Promise<{ user: any, token: string }> {
     try {
-      console.log('🍎 Creating/updating Apple Music user with MusicKit token');
       
       // Validate the Music User Token first
       const isValid = await this.validateAppleMusicUserToken(musicUserToken);
@@ -573,7 +556,6 @@ class OAuthService {
         displayName = 'Apple Music User';
       }
 
-      console.log('🎵 Apple Music user details:', { appleMusicUserId, email, displayName });
 
       // Find existing user by email or create new one
       let user = await prisma.user.findUnique({
@@ -582,7 +564,6 @@ class OAuthService {
       });
 
       if (!user) {
-        console.log('👤 Creating new user for Apple Music');
         user = await prisma.user.create({
           data: {
             email,
@@ -591,7 +572,6 @@ class OAuthService {
           include: { musicAccounts: true }
         });
       } else {
-        console.log('✅ Found existing user for Apple Music');
       }
 
       // Store the Music User Token (this is the key difference from Apple ID tokens)
@@ -616,7 +596,6 @@ class OAuthService {
         },
       });
 
-      console.log('🔐 Stored Music User Token for playlist creation');
 
       // Generate JWT token for our app
       const jwtToken = jwt.sign(
@@ -634,7 +613,7 @@ class OAuthService {
         token: jwtToken,
       };
     } catch (error) {
-      console.error('❌ Apple Music user creation error:', error);
+      console.error('Apple Music user creation error:', error);
       throw new Error(`Failed to create/update Apple Music user: ${error.message}`);
     }
   }
@@ -700,7 +679,6 @@ class OAuthService {
   // Handle merge decision from in-app modal
   async handleMergeDecision(tokenData: any, selectedAccount: string, platform: string) {
     try {
-      console.log(`🔀 Handling merge decision: ${selectedAccount} for platform: ${platform}`);
       
       if (selectedAccount === 'current') {
         // User chose to keep current account, link new music account to it
@@ -712,7 +690,6 @@ class OAuthService {
         throw new Error('Invalid account selection');
       }
     } catch (error) {
-      console.error('Merge decision error:', error);
       throw error;
     }
   }

@@ -9,8 +9,12 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../services/api';
+import notificationService from '../services/notificationService';
 
 const theme = {
   colors: {
@@ -41,6 +45,8 @@ const theme = {
 
 export default function NotificationsScreen({ onClose }) {
   const [loading, setLoading] = useState(true);
+  const [showQuietHours, setShowQuietHours] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(null); // 'start' or 'end'
   const [settings, setSettings] = useState({
     // Daily submission reminders
     submissionReminders: true,
@@ -53,8 +59,8 @@ export default function NotificationsScreen({ onClose }) {
     memberLeftGroup: false,
     
     // Playlist notifications
-    playlistGenerated: true,
-    playlistReady: true,
+    allSubmitted: true,
+    mixtapeReady: true,
     playlistFailed: true,
     
     // Social features
@@ -65,6 +71,11 @@ export default function NotificationsScreen({ onClose }) {
     appUpdates: true,
     maintenance: true,
     
+    // Quiet hours
+    quietHoursEnabled: false,
+    quietHoursStart: '22:00', // 10 PM
+    quietHoursEnd: '08:00', // 8 AM
+    
     // Delivery methods
     pushNotifications: true,
     emailNotifications: false,
@@ -73,7 +84,16 @@ export default function NotificationsScreen({ onClose }) {
 
   useEffect(() => {
     loadNotificationSettings();
+    initializeNotifications();
   }, []);
+
+  const initializeNotifications = async () => {
+    try {
+      await notificationService.initialize();
+    } catch (error) {
+      console.error('Failed to initialize notifications:', error);
+    }
+  };
 
   const loadNotificationSettings = async () => {
     try {
@@ -84,7 +104,7 @@ export default function NotificationsScreen({ onClose }) {
       }
     } catch (error) {
       console.error('Failed to load notification settings:', error);
-      Alert.alert('Error', 'Failed to load notification settings. Using defaults.');
+      Alert.alert('Error', 'Failed to load settings. Using defaults.');
     } finally {
       setLoading(false);
     }
@@ -96,18 +116,40 @@ export default function NotificationsScreen({ onClose }) {
       setSettings(newSettings);
       
       await api.put('/notifications/settings', { [key]: value });
+
+      // Refresh notification schedules if reminder settings changed
+      if (key === 'submissionReminders' || key === 'lastHourReminder' || key === 'submissionReminderTime') {
+        await notificationService.refreshSchedules();
+      }
     } catch (error) {
       console.error('Failed to update notification setting:', error);
-      Alert.alert('Error', 'Failed to save notification setting. Please try again.');
+      Alert.alert('Error', 'Failed to save notification setting.');
       // Revert the change
       setSettings(settings);
     }
   };
 
-  const renderToggleItem = (key, title, description, icon = '🔔') => (
+  const handleTimeChange = (event, selectedTime) => {
+    setShowTimePicker(null);
+    
+    if (selectedTime && showTimePicker) {
+      const timeString = selectedTime.toTimeString().slice(0, 5);
+      const key = showTimePicker === 'start' ? 'quietHoursStart' : 'quietHoursEnd';
+      updateSetting(key, timeString);
+    }
+  };
+
+  const getTimeAsDate = (timeString) => {
+    const [hours, minutes] = timeString.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    return date;
+  };
+
+  const renderToggleItem = (key, title, description, iconName = 'notifications-outline') => (
     <View style={styles.settingItem} key={key}>
       <View style={styles.settingIcon}>
-        <Text style={styles.settingIconText}>{icon}</Text>
+        <Ionicons name={iconName} size={20} color={theme.colors.primaryButton} />
       </View>
       <View style={styles.settingInfo}>
         <Text style={styles.settingTitle}>{title}</Text>
@@ -134,53 +176,53 @@ export default function NotificationsScreen({ onClose }) {
   const sections = [
     [
       'Daily Reminders',
-      'Get reminders about your daily song submissions',
+      null,
       [
-        ['submissionReminders', 'Submission reminders', 'Daily reminder to submit your song', '⏰'],
-        ['lastHourReminder', 'Last hour reminder', 'Extra reminder 1 hour before deadline', '🚨'],
+        ['submissionReminders', 'Submission reminders', 'Daily song submission reminder', 'time-outline'],
+        ['lastHourReminder', 'Last hour reminder', 'Final reminder before deadline', 'warning-outline'],
       ]
     ],
     [
       'Group Activity',
-      'Stay updated with your group activities',
+      null,
       [
-        ['groupActivity', 'Group activity', 'General group updates and changes', '👥'],
-        ['newMemberJoined', 'New members', 'When someone joins your group', '👋'],
-        ['memberLeftGroup', 'Member departures', 'When someone leaves your group', '👋'],
+        ['groupActivity', 'Group activity', 'General group updates', 'people-outline'],
+        ['newMemberJoined', 'New members', 'When someone joins', 'person-add-outline'],
+        ['memberLeftGroup', 'Member departures', 'When someone leaves', 'person-remove-outline'],
       ]
     ],
     [
-      'Playlists',
-      'Notifications about your group playlists',
+      'Mixtapes',
+      null,
       [
-        ['playlistGenerated', 'Playlist created', 'When your daily playlist is generated', '🎵'],
-        ['playlistReady', 'Playlist ready', 'When your playlist is ready to play', '✅'],
-        ['playlistFailed', 'Playlist failed', 'When playlist creation fails', '❌'],
+        ['allSubmitted', 'All submitted', 'When everyone has submitted', 'people-circle-outline'],
+        ['mixtapeReady', 'Mixtape ready', 'When your mixtape is available', 'musical-notes-outline'],
+        ['playlistFailed', 'Mixtape failed', 'When mixtape creation fails', 'close-circle-outline'],
       ]
     ],
     [
       'Social',
-      'Social interaction notifications',
+      null,
       [
-        ['friendRequests', 'Friend requests', 'When someone wants to connect with you', '👥'],
-        ['mentions', 'Mentions', 'When someone mentions you in comments', '@'],
+        ['friendRequests', 'Friend requests', 'When someone wants to connect', 'person-circle-outline'],
+        ['mentions', 'Mentions', 'When someone mentions you', 'at-outline'],
       ]
     ],
     [
       'System',
-      'App updates and maintenance notifications',
+      null,
       [
-        ['appUpdates', 'App updates', 'New features and improvements', '🆕'],
-        ['maintenance', 'Maintenance', 'Scheduled maintenance notices', '🔧'],
+        ['appUpdates', 'App updates', 'New features and improvements', 'download-outline'],
+        ['maintenance', 'Maintenance', 'Scheduled maintenance notices', 'build-outline'],
       ]
     ],
     [
       'Delivery Methods',
-      'How you want to receive notifications',
+      null,
       [
-        ['pushNotifications', 'Push notifications', 'Notifications on your device', '📱'],
-        ['emailNotifications', 'Email notifications', 'Notifications via email', '📧'],
-        ['smsNotifications', 'SMS notifications', 'Notifications via text message', '💬'],
+        ['pushNotifications', 'Push notifications', 'Notifications on your device', 'phone-portrait-outline'],
+        ['emailNotifications', 'Email notifications', 'Notifications via email', 'mail-outline'],
+        ['smsNotifications', 'SMS notifications', 'Notifications via text message', 'chatbubble-outline'],
       ]
     ]
   ];
@@ -188,32 +230,31 @@ export default function NotificationsScreen({ onClose }) {
   const renderQuietHours = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Quiet Hours</Text>
-      <Text style={styles.sectionDescription}>
-        Set times when you don't want to receive notifications
-      </Text>
       
       <TouchableOpacity 
         style={styles.timeButton}
-        onPress={() => Alert.alert('Coming Soon', 'Quiet hours configuration will be available in a future update.')}
+        onPress={() => setShowQuietHours(true)}
       >
         <View style={styles.timeButtonInfo}>
           <Text style={styles.timeButtonTitle}>Quiet hours</Text>
-          <Text style={styles.timeButtonTime}>10:00 PM - 8:00 AM</Text>
+          <Text style={styles.timeButtonTime}>
+            {settings.quietHoursStart?.slice(0, 5) || '22:00'} - {settings.quietHoursEnd?.slice(0, 5) || '08:00'}
+          </Text>
         </View>
         <Text style={styles.timeButtonArrow}>›</Text>
       </TouchableOpacity>
       
       <View style={styles.settingItem}>
         <View style={styles.settingIcon}>
-          <Text style={styles.settingIconText}>🌙</Text>
+          <Ionicons name="moon-outline" size={20} color={theme.colors.primaryButton} />
         </View>
         <View style={styles.settingInfo}>
           <Text style={styles.settingTitle}>Respect quiet hours</Text>
-          <Text style={styles.settingDescription}>Don't send notifications during quiet hours</Text>
+          <Text style={styles.settingDescription}>Silence notifications during quiet hours</Text>
         </View>
         <Switch
-          value={true}
-          onValueChange={() => Alert.alert('Coming Soon', 'This feature will be available in a future update.')}
+          value={settings.quietHoursEnabled}
+          onValueChange={(value) => updateSetting('quietHoursEnabled', value)}
           trackColor={{ false: theme.colors.borderLight, true: theme.colors.primaryButton }}
         />
       </View>
@@ -223,19 +264,82 @@ export default function NotificationsScreen({ onClose }) {
   const renderTestNotification = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Test Notifications</Text>
-      <Text style={styles.sectionDescription}>
-        Send a test notification to make sure everything is working
-      </Text>
       
       <TouchableOpacity 
         style={styles.testButton}
-        onPress={() => {
-          Alert.alert('Test Notification Sent!', 'Check your notification panel to see if it arrived.');
+        onPress={async () => {
+          try {
+            const permissionStatus = await notificationService.getPermissionsStatus();
+            if (permissionStatus !== 'granted') {
+              Alert.alert(
+                'Notifications Disabled', 
+                'Enable notifications in device settings first.',
+                [{ text: 'OK' }]
+              );
+              return;
+            }
+
+            await notificationService.sendTestNotification();
+            Alert.alert('Test Notification Sent!', 'Check your notification panel to see if it arrived.');
+          } catch (error) {
+            console.error('Failed to send test notification:', error);
+            Alert.alert('Error', 'Failed to send test notification.');
+          }
         }}
       >
         <Text style={styles.testButtonText}>Send Test Notification</Text>
       </TouchableOpacity>
     </View>
+  );
+
+  const renderQuietHoursModal = () => (
+    <Modal
+      visible={showQuietHours}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setShowQuietHours(false)} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Quiet Hours</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={styles.sectionTitle}>Set Your Quiet Hours</Text>
+          
+          <View style={styles.timePickerSection}>
+            <View style={styles.timePicker}>
+              <Text style={styles.timeLabel}>Start Time</Text>
+              <TouchableOpacity 
+                style={styles.timeValue}
+                onPress={() => setShowTimePicker('start')}
+              >
+                <Text style={styles.timeValueText}>{settings.quietHoursStart?.slice(0, 5) || '22:00'}</Text>
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.timePicker}>
+              <Text style={styles.timeLabel}>End Time</Text>
+              <TouchableOpacity 
+                style={styles.timeValue}
+                onPress={() => setShowTimePicker('end')}
+              >
+                <Text style={styles.timeValueText}>{settings.quietHoursEnd?.slice(0, 5) || '08:00'}</Text>
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Text style={styles.quietHoursDescription}>
+            During quiet hours, you won't receive notifications. Emergency notifications may still come through.
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 
   return (
@@ -259,6 +363,17 @@ export default function NotificationsScreen({ onClose }) {
           {renderQuietHours()}
           {renderTestNotification()}
         </ScrollView>
+      )}
+
+      {renderQuietHoursModal()}
+      
+      {showTimePicker && (
+        <DateTimePicker
+          value={getTimeAsDate(showTimePicker === 'start' ? settings.quietHoursStart || '22:00' : settings.quietHoursEnd || '08:00')}
+          mode="time"
+          display="spinner"
+          onChange={handleTimeChange}
+        />
       )}
     </SafeAreaView>
   );
@@ -339,14 +454,9 @@ const styles = StyleSheet.create({
   settingIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.bgPrimary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: theme.spacing.md,
-  },
-  settingIconText: {
-    fontSize: 20,
   },
   settingInfo: {
     flex: 1,
@@ -409,5 +519,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     textAlign: 'center',
+  },
+  timePickerSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  timePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surfaceWhite,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.md,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  timeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+  timeValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeValueText: {
+    fontSize: 16,
+    color: theme.colors.primaryButton,
+    marginRight: theme.spacing.sm,
+    fontWeight: '600',
+  },
+  quietHoursDescription: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.lg,
   },
 });

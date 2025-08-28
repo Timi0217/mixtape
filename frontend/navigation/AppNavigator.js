@@ -384,12 +384,6 @@ const AppNavigator = () => {
     // Phone users have email like "+15551234567", OAuth users have real emails
     const isPhoneUser = user?.email?.startsWith('+');
     
-    // Debug logging
-    console.log('🎵 Platform Detection Debug:', {
-      userEmail: user?.email,
-      isPhoneUser,
-      detectedPlatform: isPhoneUser ? 'apple-music' : 'spotify'
-    });
     
     // If user's email is a phone number, they're Apple Music users
     if (isPhoneUser) {
@@ -434,8 +428,13 @@ const AppNavigator = () => {
   const [yesterdayPlaylist, setYesterdayPlaylist] = useState(null);
   const [yesterdayRound, setYesterdayRound] = useState(null);
   const [userVote, setUserVote] = useState(null);
+  const [voteCounts, setVoteCounts] = useState({});
+  const [votingStatus, setVotingStatus] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [personalStats, setPersonalStats] = useState(null);
+  const [leaderboardTab, setLeaderboardTab] = useState('group'); // 'group' or 'personal'
   const [showSongsModal, setShowSongsModal] = useState(false);
-  const [groupCardTab, setGroupCardTab] = useState('progress'); // 'progress' or 'vote'
+  const [groupCardTab, setGroupCardTab] = useState('progress'); // 'progress', 'vote', or 'leaderboard'
   const [showMusicSearch, setShowMusicSearch] = useState(false);
   const [showGroupCreate, setShowGroupCreate] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -583,14 +582,6 @@ const AppNavigator = () => {
       const response = await api.get(`/submissions/groups/${groupId}/history?limit=1`);
       const rounds = response.data.rounds || [];
       
-      console.log('🗳️ Yesterday round data:', { 
-        roundsFound: rounds.length, 
-        firstRound: rounds[0] ? {
-          id: rounds[0].id,
-          status: rounds[0].status,
-          submissionCount: rounds[0].submissions?.length
-        } : null 
-      });
       
       if (rounds.length > 0 && rounds[0].status === 'completed') {
         const round = rounds[0];
@@ -603,22 +594,49 @@ const AppNavigator = () => {
         try {
           const voteResponse = await api.get(`/votes/rounds/${round.id}/user`);
           setUserVote(voteResponse.data.vote);
-          console.log('✅ User vote found:', voteResponse.data.vote);
         } catch (voteError) {
           // No vote found, that's ok
           setUserVote(null);
-          console.log('ℹ️ No existing vote found for user');
+        }
+
+        // Load voting status
+        try {
+          const statusResponse = await api.get(`/votes/rounds/${round.id}/status`);
+          setVotingStatus(statusResponse.data);
+        } catch (statusError) {
+          console.error('Failed to load voting status:', statusError);
+          setVotingStatus(null);
+        }
+
+        // Load vote counts (only if user has voted)
+        try {
+          const countsResponse = await api.get(`/votes/rounds/${round.id}/counts`);
+          
+          // Convert vote counts array to object for easy lookup
+          const countsMap = {};
+          if (countsResponse.data.voteCounts) {
+            countsResponse.data.voteCounts.forEach(count => {
+              countsMap[count.submissionId] = count._count.submissionId;
+            });
+          }
+          setVoteCounts(countsMap);
+        } catch (countsError) {
+          // User hasn't voted yet or voting in progress
+          setVoteCounts({});
         }
       } else {
         // Clear voting if no recent completed round
         setYesterdayRound(null);
         setUserVote(null);
-        console.log('❌ No completed rounds available for voting');
+        setVoteCounts({});
+        setVotingStatus(null);
       }
     } catch (error) {
       console.error('Failed to load yesterday round:', error);
       setYesterdayRound(null);
       setUserVote(null);
+      setVoteCounts({});
+      setVotingStatus(null);
     }
   };
 
@@ -626,11 +644,6 @@ const AppNavigator = () => {
     try {
       if (!yesterdayRound) return;
       
-      console.log('🗳️ Submitting vote:', {
-        roundId: yesterdayRound.id,
-        submissionId: submissionId,
-        userId: user?.id
-      });
       
       const response = await api.post('/votes', {
         roundId: yesterdayRound.id,
@@ -644,35 +657,38 @@ const AppNavigator = () => {
       
       Alert.alert('Vote Submitted!', 'Thanks for voting on yesterday\'s mixtape! 🗳️');
     } catch (error) {
-      console.error('❌ Failed to submit vote:', error);
-      console.error('Error details:', {
-        status: error.response?.status,
-        message: error.response?.data?.error || error.message,
-        data: error.response?.data
-      });
+      console.error('Failed to submit vote:', error);
       
       const errorMessage = error.response?.data?.error || 'Failed to submit your vote. Please try again.';
       Alert.alert('Error', errorMessage);
     }
   };
 
-  const openYesterdayPlaylist = () => {
-    console.log('=== PLAYLIST DEBUG INFO ===');
-    console.log('yesterdayPlaylist:', JSON.stringify(yesterdayPlaylist, null, 2));
+  const loadLeaderboard = async (groupId) => {
+    if (!groupId) return;
     
+    try {
+      // Load group leaderboard
+      const leaderboardResponse = await api.get(`/groups/${groupId}/leaderboard`);
+      setLeaderboard(leaderboardResponse.data.leaderboard || []);
+      
+      // Load personal stats
+      const personalResponse = await api.get(`/groups/${groupId}/personal-stats`);
+      setPersonalStats(personalResponse.data);
+    } catch (error) {
+      console.error('Failed to load leaderboard data:', error);
+      setLeaderboard([]);
+      setPersonalStats(null);
+    }
+  };
+
+  const openYesterdayPlaylist = () => {
     if (yesterdayPlaylist && yesterdayPlaylist.playlistUrl) {
       const url = yesterdayPlaylist.playlistUrl;
-      console.log('Raw URL:', url);
-      console.log('URL type:', typeof url);
-      console.log('URL length:', url.length);
-      console.log('Platform:', yesterdayPlaylist.platform);
       
       // More comprehensive URL validation
       const isValidSpotifyUrl = url && url.includes('open.spotify.com/playlist/') && !url.includes('example.com') && !url.includes('mock_');
       const isValidAppleMusicUrl = url && url.includes('music.apple.com');
-      
-      console.log('isValidSpotifyUrl:', isValidSpotifyUrl);
-      console.log('isValidAppleMusicUrl:', isValidAppleMusicUrl);
       
       // Check for null or mock URLs
       if (!url || url === 'null' || url.includes('mock_') || url.includes('example.com')) {
@@ -690,8 +706,6 @@ const AppNavigator = () => {
         );
         return;
       }
-      
-      console.log('Attempting to open URL:', url);
       
       // Try multiple URL opening methods
       const tryOpenURL = async (url) => {
@@ -1500,6 +1514,17 @@ const AppNavigator = () => {
                 Tape of the Day
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabButton, groupCardTab === 'leaderboard' && styles.tabButtonActive]}
+              onPress={() => {
+                setGroupCardTab('leaderboard');
+                loadLeaderboard(activeGroup?.id);
+              }}
+            >
+              <Text style={[styles.tabText, groupCardTab === 'leaderboard' && styles.tabTextActive]}>
+                Stats
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {groupCardTab === 'progress' ? (
@@ -1557,7 +1582,7 @@ const AppNavigator = () => {
             ))}
           </View>
             </>
-          ) : (
+          ) : groupCardTab === 'vote' ? (
             /* Voting Tab Content */
             <ScrollView style={styles.votingTabContent} showsVerticalScrollIndicator={false}>
               {!yesterdayRound || !yesterdayRound.submissions || yesterdayRound.submissions.length === 0 ? (
@@ -1567,17 +1592,42 @@ const AppNavigator = () => {
                   <Text style={styles.emptyVotingText}>Vote opens after submissions</Text>
                 </View>
               ) : (
-                yesterdayRound.submissions.map((submission, index) => {
+                <>
+                  {/* Voting Status Header */}
+                  {votingStatus && (
+                    <View style={styles.votingStatusHeader}>
+                      {votingStatus.votingEnded ? (
+                        <Text style={styles.votingStatusText}>
+                          🏆 Voting has ended - Results below
+                        </Text>
+                      ) : votingStatus.userHasVoted ? (
+                        <Text style={styles.votingStatusText}>
+                          ✅ Vote submitted - Results after voting ends
+                        </Text>
+                      ) : (
+                        <Text style={styles.votingStatusText}>
+                          🗳️ Vote for your favorite track
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {yesterdayRound.submissions.map((submission, index) => {
                 const hasVoted = userVote !== null;
                 const isSelected = userVote?.submissionId === submission.id;
-                const voteCount = hasVoted ? (submission.voteCount || 0) : null;
+                const votingEnded = votingStatus?.votingEnded || false;
+                const voteCount = votingEnded ? (voteCounts[submission.id] || 0) : null;
+                const isOwnSubmission = submission.user.id === user?.id;
                 
                 return (
                   <TouchableOpacity
                     key={submission.id}
-                    style={styles.votingItem}
-                    onPress={() => !hasVoted && submitVote(submission.id)}
-                    disabled={hasVoted}
+                    style={[
+                      styles.votingItem, 
+                      isOwnSubmission && styles.votingItemDisabled
+                    ]}
+                    onPress={() => !hasVoted && !isOwnSubmission && submitVote(submission.id)}
+                    disabled={hasVoted || isOwnSubmission}
                   >
                     {submission.song.imageUrl ? (
                       <Image source={{ uri: submission.song.imageUrl }} style={styles.votingAlbumImage} />
@@ -1593,24 +1643,162 @@ const AppNavigator = () => {
                     </View>
                     
                     <TouchableOpacity 
-                      style={[styles.votingCircle, isSelected && styles.votingCircleSelected]}
-                      onPress={() => !hasVoted && submitVote(submission.id)}
-                      disabled={hasVoted}
+                      style={[
+                        styles.votingCircle, 
+                        isSelected && styles.votingCircleSelected,
+                        isOwnSubmission && styles.votingCircleDisabled
+                      ]}
+                      onPress={() => !hasVoted && !isOwnSubmission && submitVote(submission.id)}
+                      disabled={hasVoted || isOwnSubmission}
                     >
-                      {isSelected && (
+                      {isOwnSubmission ? (
+                        <Text style={styles.votingOwnSubmission}>You</Text>
+                      ) : isSelected ? (
                         <Text style={styles.votingCheckmark}>✓</Text>
-                      )}
+                      ) : null}
                     </TouchableOpacity>
                     
-                    {hasVoted && (
-                      <View style={styles.votingItemRight}>
-                        <Text style={styles.voteCount}>{voteCount}</Text>
-                        <Text style={styles.voteLabel}>votes</Text>
-                      </View>
-                    )}
+                    <View style={styles.votingItemRight}>
+                      {votingEnded && voteCount !== null ? (
+                        // Show actual vote counts after voting ends
+                        <>
+                          <Text style={styles.voteCount}>{voteCount}</Text>
+                          <Text style={styles.voteLabel}>votes</Text>
+                        </>
+                      ) : hasVoted ? (
+                        // Show "voted" indicator during voting period
+                        <>
+                          <Text style={styles.votedIndicator}>✓</Text>
+                          <Text style={styles.voteLabel}>voted</Text>
+                        </>
+                      ) : (
+                        // Show empty space if not voted yet
+                        <></>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
                 })
+              )}
+            </ScrollView>
+          ) : (
+            /* Leaderboard Tab Content */
+            <ScrollView style={styles.leaderboardTabContent} showsVerticalScrollIndicator={false}>
+              {/* Leaderboard Sub-tabs */}
+              <View style={styles.leaderboardTabContainer}>
+                <TouchableOpacity
+                  style={[styles.leaderboardTab, leaderboardTab === 'group' && styles.leaderboardTabActive]}
+                  onPress={() => setLeaderboardTab('group')}
+                >
+                  <Text style={[styles.leaderboardTabText, leaderboardTab === 'group' && styles.leaderboardTabTextActive]}>
+                    Group Leaderboard
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.leaderboardTab, leaderboardTab === 'personal' && styles.leaderboardTabActive]}
+                  onPress={() => setLeaderboardTab('personal')}
+                >
+                  <Text style={[styles.leaderboardTabText, leaderboardTab === 'personal' && styles.leaderboardTabTextActive]}>
+                    Personal Stats
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {leaderboardTab === 'group' ? (
+                /* Group Leaderboard */
+                <View style={styles.leaderboardContent}>
+                  {leaderboard.length === 0 ? (
+                    <View style={styles.emptyLeaderboardState}>
+                      <Text style={styles.emptyLeaderboardIcon}>🏆</Text>
+                      <Text style={styles.emptyLeaderboardTitle}>No stats yet</Text>
+                      <Text style={styles.emptyLeaderboardText}>Stats will appear after voting periods end</Text>
+                    </View>
+                  ) : (
+                    leaderboard.map((member, index) => (
+                      <View key={member.user.id} style={styles.leaderboardItem}>
+                        <View style={styles.leaderboardRank}>
+                          <Text style={styles.leaderboardRankText}>#{index + 1}</Text>
+                        </View>
+                        <View style={styles.leaderboardInfo}>
+                          <Text style={styles.leaderboardName}>{member.user.displayName}</Text>
+                          <Text style={styles.leaderboardStats}>
+                            {member.stats.wins} wins • {member.stats.submissions} submissions • {member.stats.winRate}% win rate
+                          </Text>
+                        </View>
+                        <View style={styles.leaderboardWins}>
+                          <Text style={styles.leaderboardWinsText}>{member.stats.wins}</Text>
+                          <Text style={styles.leaderboardWinsLabel}>wins</Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              ) : (
+                /* Personal Stats */
+                <View style={styles.personalStatsContent}>
+                  {!personalStats ? (
+                    <View style={styles.emptyLeaderboardState}>
+                      <Text style={styles.emptyLeaderboardIcon}>📊</Text>
+                      <Text style={styles.emptyLeaderboardTitle}>No personal stats yet</Text>
+                      <Text style={styles.emptyLeaderboardText}>Submit songs and vote to see your stats</Text>
+                    </View>
+                  ) : (
+                    <>
+                      {/* Summary Stats */}
+                      <View style={styles.personalStatsSummary}>
+                        <View style={styles.personalStatsGrid}>
+                          <View style={styles.personalStatItem}>
+                            <Text style={styles.personalStatValue}>{personalStats.summary.totalWins}</Text>
+                            <Text style={styles.personalStatLabel}>Total Wins</Text>
+                          </View>
+                          <View style={styles.personalStatItem}>
+                            <Text style={styles.personalStatValue}>{personalStats.summary.totalSubmissions}</Text>
+                            <Text style={styles.personalStatLabel}>Submissions</Text>
+                          </View>
+                          <View style={styles.personalStatItem}>
+                            <Text style={styles.personalStatValue}>{personalStats.summary.winRate}%</Text>
+                            <Text style={styles.personalStatLabel}>Win Rate</Text>
+                          </View>
+                          <View style={styles.personalStatItem}>
+                            <Text style={styles.personalStatValue}>{personalStats.summary.votesCast}</Text>
+                            <Text style={styles.personalStatLabel}>Votes Cast</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Best Song */}
+                      {personalStats.bestSong && (
+                        <View style={styles.bestSongSection}>
+                          <Text style={styles.bestSongTitle}>🏆 Your Best Performing Song</Text>
+                          <View style={styles.bestSongCard}>
+                            <Text style={styles.bestSongName}>{personalStats.bestSong.song.title}</Text>
+                            <Text style={styles.bestSongArtist}>{personalStats.bestSong.song.artist}</Text>
+                            <Text style={styles.bestSongVotes}>{personalStats.bestSong.votes} votes</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Recent Submissions */}
+                      {personalStats.recentSubmissions.length > 0 && (
+                        <View style={styles.recentSubmissionsSection}>
+                          <Text style={styles.recentSubmissionsTitle}>Recent Submissions</Text>
+                          {personalStats.recentSubmissions.slice(0, 5).map((submission, index) => (
+                            <View key={index} style={styles.recentSubmissionItem}>
+                              <View style={styles.recentSubmissionInfo}>
+                                <Text style={styles.recentSubmissionSong}>{submission.song.title}</Text>
+                                <Text style={styles.recentSubmissionArtist}>{submission.song.artist}</Text>
+                              </View>
+                              <View style={styles.recentSubmissionVotes}>
+                                <Text style={styles.recentSubmissionVoteCount}>{submission.votes}</Text>
+                                <Text style={styles.recentSubmissionVoteLabel}>votes</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
               )}
             </ScrollView>
           )}
@@ -2815,6 +3003,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.success,
     borderColor: theme.colors.success,
   },
+  votingCircleDisabled: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderColor: theme.colors.backgroundSecondary,
+  },
+  votingItemDisabled: {
+    opacity: 0.6,
+  },
+  votingOwnSubmission: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
   votingCheckmark: {
     fontSize: 16,
     fontWeight: '700',
@@ -2855,6 +3055,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.primaryButton,
+  },
+  votedIndicator: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.success,
   },
   voteLabel: {
     fontSize: 12,
@@ -3509,6 +3714,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.xl,
   },
+  votingStatusHeader: {
+    backgroundColor: theme.colors.cardBackground,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borders.radius.lg,
+    alignItems: 'center',
+  },
+  votingStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
   emptyVotingIcon: {
     fontSize: 32,
     marginBottom: theme.spacing.sm,
@@ -3524,6 +3742,241 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+  
+  // Leaderboard Tab Styles
+  leaderboardTabContent: {
+    paddingTop: theme.spacing.md,
+    minHeight: 400,
+  },
+  leaderboardTabContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: theme.borders.radius.md,
+    padding: 3,
+    marginBottom: theme.spacing.md,
+  },
+  leaderboardTab: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borders.radius.sm,
+    alignItems: 'center',
+  },
+  leaderboardTabActive: {
+    backgroundColor: theme.colors.cardBackground,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  leaderboardTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  leaderboardTabTextActive: {
+    color: theme.colors.textPrimary,
+  },
+  
+  // Leaderboard Content Styles
+  leaderboardContent: {
+    gap: theme.spacing.sm,
+  },
+  emptyLeaderboardState: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
+  },
+  emptyLeaderboardIcon: {
+    fontSize: 32,
+    marginBottom: theme.spacing.sm,
+  },
+  emptyLeaderboardTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  emptyLeaderboardText: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.cardBackground,
+    padding: theme.spacing.md,
+    borderRadius: theme.borders.radius.lg,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  leaderboardRank: {
+    width: 40,
+    alignItems: 'center',
+  },
+  leaderboardRankText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.primaryButton,
+  },
+  leaderboardInfo: {
+    flex: 1,
+    marginLeft: theme.spacing.md,
+  },
+  leaderboardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  leaderboardStats: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  leaderboardWins: {
+    alignItems: 'center',
+    marginLeft: theme.spacing.sm,
+  },
+  leaderboardWinsText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.primaryButton,
+  },
+  leaderboardWinsLabel: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+  },
+  
+  // Personal Stats Styles
+  personalStatsContent: {
+    gap: theme.spacing.lg,
+  },
+  personalStatsSummary: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borders.radius.lg,
+    padding: theme.spacing.md,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  personalStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  personalStatItem: {
+    width: '50%',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+  },
+  personalStatValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.primaryButton,
+    marginBottom: 2,
+  },
+  personalStatLabel: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  bestSongSection: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borders.radius.lg,
+    padding: theme.spacing.md,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  bestSongTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.sm,
+  },
+  bestSongCard: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: theme.borders.radius.md,
+    padding: theme.spacing.md,
+    alignItems: 'center',
+  },
+  bestSongName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  bestSongArtist: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  bestSongVotes: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.success,
+  },
+  recentSubmissionsSection: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borders.radius.lg,
+    padding: theme.spacing.md,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  recentSubmissionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.sm,
+  },
+  recentSubmissionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.backgroundSecondary,
+  },
+  recentSubmissionInfo: {
+    flex: 1,
+  },
+  recentSubmissionSong: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  recentSubmissionArtist: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  recentSubmissionVotes: {
+    alignItems: 'center',
+    marginLeft: theme.spacing.sm,
+  },
+  recentSubmissionVoteCount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.primaryButton,
+  },
+  recentSubmissionVoteLabel: {
+    fontSize: 10,
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
   },
 });
 
