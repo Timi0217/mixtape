@@ -1651,9 +1651,7 @@ const AppNavigator = () => {
                       onPress={() => !hasVoted && !isOwnSubmission && submitVote(submission.id)}
                       disabled={hasVoted || isOwnSubmission}
                     >
-                      {isOwnSubmission ? (
-                        <Text style={styles.votingOwnSubmission}>You</Text>
-                      ) : isSelected ? (
+                      {isSelected ? (
                         <Text style={styles.votingCheckmark}>✓</Text>
                       ) : null}
                     </TouchableOpacity>
@@ -1692,7 +1690,7 @@ const AppNavigator = () => {
                   onPress={() => setLeaderboardTab('group')}
                 >
                   <Text style={[styles.leaderboardTabText, leaderboardTab === 'group' && styles.leaderboardTabTextActive]}>
-                    Group Leaderboard
+                    Leaderboard
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1723,7 +1721,7 @@ const AppNavigator = () => {
                         <View style={styles.leaderboardInfo}>
                           <Text style={styles.leaderboardName}>{member.user.displayName}</Text>
                           <Text style={styles.leaderboardStats} numberOfLines={1}>
-                            {member.stats.wins} wins • {member.stats.winRate}% win rate
+                            {member.stats.winRate}% win rate
                           </Text>
                         </View>
                         <View style={styles.leaderboardWins}>
@@ -3006,8 +3004,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.success,
   },
   votingCircleDisabled: {
-    backgroundColor: theme.colors.backgroundSecondary,
-    borderColor: theme.colors.backgroundSecondary,
+    backgroundColor: '#D1D5DB',
+    borderColor: '#D1D5DB',
   },
   votingItemDisabled: {
     opacity: 0.6,
