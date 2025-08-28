@@ -1678,7 +1678,7 @@ const AppNavigator = () => {
                     </View>
                   </TouchableOpacity>
                 );
-                })
+                })}
               )}
             </ScrollView>
           ) : (
