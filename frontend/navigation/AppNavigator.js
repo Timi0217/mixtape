@@ -1511,7 +1511,7 @@ const AppNavigator = () => {
               onPress={() => setGroupCardTab('vote')}
             >
               <Text style={[styles.tabText, groupCardTab === 'vote' && styles.tabTextActive]}>
-                Tape of the Day
+                Rank
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
