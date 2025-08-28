@@ -114,17 +114,9 @@ export class CronService {
             // Update round status based on completion
             const newStatus = submissionCount === totalMembers ? 'completed' : 'partial';
             
-            // Set voting deadline for completed rounds (24 hours from now)
-            let updateData: any = { status: newStatus };
-            if (newStatus === 'completed') {
-              const votingDeadline = new Date();
-              votingDeadline.setHours(votingDeadline.getHours() + 24); // 24 hour voting period
-              updateData.votingEndsAt = votingDeadline;
-            }
-            
             await prisma.dailyRound.update({
               where: { id: round.id },
-              data: updateData,
+              data: { status: newStatus },
             });
 
             if (submissionCount === totalMembers) {

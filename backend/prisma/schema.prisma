@@ -21,7 +21,6 @@ model User {
   submissions           Submission[]
   votes                 Vote[]
   notificationSettings  UserNotificationSettings?
-  pushToken             UserPushToken?
   musicPreferences      UserMusicPreferences?
   emailAliases          UserEmailAlias[]
   groupPlaylists        GroupPlaylist[]
@@ -96,13 +95,12 @@ model UserMusicAccount {
 }
 
 model DailyRound {
-  id           String    @id @default(cuid())
-  groupId      String    @map("group_id")
-  date         DateTime  @db.Date
-  deadlineAt   DateTime  @map("deadline_at")
-  votingEndsAt DateTime? @map("voting_ends_at")
-  status       String    @default("active")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id         String   @id @default(cuid())
+  groupId    String   @map("group_id")
+  date       DateTime @db.Date
+  deadlineAt DateTime @map("deadline_at")
+  status     String   @default("active")
+  createdAt  DateTime @default(now()) @map("created_at")
   
   group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions Submission[]
@@ -197,19 +195,6 @@ model UserMusicPreferences {
   @@map("user_music_preferences")
 }
 
-model UserPushToken {
-  id         String    @id @default(cuid())
-  userId     String    @unique @map("user_id")
-  token      String    
-  deviceInfo Json      @default("{}") @map("device_info")
-  isActive   Boolean   @default(true) @map("is_active")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_push_tokens")
-}
 
 model OAuthSession {
   id         String   @id @default(cuid())
