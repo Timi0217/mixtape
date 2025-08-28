@@ -15,19 +15,26 @@ router.get('/groups/:groupId/current',
   async (req: AuthRequest, res) => {
     try {
       const { groupId } = req.params;
+      console.log(`Attempting to get current round for group: ${groupId}`);
 
       const round = await SubmissionService.getCurrentRound(groupId);
+      console.log(`Successfully got round:`, round);
+      
       const status = await SubmissionService.getRoundStatus(round.id);
+      console.log(`Successfully got status:`, status);
       
       res.json({ round: status });
     } catch (error) {
       console.error('Get current round error:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
       
       if (error instanceof Error && error.message.includes('not found')) {
         return res.status(404).json({ error: error.message });
       }
       
-      res.status(500).json({ error: 'Failed to get current round' });
+      res.status(500).json({ error: 'Failed to get current round', details: error.message });
     }
   }
 );
@@ -124,13 +131,17 @@ router.get('/groups/:groupId/history',
     try {
       const { groupId } = req.params;
       const limit = parseInt(req.query.limit as string) || 10;
+      console.log(`Getting group submission history for group: ${groupId}, limit: ${limit}`);
 
       const history = await SubmissionService.getGroupSubmissionHistory(groupId, limit);
+      console.log(`Successfully got history:`, history?.length, 'rounds');
       
       res.json({ rounds: history });
     } catch (error) {
       console.error('Get group submission history error:', error);
-      res.status(500).json({ error: 'Failed to get group submission history' });
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', error.message);
+      res.status(500).json({ error: 'Failed to get group submission history', details: error.message });
     }
   }
 );
