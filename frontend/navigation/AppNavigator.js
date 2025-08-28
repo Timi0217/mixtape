@@ -1421,8 +1421,8 @@ const AppNavigator = () => {
             <>
               <View style={styles.playerHeader}>
                 <Text style={styles.playerTitle}>Latest Mixtape</Text>
-                <Text style={styles.playerSubtitle}>
-                  {yesterdayRound?.submissions?.length || 0} songs from {activeGroup?.name}
+                <Text style={styles.playerSubtitle} numberOfLines={1}>
+                  {yesterdayRound?.submissions?.length || 0} songs • {activeGroup?.name}
                 </Text>
               </View>
               
@@ -1453,8 +1453,8 @@ const AppNavigator = () => {
             <>
               <View style={styles.playerHeader}>
                 <Text style={styles.playerTitle}>No Mixtape Yet</Text>
-                <Text style={styles.playerSubtitle}>
-                  Submit songs with friends to create your first mixtape
+                <Text style={styles.playerSubtitle} numberOfLines={1}>
+                  Submit songs to create your first mixtape
                 </Text>
               </View>
               <View style={styles.emptyPlayerActions}>
@@ -1712,7 +1712,7 @@ const AppNavigator = () => {
                     <View style={styles.emptyLeaderboardState}>
                       <Text style={styles.emptyLeaderboardIcon}>🏆</Text>
                       <Text style={styles.emptyLeaderboardTitle}>No stats yet</Text>
-                      <Text style={styles.emptyLeaderboardText}>Stats will appear after voting periods end</Text>
+                      <Text style={styles.emptyLeaderboardText} numberOfLines={1}>Stats appear after voting ends</Text>
                     </View>
                   ) : (
                     leaderboard.map((member, index) => (
@@ -1722,8 +1722,8 @@ const AppNavigator = () => {
                         </View>
                         <View style={styles.leaderboardInfo}>
                           <Text style={styles.leaderboardName}>{member.user.displayName}</Text>
-                          <Text style={styles.leaderboardStats}>
-                            {member.stats.wins} wins • {member.stats.submissions} submissions • {member.stats.winRate}% win rate
+                          <Text style={styles.leaderboardStats} numberOfLines={1}>
+                            {member.stats.wins} wins • {member.stats.winRate}% win rate
                           </Text>
                         </View>
                         <View style={styles.leaderboardWins}>
@@ -1741,7 +1741,7 @@ const AppNavigator = () => {
                     <View style={styles.emptyLeaderboardState}>
                       <Text style={styles.emptyLeaderboardIcon}>📊</Text>
                       <Text style={styles.emptyLeaderboardTitle}>No personal stats yet</Text>
-                      <Text style={styles.emptyLeaderboardText}>Submit songs and vote to see your stats</Text>
+                      <Text style={styles.emptyLeaderboardText} numberOfLines={1}>Submit and vote to see stats</Text>
                     </View>
                   ) : (
                     <>
@@ -1867,10 +1867,8 @@ const AppNavigator = () => {
                   <Text style={styles.settingsButtonText}>⚙️</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.groupCardMeta}>
-                {group.members?.length || 0} members
-                {group.createdBy === user.id ? ' • Admin' : ''}
-                {group.isPublic ? ' • Public' : ' • Private'}
+              <Text style={styles.groupCardMeta} numberOfLines={1}>
+                {group.members?.length || 0} members{group.createdBy === user.id ? ' • Admin' : ''}{group.isPublic ? ' • Public' : ' • Private'}
               </Text>
               <View style={styles.groupCardStats}>
                 <Text style={styles.groupCardStat}>
@@ -2616,6 +2614,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.md,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   groupCardStats: {
     flexDirection: 'row',
@@ -2808,6 +2808,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.textSecondary,
     fontWeight: '500',
+    lineHeight: 20,
   },
   emptyPlayerActions: {
     paddingVertical: theme.spacing.lg,
@@ -3839,6 +3840,8 @@ const styles = StyleSheet.create({
   leaderboardStats: {
     fontSize: 13,
     color: theme.colors.textSecondary,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   leaderboardWins: {
     alignItems: 'center',
