@@ -917,7 +917,7 @@ const AppNavigator = () => {
 
       if (!targetRound && targetGroup) {
         // Try to get the current round for the target group
-        const roundResponse = await api.get(`/submissions/groups/${targetGroup.id}/current-round`);
+        const roundResponse = await api.get(`/submissions/groups/${targetGroup.id}/current`);
         targetRound = roundResponse.data.round;
       }
 
