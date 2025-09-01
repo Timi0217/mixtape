@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSubscription } from '../context/SubscriptionContext';
+import api from '../services/api';
 
 // Apple-level extensive emoji collection with iOS categories
 const EMOJI_CATEGORIES = {
@@ -159,17 +160,24 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
   const [selectedCategory, setSelectedCategory] = useState('😀');
 
   const handleCreate = async () => {
-    // Check if basic user is trying to create groups
-    if (subscription?.plan === 'basic') {
-      Alert.alert(
-        'Upgrade Required', 
-        'Basic users cannot create groups. Upgrade to Pro to create unlimited groups!',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Upgrade to Pro', onPress: () => onClose() }
-        ]
-      );
-      return;
+    // Check if basic user is already in a group
+    if (subscription?.plan === 'basic' && subscription?.features?.maxGroups === 1) {
+      try {
+        const groupsResponse = await api.get('/user/groups');
+        if (groupsResponse.data.groups.length >= 1) {
+          Alert.alert(
+            'Upgrade Required', 
+            'Basic users can only be in 1 group. Upgrade to Pro to create unlimited groups!',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Upgrade to Pro', onPress: () => onClose() }
+            ]
+          );
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking user groups:', error);
+      }
     }
 
     if (!groupName.trim()) {
