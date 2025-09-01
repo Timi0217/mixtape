@@ -463,6 +463,7 @@ export class SubscriptionService {
             quantity: 1,
           },
         ],
+        payment_method_collection: 'always',
         subscription_data: {
           metadata: {
             userId: user.id,
