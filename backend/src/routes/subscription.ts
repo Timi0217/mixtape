@@ -31,7 +31,7 @@ router.get('/user/subscription', authenticateToken, async (req: AuthRequest, res
   }
 });
 
-// Create or update subscription
+// Create or update subscription 
 router.post('/user/subscription', 
   authenticateToken,
   [
