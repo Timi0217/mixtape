@@ -465,7 +465,7 @@ export class SubscriptionService {
           },
         ],
         subscription_data: {
-          trial_period_days: 7,
+          trial_period_days: 0,
           metadata: {
             userId: user.id,
             plan: planId,
@@ -488,6 +488,47 @@ export class SubscriptionService {
     } catch (error) {
       console.error('Error creating payment session:', error);
       throw error; // Propagate the original error instead of generic message
+    }
+  }
+
+  static async confirmSubscriptionPayment(userId: string, planId: string, paymentIntentId: string) {
+    try {
+      // Verify the payment was successful
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== 'succeeded') {
+        throw new Error('Payment not completed');
+      }
+
+      // Create the subscription without going through Stripe subscriptions
+      // since this is a one-time payment
+      const plan = SUBSCRIPTION_PLANS[planId];
+      if (!plan) {
+        throw new Error('Invalid subscription plan');
+      }
+
+      const subscription = await prisma.userSubscription.upsert({
+        where: { userId },
+        update: {
+          plan: planId,
+          status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          cancelAtPeriodEnd: false,
+        },
+        create: {
+          userId,
+          plan: planId,
+          status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        },
+      });
+
+      return this.getUserSubscription(userId);
+    } catch (error) {
+      console.error('Error confirming subscription payment:', error);
+      throw error;
     }
   }
 
