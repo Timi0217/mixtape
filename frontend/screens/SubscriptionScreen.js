@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
+import * as WebBrowser from 'expo-web-browser';
 import { useSubscription } from '../context/SubscriptionContext';
 import api from '../services/api';
 
@@ -38,8 +38,6 @@ const theme = {
 const SubscriptionScreen = ({ onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState('pro');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showWebView, setShowWebView] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState('');
   const { refreshSubscription } = useSubscription();
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -116,12 +114,22 @@ const SubscriptionScreen = ({ onClose }) => {
         return;
       }
 
-      // For paid plans, show checkout in WebView
+      // For paid plans, open checkout in in-app browser
       const response = await api.post('/user/subscription', { plan: selectedPlan });
       
       if (response.data.requiresPayment && response.data.paymentUrl) {
-        setCheckoutUrl(response.data.paymentUrl);
-        setShowWebView(true);
+        const result = await WebBrowser.openBrowserAsync(response.data.paymentUrl, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        });
+        
+        // Check if user completed or cancelled payment
+        if (result.type === 'cancel') {
+          // User cancelled, no action needed
+        } else if (result.type === 'dismiss') {
+          // User dismissed after potentially completing payment
+          await refreshSubscription();
+          onClose();
+        }
       } else {
         // Subscription created without payment required
         await refreshSubscription();
@@ -160,19 +168,8 @@ const SubscriptionScreen = ({ onClose }) => {
     ]).start(() => onClose());
   };
 
-  const handleWebViewNavigationStateChange = (navState) => {
-    if (navState.url.includes('/subscription/success')) {
-      setShowWebView(false);
-      refreshSubscription();
-      onClose();
-    } else if (navState.url.includes('/subscription/cancelled')) {
-      setShowWebView(false);
-    }
-  };
-
   return (
-    <>
-      <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
@@ -277,32 +274,7 @@ const SubscriptionScreen = ({ onClose }) => {
               </Text>
             </View>
           </ScrollView>
-      </SafeAreaView>
-
-      {/* In-app checkout WebView */}
-      <Modal
-        visible={showWebView}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.webViewHeader}>
-            <TouchableOpacity onPress={() => setShowWebView(false)} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-            <Text style={styles.webViewTitle}>Complete Payment</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-          {checkoutUrl && (
-            <WebView
-              source={{ uri: checkoutUrl }}
-              onNavigationStateChange={handleWebViewNavigationStateChange}
-              style={{ flex: 1 }}
-            />
-          )}
-        </SafeAreaView>
-      </Modal>
-    </>
+    </SafeAreaView>
   );
 };
 
@@ -505,22 +477,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     letterSpacing: -0.2,
-  },
-  webViewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 0.5,
-    borderBottomColor: theme.colors.borderLight,
-    backgroundColor: theme.colors.surfaceWhite,
-  },
-  webViewTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.4,
   },
 });
 
