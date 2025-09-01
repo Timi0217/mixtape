@@ -464,7 +464,6 @@ export class SubscriptionService {
           },
         ],
         subscription_data: {
-          trial_period_days: 0,
           metadata: {
             userId: user.id,
             plan: planId,
