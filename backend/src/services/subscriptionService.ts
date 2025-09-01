@@ -176,8 +176,12 @@ export class SubscriptionService {
         stripeCustomerId = existingSubscription.stripeCustomerId;
       } else {
         // Create new Stripe customer
+        const customerEmail = user.email.includes('@') 
+          ? user.email 
+          : `${user.email.replace(/[^0-9]/g, '')}@mixtape-user.com`;
+          
         const customer = await stripe.customers.create({
-          email: user.email,
+          email: customerEmail,
           name: user.displayName,
           metadata: {
             userId: user.id,
@@ -437,15 +441,20 @@ export class SubscriptionService {
       
       console.log('User found:', user.email);
 
+      // Handle phone number as email case
+      const customerEmail = user.email.includes('@') 
+        ? user.email 
+        : `${user.email.replace(/[^0-9]/g, '')}@mixtape-user.com`;
+
       console.log('Creating Stripe session with:', {
-        customer_email: user.email,
+        customer_email: customerEmail,
         price: plan.stripePriceId,
         planId,
         userId: user.id
       });
 
       const session = await stripe.checkout.sessions.create({
-        customer_email: user.email,
+        customer_email: customerEmail,
         payment_method_types: ['card'],
         mode: 'subscription',
         line_items: [
