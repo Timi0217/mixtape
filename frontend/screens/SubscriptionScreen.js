@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -189,13 +189,18 @@ const SubscriptionScreen = ({ onClose }) => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        bounces={true}
-        scrollEventThrottle={16}
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={100}
       >
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          bounces={true}
+          scrollEventThrottle={16}
+        >
             {/* Hero Section */}
             <View style={styles.heroSection}>
               <View style={styles.iconContainer}>
@@ -217,7 +222,13 @@ const SubscriptionScreen = ({ onClose }) => {
                     selectedPlan === plan.id && styles.selectedPlanCard,
                     plan.popular && styles.popularPlanCard,
                   ]}
-                  onPress={() => setSelectedPlan(plan.id)}
+                  onPress={() => {
+                    if (plan.id === 'curator') {
+                      Alert.alert('Coming Soon', 'Curator features are coming soon! Stay tuned for broadcasts and more.');
+                    } else {
+                      setSelectedPlan(plan.id);
+                    }
+                  }}
                   activeOpacity={0.8}
                 >
                   {plan.popular && (
@@ -300,6 +311,7 @@ const SubscriptionScreen = ({ onClose }) => {
               </Text>
             </View>
           </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -334,6 +346,9 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 32,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
