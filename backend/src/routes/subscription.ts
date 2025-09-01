@@ -70,8 +70,8 @@ router.post('/user/subscription',
       console.error('Full error details:', {
         message: error.message,
         stack: error.stack,
-        userId,
-        plan,
+        userId: (req.user as any)?.id,
+        plan: req.body.plan,
         timestamp: new Date().toISOString()
       });
       res.status(500).json({ 
