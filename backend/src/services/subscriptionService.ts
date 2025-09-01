@@ -413,7 +413,7 @@ export class SubscriptionService {
     }
   }
 
-  static async createPaymentSession(userId: string, planId: string) {
+  static async createPaymentSession(userId: string, planId: string, customEmail?: string) {
     try {
       console.log(`Creating payment session for user ${userId}, plan ${planId}`);
       
@@ -440,10 +440,10 @@ export class SubscriptionService {
       
       console.log('User found:', user.email);
 
-      // Handle phone number as email case
-      const customerEmail = user.email.includes('@') 
+      // Use custom email if provided, otherwise handle phone number as email case
+      const customerEmail = customEmail || (user.email.includes('@') 
         ? user.email 
-        : `${user.email.replace(/[^0-9]/g, '')}@mixtape-user.com`;
+        : `${user.email.replace(/[^0-9]/g, '')}@mixtape-user.com`);
 
       console.log('Creating Stripe session with:', {
         customer_email: customerEmail,

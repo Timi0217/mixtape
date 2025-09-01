@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -38,6 +38,7 @@ const theme = {
 const SubscriptionScreen = ({ onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState('pro');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [billingEmail, setBillingEmail] = useState('');
   const { refreshSubscription } = useSubscription();
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -114,8 +115,17 @@ const SubscriptionScreen = ({ onClose }) => {
         return;
       }
 
+      // Validate email for paid plans
+      if (selectedPlan !== 'basic' && !billingEmail.includes('@')) {
+        Alert.alert('Email Required', 'Please enter a valid email address for billing.');
+        return;
+      }
+
       // For paid plans, open checkout in in-app browser
-      const response = await api.post('/user/subscription', { plan: selectedPlan });
+      const response = await api.post('/user/subscription', { 
+        plan: selectedPlan,
+        email: selectedPlan !== 'basic' ? billingEmail : undefined
+      });
       
       if (response.data.requiresPayment && response.data.paymentUrl) {
         const result = await WebBrowser.openBrowserAsync(response.data.paymentUrl, {
@@ -244,6 +254,22 @@ const SubscriptionScreen = ({ onClose }) => {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Email Input for Paid Plans */}
+            {selectedPlan !== 'basic' && (
+              <View style={styles.emailContainer}>
+                <Text style={styles.emailLabel}>Billing Email</Text>
+                <TextInput
+                  style={styles.emailInput}
+                  placeholder="Enter your email address"
+                  value={billingEmail}
+                  onChangeText={setBillingEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            )}
 
             {/* Subscribe Button */}
             <TouchableOpacity
@@ -441,6 +467,27 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     transform: [{ translateX: 8 }, { translateY: -8 }],
+  },
+  emailContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
+  emailLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.3,
+  },
+  emailInput: {
+    backgroundColor: theme.colors.bgPrimary,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
   },
   subscribeButton: {
     marginHorizontal: theme.spacing.lg,

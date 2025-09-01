@@ -49,7 +49,7 @@ router.post('/user/subscription',
         return res.status(401).json({ error: 'User not authenticated' });
       }
 
-      const { plan } = req.body;
+      const { plan, email } = req.body;
 
       // For basic plan, just update subscription
       if (plan === 'basic') {
@@ -58,7 +58,7 @@ router.post('/user/subscription',
       }
 
       // For paid plans, create payment session
-      const paymentSession = await SubscriptionService.createPaymentSession(userId, plan);
+      const paymentSession = await SubscriptionService.createPaymentSession(userId, plan, email);
       
       res.json({
         requiresPayment: true,
