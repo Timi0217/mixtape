@@ -190,11 +190,10 @@ export class SubscriptionService {
         stripeCustomerId = customer.id;
       }
 
-      // Create Stripe subscription with trial
+      // Create Stripe subscription
       const stripeSubscription = await stripe.subscriptions.create({
         customer: stripeCustomerId,
         items: [{ price: plan.stripePriceId }],
-        trial_period_days: 7,
         metadata: {
           userId: user.id,
           plan: planId,
