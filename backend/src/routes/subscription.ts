@@ -67,7 +67,17 @@ router.post('/user/subscription',
       });
     } catch (error) {
       console.error('Error creating subscription:', error);
-      res.status(500).json({ error: 'Failed to create subscription' });
+      console.error('Full error details:', {
+        message: error.message,
+        stack: error.stack,
+        userId,
+        plan,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({ 
+        error: 'Failed to create subscription',
+        details: error.message 
+      });
     }
   }
 );

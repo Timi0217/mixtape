@@ -412,15 +412,21 @@ export class SubscriptionService {
 
   static async createPaymentSession(userId: string, planId: string) {
     try {
+      console.log(`Creating payment session for user ${userId}, plan ${planId}`);
+      
       const plan = SUBSCRIPTION_PLANS[planId];
+      console.log('Plan found:', plan ? `${plan.name} - ${plan.price}` : 'null');
+      
       if (!plan || planId === 'basic') {
         throw new Error('Invalid plan for payment');
       }
 
+      console.log('Stripe price ID:', plan.stripePriceId);
       if (!plan.stripePriceId) {
         throw new Error(`Stripe price ID not configured for ${planId} plan`);
       }
 
+      console.log('Finding user...');
       const user = await prisma.user.findUnique({
         where: { id: userId },
       });
@@ -428,6 +434,15 @@ export class SubscriptionService {
       if (!user) {
         throw new Error('User not found');
       }
+      
+      console.log('User found:', user.email);
+
+      console.log('Creating Stripe session with:', {
+        customer_email: user.email,
+        price: plan.stripePriceId,
+        planId,
+        userId: user.id
+      });
 
       const session = await stripe.checkout.sessions.create({
         customer_email: user.email,
@@ -453,6 +468,8 @@ export class SubscriptionService {
           plan: planId,
         },
       });
+
+      console.log('Stripe session created successfully:', session.id);
 
       return {
         sessionId: session.id,
