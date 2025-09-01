@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSubscription } from '../context/SubscriptionContext';
 
 // Apple-level extensive emoji collection with iOS categories
 const EMOJI_CATEGORIES = {
@@ -149,6 +150,7 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
   const [maxMembers, setMaxMembers] = useState('6');
   const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { subscription } = useSubscription();
   
   // Emoji and color customization
   const [emoji, setEmoji] = useState('👥');
@@ -157,6 +159,19 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
   const [selectedCategory, setSelectedCategory] = useState('😀');
 
   const handleCreate = async () => {
+    // Check if basic user is trying to create groups
+    if (subscription?.plan === 'basic') {
+      Alert.alert(
+        'Upgrade Required', 
+        'Basic users cannot create groups. Upgrade to Pro to create unlimited groups!',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Upgrade to Pro', onPress: () => onClose() }
+        ]
+      );
+      return;
+    }
+
     if (!groupName.trim()) {
       Alert.alert('Error', 'Please enter a group name');
       return;
