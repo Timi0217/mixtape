@@ -450,7 +450,8 @@ export class SubscriptionService {
         customer_email: customerEmail,
         price: plan.stripePriceId,
         planId,
-        userId: user.id
+        userId: user.id,
+        originalEmail: user.email
       });
 
       const session = await stripe.checkout.sessions.create({
@@ -486,7 +487,7 @@ export class SubscriptionService {
       };
     } catch (error) {
       console.error('Error creating payment session:', error);
-      throw new Error('Failed to create payment session');
+      throw error; // Propagate the original error instead of generic message
     }
   }
 
