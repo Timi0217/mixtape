@@ -471,8 +471,8 @@ export class SubscriptionService {
             plan: planId,
           },
         },
-        success_url: `${config.frontendUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${config.frontendUrl}/subscription/cancelled`,
+        success_url: `${config.apiBaseUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${config.apiBaseUrl}/subscription/cancelled`,
         metadata: {
           userId: user.id,
           plan: planId,

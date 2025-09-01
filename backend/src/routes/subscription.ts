@@ -200,4 +200,21 @@ router.get('/user/subscription/usage', authenticateToken, async (req, res) => {
   }
 });
 
+// Stripe success/cancel redirect handlers
+router.get('/subscription/success', async (req, res) => {
+  const { session_id } = req.query;
+  
+  if (session_id) {
+    // Redirect to app with success
+    res.redirect(`mixtape://subscription/success?session_id=${session_id}`);
+  } else {
+    res.redirect('mixtape://subscription/success');
+  }
+});
+
+router.get('/subscription/cancelled', async (req, res) => {
+  // Redirect to app with cancellation
+  res.redirect('mixtape://subscription/cancelled');
+});
+
 export default router;
