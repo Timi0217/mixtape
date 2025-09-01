@@ -4,6 +4,7 @@ import { View, ActivityIndicator } from 'react-native';
 import AppNavigator from './navigation/AppNavigator';
 import LoginScreen from './screens/LoginScreen';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import notificationService from './services/notificationService';
 import networkService from './services/networkService';
 import OfflineBanner from './components/OfflineBanner';
@@ -54,8 +55,10 @@ const AppContent = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
-      <StatusBar style="auto" />
+      <SubscriptionProvider>
+        <AppContent />
+        <StatusBar style="auto" />
+      </SubscriptionProvider>
     </AuthProvider>
   );
 }

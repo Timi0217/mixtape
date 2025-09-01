@@ -434,6 +434,21 @@ const AppNavigator = () => {
   const [personalStats, setPersonalStats] = useState(null);
   const [showSongsModal, setShowSongsModal] = useState(false);
   const [groupCardTab, setGroupCardTab] = useState('progress'); // 'progress', 'vote', or 'leaderboard'
+  const [expandedStats, setExpandedStats] = useState(false);
+  const expandAnimation = useRef(new Animated.Value(0)).current;
+  
+  const toggleExpandedStats = () => {
+    const toValue = expandedStats ? 0 : 1;
+    setExpandedStats(!expandedStats);
+    
+    Animated.timing(expandAnimation, {
+      toValue,
+      duration: 300,
+      easing: Easing.bezier(0.4, 0, 0.2, 1), // Apple's easing curve
+      useNativeDriver: false,
+    }).start();
+  };
+
   const [showMusicSearch, setShowMusicSearch] = useState(false);
   const [showGroupCreate, setShowGroupCreate] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -1510,7 +1525,7 @@ const AppNavigator = () => {
               onPress={() => setGroupCardTab('vote')}
             >
               <Text style={[styles.tabText, groupCardTab === 'vote' && styles.tabTextActive]}>
-                Rank
+                Vote
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1592,24 +1607,6 @@ const AppNavigator = () => {
                 </View>
               ) : (
                 <>
-                  {/* Voting Status Header */}
-                  {votingStatus && (
-                    <View style={styles.votingStatusHeader}>
-                      {votingStatus.votingEnded ? (
-                        <Text style={styles.votingStatusText}>
-                          🏆 Voting has ended - Results below
-                        </Text>
-                      ) : votingStatus.userHasVoted ? (
-                        <Text style={styles.votingStatusText}>
-                          ✅ Vote submitted - Results after voting ends
-                        </Text>
-                      ) : (
-                        <Text style={styles.votingStatusText}>
-                          🗳️ Vote for your favorite track
-                        </Text>
-                      )}
-                    </View>
-                  )}
 
                   {yesterdayRound.submissions.map((submission, index) => {
                 const hasVoted = userVote !== null;
@@ -1682,6 +1679,7 @@ const AppNavigator = () => {
           ) : (
             /* Leaderboard Tab Content */
             <ScrollView style={styles.leaderboardTabContent} showsVerticalScrollIndicator={false}>
+              
               {/* Group Leaderboard */}
               <View style={styles.leaderboardContent}>
                   {leaderboard.length === 0 ? (
@@ -1691,37 +1689,76 @@ const AppNavigator = () => {
                       <Text style={styles.emptyLeaderboardText} numberOfLines={1}>Stats appear after voting ends</Text>
                     </View>
                   ) : (
-                    leaderboard.map((member, index) => (
-                      <View key={member.user.id} style={styles.leaderboardItem}>
-                        <View style={styles.leaderboardRank}>
-                          <Text style={styles.leaderboardRankText}>#{index + 1}</Text>
+                    <ScrollView 
+                      style={styles.leaderboardScroll}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
+                    >
+                      {leaderboard.map((member, index) => (
+                        <View key={member.user.id} style={styles.leaderboardItem}>
+                          <View style={styles.leaderboardRank}>
+                            <Text style={styles.leaderboardRankText}>#{index + 1}</Text>
+                          </View>
+                          <View style={styles.leaderboardInfo}>
+                            <Text style={styles.leaderboardName}>{member.user.displayName}</Text>
+                            <Text style={styles.leaderboardStats} numberOfLines={1}>
+                              {member.stats.winRate}% win rate
+                            </Text>
+                          </View>
+                          <View style={styles.leaderboardWins}>
+                            <Text style={styles.leaderboardWinsText}>{member.stats.wins}</Text>
+                            <Text style={styles.leaderboardWinsLabel}>wins</Text>
+                          </View>
                         </View>
-                        <View style={styles.leaderboardInfo}>
-                          <Text style={styles.leaderboardName}>{member.user.displayName}</Text>
-                          <Text style={styles.leaderboardStats} numberOfLines={1}>
-                            {member.stats.winRate}% win rate
-                          </Text>
-                        </View>
-                        <View style={styles.leaderboardWins}>
-                          <Text style={styles.leaderboardWinsText}>{member.stats.wins}</Text>
-                          <Text style={styles.leaderboardWinsLabel}>wins</Text>
-                        </View>
-                      </View>
-                    ))
+                      ))}
+                    </ScrollView>
                   )}
                 </View>
 
-              {/* Personal Stats */}
-              <View style={styles.personalStatsContent}>
-                  {!personalStats ? (
-                    <View style={styles.emptyLeaderboardState}>
-                      <Text style={styles.emptyLeaderboardIcon}>📊</Text>
-                      <Text style={styles.emptyLeaderboardTitle}>No personal stats yet</Text>
-                      <Text style={styles.emptyLeaderboardText} numberOfLines={1}>Submit and vote to see stats</Text>
-                    </View>
-                  ) : (
-                    <>
-                      {/* Summary Stats */}
+              {/* Divider between general and personal stats */}
+              {personalStats && (
+                <View style={styles.sectionSeparator}>
+                  <View style={styles.dividerLine} />
+                  <View style={styles.dividerDot} />
+                  <View style={styles.dividerLine} />
+                </View>
+              )}
+
+              {/* Expand Stats Button */}
+              {personalStats && (
+                <TouchableOpacity 
+                  style={styles.expandStatsButton}
+                  onPress={toggleExpandedStats}
+                  activeOpacity={0.6}
+                >
+                  <View style={styles.expandStatsContent}>
+                    <Text style={styles.expandStatsText}>View Personal Stats</Text>
+                    <Text style={styles.expandStatsSubtext}>
+                      Win rate, best songs, and more
+                    </Text>
+                  </View>
+                  <Text style={[styles.expandStatsChevron, expandedStats && styles.expandStatsChevronRotated]}>
+                    ›
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Animated Expanded Personal Stats */}
+              <Animated.View style={[
+                styles.expandedStatsContainer,
+                {
+                  opacity: expandAnimation,
+                  maxHeight: expandAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 900],
+                  }),
+                }
+              ]}>
+                {personalStats && (
+                  <View style={styles.personalStatsContent}>
+                    {/* Overview Section */}
+                    <View style={styles.statsSection}>
+                      <Text style={styles.sectionHeader}>Overview</Text>
                       <View style={styles.personalStatsSummary}>
                         <View style={styles.personalStatsGrid}>
                           <View style={styles.personalStatItem}>
@@ -1742,40 +1779,61 @@ const AppNavigator = () => {
                           </View>
                         </View>
                       </View>
+                    </View>
 
-                      {/* Best Song */}
-                      {personalStats.bestSong && (
+                    {/* Section Divider */}
+                    <View style={styles.sectionSeparator}>
+                      <View style={styles.dividerLine} />
+                      <View style={styles.dividerDot} />
+                      <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Best Performance Section */}
+                    {personalStats.bestSong && (
+                      <View style={styles.statsSection}>
+                        <Text style={styles.sectionHeader}>Best Performance</Text>
                         <View style={styles.bestSongSection}>
-                          <Text style={styles.bestSongTitle}>🏆 Your Best Performing Song</Text>
-                          <View style={styles.bestSongCard}>
-                            <Text style={styles.bestSongName}>{personalStats.bestSong.song.title}</Text>
-                            <Text style={styles.bestSongArtist}>{personalStats.bestSong.song.artist}</Text>
+                          <View style={styles.bestSongHeader}>
+                            <View style={styles.bestSongBadge}>
+                              <Text style={styles.bestSongBadgeText}>🏆</Text>
+                            </View>
                             <Text style={styles.bestSongVotes}>{personalStats.bestSong.votes} votes</Text>
                           </View>
+                          <View style={styles.bestSongInfo}>
+                            <Text style={styles.bestSongName}>{personalStats.bestSong.song.title}</Text>
+                            <Text style={styles.bestSongArtist}>{personalStats.bestSong.song.artist}</Text>
+                          </View>
                         </View>
-                      )}
+                      </View>
+                    )}
 
-                      {/* Recent Submissions */}
-                      {personalStats.recentSubmissions.length > 0 && (
-                        <View style={styles.recentSubmissionsSection}>
-                          <Text style={styles.recentSubmissionsTitle}>Recent Submissions</Text>
-                          {personalStats.recentSubmissions.slice(0, 5).map((submission, index) => (
-                            <View key={index} style={styles.recentSubmissionItem}>
-                              <View style={styles.recentSubmissionInfo}>
-                                <Text style={styles.recentSubmissionSong}>{submission.song.title}</Text>
-                                <Text style={styles.recentSubmissionArtist}>{submission.song.artist}</Text>
-                              </View>
-                              <View style={styles.recentSubmissionVotes}>
-                                <Text style={styles.recentSubmissionVoteCount}>{submission.votes}</Text>
-                                <Text style={styles.recentSubmissionVoteLabel}>votes</Text>
-                              </View>
-                            </View>
-                          ))}
+                    {/* Section Divider */}
+                    <View style={styles.sectionSeparator}>
+                      <View style={styles.dividerLine} />
+                      <View style={styles.dividerDot} />
+                      <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Win Streak Section */}
+                    <View style={styles.statsSection}>
+                      <Text style={styles.sectionHeader}>Win Streak</Text>
+                      <View style={styles.winStreakSection}>
+                        <View style={styles.winStreakHeader}>
+                          <View style={styles.winStreakIcon}>
+                            <Text style={styles.winStreakNumber}>{personalStats.longestWinStreak || 0}</Text>
+                          </View>
                         </View>
-                      )}
-                    </>
-                  )}
-                </View>
+                        <View style={styles.winStreakInfo}>
+                          <Text style={styles.winStreakLabel}>Longest Streak</Text>
+                          <Text style={styles.currentStreakText}>
+                            Current: {personalStats.currentWinStreak || 0} wins
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </Animated.View>
             </ScrollView>
           )}
         </View>
@@ -3724,8 +3782,7 @@ const styles = StyleSheet.create({
   
   // Leaderboard Tab Styles
   leaderboardTabContent: {
-    paddingTop: theme.spacing.md,
-    minHeight: 400,
+    paddingTop: theme.spacing.sm,
   },
   leaderboardTabContainer: {
     flexDirection: 'row',
@@ -3760,7 +3817,19 @@ const styles = StyleSheet.create({
   
   // Leaderboard Content Styles
   leaderboardContent: {
-    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.sm,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  leaderboardScroll: {
+    maxHeight: 200, // Limit height to enable scrolling
   },
   emptyLeaderboardState: {
     alignItems: 'center',
@@ -3834,19 +3903,102 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   
-  // Personal Stats Styles
+  // Expand Stats Button Styles (Apple-style)
+  expandStatsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.cardBackground,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md + 2,
+    marginTop: theme.spacing.lg,
+    marginHorizontal: theme.spacing.xs,
+    borderRadius: theme.borderRadius.xl,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  expandStatsContent: {
+    flex: 1,
+  },
+  expandStatsText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  expandStatsSubtext: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '400',
+  },
+  expandStatsChevron: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    transform: [{ rotate: '0deg' }],
+  },
+  expandStatsChevronRotated: {
+    transform: [{ rotate: '90deg' }],
+  },
+
+  // Expanded Stats Styles
+  expandedStatsContainer: {
+    overflow: 'hidden',
+    marginTop: theme.spacing.sm,
+  },
+
+  // Personal Stats Styles (Apple-style)
   personalStatsContent: {
-    gap: theme.spacing.lg,
+    gap: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  
+  // Section Styles
+  statsSection: {
+    marginHorizontal: theme.spacing.xs,
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center',
+  },
+
+  // Section Divider Styles
+  sectionSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: theme.spacing.lg,
+    marginHorizontal: theme.spacing.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.textTertiary,
+    opacity: 0.3,
+  },
+  dividerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.textTertiary,
+    opacity: 0.4,
+    marginHorizontal: theme.spacing.md,
   },
   personalStatsSummary: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.md,
     shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   personalStatsGrid: {
     flexDirection: 'row',
@@ -3855,7 +4007,7 @@ const styles = StyleSheet.create({
   personalStatItem: {
     width: '50%',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   personalStatValue: {
     fontSize: 24,
@@ -3870,93 +4022,106 @@ const styles = StyleSheet.create({
   },
   bestSongSection: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
     shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    alignItems: 'center',
   },
-  bestSongTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
+  bestSongHeader: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  bestSongBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.primaryButton,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: theme.spacing.sm,
+    shadowColor: theme.colors.primaryButton,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  bestSongCard: {
-    backgroundColor: theme.colors.backgroundSecondary,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+  bestSongBadgeText: {
+    fontSize: 24,
+  },
+  bestSongVotes: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.primaryButton,
+    textAlign: 'center',
+  },
+  bestSongInfo: {
     alignItems: 'center',
   },
   bestSongName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: theme.colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: theme.spacing.xs,
   },
   bestSongArtist: {
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: theme.spacing.sm,
   },
-  bestSongVotes: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.success,
-  },
-  recentSubmissionsSection: {
+  winStreakSection: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
     shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    alignItems: 'center',
   },
-  recentSubmissionsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
+  winStreakHeader: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  winStreakIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.primaryButton,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: theme.spacing.sm,
+    shadowColor: theme.colors.primaryButton,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  recentSubmissionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.backgroundSecondary,
-  },
-  recentSubmissionInfo: {
-    flex: 1,
-  },
-  recentSubmissionSong: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    marginBottom: 2,
-  },
-  recentSubmissionArtist: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
-  recentSubmissionVotes: {
-    alignItems: 'center',
-    marginLeft: theme.spacing.sm,
-  },
-  recentSubmissionVoteCount: {
-    fontSize: 16,
+  winStreakNumber: {
+    fontSize: 24,
     fontWeight: '700',
-    color: theme.colors.primaryButton,
+    color: 'white',
   },
-  recentSubmissionVoteLabel: {
-    fontSize: 10,
-    color: theme.colors.textTertiary,
-    textTransform: 'uppercase',
+  winStreakInfo: {
+    alignItems: 'center',
+  },
+  winStreakLabel: {
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+    textAlign: 'center',
+  },
+  currentStreakText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

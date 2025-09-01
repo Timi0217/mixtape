@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,13 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
+import SubscriptionScreen from './SubscriptionScreen';
 
 const ProfileScreen = () => {
   const { user, logout } = useAuth();
+  const { subscription, isPremium, isPro, loading: subscriptionLoading } = useSubscription();
+  const [showSubscription, setShowSubscription] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -78,6 +82,45 @@ const ProfileScreen = () => {
         )}
       </View>
 
+      {/* Subscription Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Subscription</Text>
+        
+        <TouchableOpacity 
+          style={styles.subscriptionItem}
+          onPress={() => setShowSubscription(true)}
+        >
+          <View style={styles.subscriptionInfo}>
+            <Text style={styles.subscriptionPlan}>
+              {subscriptionLoading ? 'Loading...' : 
+               isPro() ? 'Mixtape Pro' : 
+               isPremium() ? 'Mixtape Premium' : 'Mixtape Basic'}
+            </Text>
+            <Text style={styles.subscriptionStatus}>
+              {isPremium() || isPro() ? 'Active Subscription' : 'Free Plan'}
+            </Text>
+          </View>
+          <View style={[
+            styles.subscriptionBadge,
+            { backgroundColor: isPro() ? '#10B981' : isPremium() ? '#8B5CF6' : '#8e8e93' }
+          ]}>
+            <Text style={styles.subscriptionBadgeText}>
+              {isPro() ? 'PRO' : isPremium() ? 'PREMIUM' : 'BASIC'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        
+        {!isPremium() && !isPro() && (
+          <TouchableOpacity 
+            style={styles.upgradeButton}
+            onPress={() => setShowSubscription(true)}
+          >
+            <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+            <Text style={styles.menuItemArrow}>→</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* App Info */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
@@ -106,6 +149,11 @@ const ProfileScreen = () => {
       <View style={styles.footer}>
         <Text style={styles.footerText}>Mixtape v1.0.0</Text>
       </View>
+      
+      {/* Subscription Modal */}
+      {showSubscription && (
+        <SubscriptionScreen onClose={() => setShowSubscription(false)} />
+      )}
     </ScrollView>
   );
 };
@@ -239,6 +287,52 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#999',
+  },
+  subscriptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  subscriptionInfo: {
+    flex: 1,
+  },
+  subscriptionPlan: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  subscriptionStatus: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  subscriptionBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  subscriptionBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  upgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  upgradeButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
 });
 
