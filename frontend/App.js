@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import AppNavigator from './navigation/AppNavigator';
 import LoginScreen from './screens/LoginScreen';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -54,11 +55,13 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SubscriptionProvider>
-        <AppContent />
-        <StatusBar style="auto" />
-      </SubscriptionProvider>
-    </AuthProvider>
+    <StripeProvider publishableKey="pk_live_51S2aRHDDGKTNxzebuw8ypoUd2ixkEPiLjQY1gC3w5qKy64b1YgAlfbwTrnMLLsIeJDFrGrlPak4YcwTRob1D6zHc00tDhvhpcQ">
+      <AuthProvider>
+        <SubscriptionProvider>
+          <AppContent />
+          <StatusBar style="auto" />
+        </SubscriptionProvider>
+      </AuthProvider>
+    </StripeProvider>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useStripe } from '@stripe/stripe-react-native';
 import { useSubscription } from '../context/SubscriptionContext';
 import api from '../services/api';
 
@@ -35,9 +36,10 @@ const theme = {
 };
 
 const SubscriptionScreen = ({ onClose }) => {
-  const [selectedPlan, setSelectedPlan] = useState('premium');
+  const [selectedPlan, setSelectedPlan] = useState('pro');
   const [isProcessing, setIsProcessing] = useState(false);
   const { refreshSubscription } = useSubscription();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -113,17 +115,37 @@ const SubscriptionScreen = ({ onClose }) => {
         return;
       }
 
-      // For paid plans, create Stripe payment session
+      // For paid plans, create in-app payment
       const response = await api.post('/user/subscription', { plan: selectedPlan });
       
-      if (response.data.requiresPayment && response.data.paymentUrl) {
-        // Open Stripe payment URL
-        const supported = await Linking.canOpenURL(response.data.paymentUrl);
-        if (supported) {
-          await Linking.openURL(response.data.paymentUrl);
-          onClose(); // Close modal while user completes payment
+      if (response.data.requiresPayment && response.data.clientSecret) {
+        // Initialize payment sheet
+        const { error: initError } = await initPaymentSheet({
+          merchantDisplayName: 'Mixtape',
+          paymentIntentClientSecret: response.data.clientSecret,
+          defaultBillingDetails: {
+            name: 'Mixtape User',
+          },
+        });
+
+        if (initError) {
+          Alert.alert('Error', initError.message);
+          return;
+        }
+
+        // Present payment sheet
+        const { error: paymentError } = await presentPaymentSheet();
+
+        if (paymentError) {
+          Alert.alert('Payment failed', paymentError.message);
         } else {
-          Alert.alert('Error', 'Unable to open payment page');
+          // Payment successful - create subscription
+          await api.post('/user/subscription/confirm', { 
+            paymentIntentId: response.data.paymentIntentId,
+            plan: selectedPlan 
+          });
+          await refreshSubscription();
+          onClose();
         }
       } else {
         // Subscription created without payment required
