@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, LinearGradient } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Animated, Dimensions, ActivityIndicator, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSubscription } from '../context/SubscriptionContext';
+import api from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,6 +37,7 @@ const theme = {
 const SubscriptionScreen = ({ onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState('premium');
   const [isProcessing, setIsProcessing] = useState(false);
+  const { refreshSubscription } = useSubscription();
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -61,25 +64,23 @@ const SubscriptionScreen = ({ onClose }) => {
       price: 'Free',
       period: '',
       features: [
-        'Share 1 song per day',
-        'Join up to 3 groups',
-        'Basic music discovery',
-        'Standard support'
+        'Share 1 song in 1 group per day',
+        'Custom group themes',
+        'Basic analytics'
       ],
       color: '#8e8e93',
       gradient: ['#f8f9fa', '#e9ecef'],
     },
     {
-      id: 'premium',
-      name: 'Mixtape Premium',
+      id: 'pro',
+      name: 'Mixtape Pro',
       price: '$4.99',
       period: '/month',
       features: [
         'Unlimited song sharing',
         'Join unlimited groups',
-        'Advanced music discovery',
-        'Priority support',
-        'Exclusive playlists',
+        'Custom group themes',
+        'Advanced analytics',
         'Early access to features'
       ],
       color: '#8B5CF6',
@@ -87,17 +88,13 @@ const SubscriptionScreen = ({ onClose }) => {
       popular: true,
     },
     {
-      id: 'pro',
-      name: 'Mixtape Pro',
+      id: 'curator',
+      name: 'Mixtape Curator',
       price: '$9.99',
       period: '/month',
       features: [
-        'Everything in Premium',
-        'Create unlimited groups',
-        'Advanced analytics',
-        'Custom group themes',
-        'API access',
-        'White-label options'
+        'Everything in Pro',
+        'Create and join broadcasts'
       ],
       color: '#10B981',
       gradient: ['#10B981', '#059669'],
@@ -105,12 +102,50 @@ const SubscriptionScreen = ({ onClose }) => {
   ];
 
   const handleSubscribe = async () => {
-    setIsProcessing(true);
-    // Simulate subscription process
-    setTimeout(() => {
+    try {
+      setIsProcessing(true);
+
+      // For basic plan, just update subscription without payment
+      if (selectedPlan === 'basic') {
+        await api.post('/user/subscription', { plan: 'basic' });
+        await refreshSubscription();
+        onClose();
+        return;
+      }
+
+      // For paid plans, create Stripe payment session
+      const response = await api.post('/user/subscription', { plan: selectedPlan });
+      
+      if (response.data.requiresPayment && response.data.paymentUrl) {
+        // Open Stripe payment URL
+        const supported = await Linking.canOpenURL(response.data.paymentUrl);
+        if (supported) {
+          await Linking.openURL(response.data.paymentUrl);
+          onClose(); // Close modal while user completes payment
+        } else {
+          Alert.alert('Error', 'Unable to open payment page');
+        }
+      } else {
+        // Subscription created without payment required
+        await refreshSubscription();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        errors: error.response?.data?.errors,
+        plan: selectedPlan,
+        message: error.message
+      });
+      Alert.alert(
+        'Subscription Error', 
+        error.response?.data?.error || 'Failed to create subscription. Please try again.'
+      );
+    } finally {
       setIsProcessing(false);
-      onClose();
-    }, 2000);
+    }
   };
 
   const handleClose = () => {
@@ -129,35 +164,27 @@ const SubscriptionScreen = ({ onClose }) => {
   };
 
   return (
-    <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-      <TouchableOpacity style={styles.backdrop} onPress={handleClose} />
-      <Animated.View 
-        style={[
-          styles.container,
-          {
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Choose Your Plan</Text>
-            <View style={styles.headerSpacer} />
-          </View>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Choose Your Plan</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
-          <ScrollView 
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        bounces={true}
+        scrollEventThrottle={16}
+      >
             {/* Hero Section */}
             <View style={styles.heroSection}>
               <View style={styles.iconContainer}>
-                <Ionicons name="musical-notes" size={40} color={theme.colors.primaryButton} />
+                <Text style={styles.heroIcon}>⭐</Text>
               </View>
               <Text style={styles.heroTitle}>Unlock the Full{'\n'}Mixtape Experience</Text>
               <Text style={styles.heroSubtitle}>
@@ -228,13 +255,8 @@ const SubscriptionScreen = ({ onClose }) => {
               ) : (
                 <>
                   <Text style={styles.subscribeButtonText}>
-                    {selectedPlan === 'basic' ? 'Continue with Basic' : 'Start Free Trial'}
+                    {selectedPlan === 'basic' ? 'Continue with Basic' : `Upgrade to ${subscriptionPlans.find(p => p.id === selectedPlan)?.name}`}
                   </Text>
-                  {selectedPlan !== 'basic' && (
-                    <Text style={styles.subscribeButtonSubtext}>
-                      7 days free, then {subscriptionPlans.find(p => p.id === selectedPlan)?.price}{subscriptionPlans.find(p => p.id === selectedPlan)?.period}
-                    </Text>
-                  )}
                 </>
               )}
             </TouchableOpacity>
@@ -247,46 +269,14 @@ const SubscriptionScreen = ({ onClose }) => {
               </Text>
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </Animated.View>
-    </Animated.View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 1000,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.colors.surfaceWhite,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    maxHeight: height * 0.9,
-    shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 20,
-  },
   safeArea: {
     flex: 1,
+    backgroundColor: theme.colors.surfaceWhite,
   },
   header: {
     flexDirection: 'row',
@@ -334,6 +324,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.lg,
   },
+  heroIcon: {
+    fontSize: 40,
+  },
   heroTitle: {
     fontSize: 32,
     fontWeight: '700',
@@ -376,7 +369,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   popularPlanCard: {
-    borderColor: theme.colors.primaryButton,
+    backgroundColor: 'rgba(139, 92, 246, 0.02)',
+    transform: [{ scale: 1.02 }],
   },
   popularBadge: {
     position: 'absolute',

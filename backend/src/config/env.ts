@@ -48,6 +48,7 @@ export const config = {
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     premiumPriceId: process.env.STRIPE_PREMIUM_PRICE_ID || '',
     proPriceId: process.env.STRIPE_PRO_PRICE_ID || '',
+    curatorPriceId: process.env.STRIPE_CURATOR_PRICE_ID || '',
   },
 };
 

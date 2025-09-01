@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, Modal, Animated, Easing, Dimensions, Image, Linking } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import api from '../services/api';
 import MusicSearchScreen from '../screens/MusicSearchScreen';
 import GroupCreateScreen from '../screens/GroupCreateScreen';
@@ -9,6 +10,7 @@ import JoinGroupScreen from '../screens/JoinGroupScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import AboutScreen from '../screens/AboutScreen';
 import GroupSettingsScreen from '../screens/GroupSettingsScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
 
 // Theme - Modern Consumer App Design
 const theme = {
@@ -378,6 +380,7 @@ function Button({ title, onPress, variant = 'primary', style }) {
 
 const AppNavigator = () => {
   const { user, logout } = useAuth();
+  const { subscription, isPremium, isPro, loading: subscriptionLoading } = useSubscription();
   
   // Detect user's music platform (phone users = Apple Music, OAuth = Spotify)
   const getUserMusicPlatform = () => {
@@ -467,6 +470,11 @@ const AppNavigator = () => {
   
   // Confetti animation state
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
+  
+  // Profile animations
+  const profileScrollY = useRef(new Animated.Value(0)).current;
+  const profileAvatarScale = useRef(new Animated.Value(1)).current;
 
   // Onboarding animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -2039,51 +2047,197 @@ const AppNavigator = () => {
       );
     };
 
+    const getInitials = () => {
+      const name = getDisplayName();
+      const words = name.split(' ');
+      if (words.length >= 2) {
+        return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+      }
+      return name.charAt(0).toUpperCase();
+    };
+
+    const getMemberSince = () => {
+      const date = new Date(user?.createdAt || new Date());
+      return date.toLocaleDateString('en-US', { 
+        month: 'long', 
+        year: 'numeric' 
+      });
+    };
+
+    const getConnectedPlatform = () => {
+      if (user?.email?.includes('@mixtape.internal') || 
+          user?.musicAccounts?.some(acc => acc.platform === 'apple-music')) {
+        return { name: 'Apple Music', icon: '🎵', color: '#FA233B' };
+      }
+      return { name: 'Spotify', icon: '🎶', color: '#1DB954' };
+    };
+
+    const platform = getConnectedPlatform();
+
+    const handleAvatarPress = () => {
+      Animated.sequence([
+        Animated.timing(profileAvatarScale, {
+          toValue: 0.95,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(profileAvatarScale, {
+          toValue: 1,
+          tension: 300,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
+
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>Manage your account</Text>
-        </View>
-
-        <View style={styles.profileCard}>
-          <Text style={styles.profileName}>{getDisplayName()}</Text>
-          <Text style={styles.profileEmail}>{getDisplayEmail()}</Text>
-          <Text style={styles.profileMeta}>
-            Member since {new Date(user?.createdAt || new Date()).toLocaleDateString('en-US', { 
-              month: 'long', 
-              year: 'numeric' 
-            })}
-          </Text>
-        </View>
-
-        <View style={styles.profileActions}>
+      <Animated.ScrollView 
+        style={styles.profileContainer} 
+        contentContainerStyle={styles.profileScrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: profileScrollY } } }],
+          { useNativeDriver: false }
+        )}
+      >
+        {/* Enhanced Profile Header - Inspired by iOS Settings */}
+        <View style={styles.profileHeroSection}>
           <TouchableOpacity 
-            style={styles.profileActionButton}
-            onPress={() => setShowNotifications(true)}
+            style={styles.profileAvatarContainer}
+            onPress={handleAvatarPress}
+            activeOpacity={1}
           >
-            <Text style={styles.profileActionIcon}>🔔</Text>
-            <Text style={styles.profileActionText}>Notifications</Text>
-            <Text style={styles.profileActionChevron}>›</Text>
+            <Animated.View 
+              style={[
+                styles.profileAvatar,
+                { transform: [{ scale: profileAvatarScale }] }
+              ]}
+            >
+              <Text style={styles.profileAvatarText}>{getInitials()}</Text>
+            </Animated.View>
+            <View style={styles.profileAvatarShadow} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.profileActionButton, styles.profileActionButtonLast]}
-            onPress={() => setShowAbout(true)}
-          >
-            <Text style={styles.profileActionIcon}>📱</Text>
-            <Text style={styles.profileActionText}>About Mixtape</Text>
-            <Text style={styles.profileActionChevron}>›</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.profileNameSection}>
+            <Text style={styles.profileDisplayName}>{getDisplayName()}</Text>
+            <Text style={styles.profileDisplayEmail}>{getDisplayEmail()}</Text>
+            
+            <View style={styles.profileMetaContainer}>
+              <View style={styles.profileMetaItem}>
+                <Text style={styles.profileMetaIcon}>📅</Text>
+                <Text style={styles.profileMetaText}>Since {getMemberSince()}</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.dangerZone}>
-          <Button
-            title="Logout"
-            onPress={handleLogout}
-            style={styles.logoutButton}
-          />
+        {/* Subscription Status Card - Hero treatment */}
+        <View style={styles.subscriptionHeroCard}>
+          <View style={styles.subscriptionHeroHeader}>
+            <View style={styles.subscriptionHeroIcon}>
+              <Text style={styles.subscriptionHeroIconText}>
+                {isPremium() || isPro() ? '⭐' : '🎵'}
+              </Text>
+            </View>
+            <View style={styles.subscriptionHeroContent}>
+              <Text style={styles.subscriptionHeroTitle}>
+                {subscriptionLoading ? 'Loading Plan...' : 
+                 isPro() ? 'Mixtape Pro' : 
+                 isPremium() ? 'Mixtape Premium' : 'Mixtape Basic'}
+              </Text>
+              <Text style={styles.subscriptionHeroSubtitle}>
+                {isPremium() || isPro() ? 'Premium features unlocked' : 'Limited features'}
+              </Text>
+            </View>
+            <View style={[
+              styles.subscriptionHeroBadge,
+              { backgroundColor: isPro() ? '#10B981' : isPremium() ? '#8B5CF6' : '#8e8e93' }
+            ]}>
+              <Text style={styles.subscriptionHeroBadgeText}>
+                {isPro() ? 'PRO' : isPremium() ? 'PREMIUM' : 'BASIC'}
+              </Text>
+            </View>
+          </View>
+          
+          {!isPremium() && !isPro() && (
+            <TouchableOpacity 
+              style={styles.subscriptionUpgradeButton}
+              onPress={() => setShowSubscription(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.subscriptionUpgradeButtonText}>Unlock Premium Features</Text>
+              <Text style={styles.subscriptionUpgradeButtonIcon}>→</Text>
+            </TouchableOpacity>
+          )}
+          
+          {(isPremium() || isPro()) && (
+            <TouchableOpacity 
+              style={styles.subscriptionManageButton}
+              onPress={() => setShowSubscription(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.subscriptionManageButtonText}>Manage Subscription</Text>
+              <Text style={styles.subscriptionManageButtonIcon}>→</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </ScrollView>
+
+        {/* Settings Sections - Apple-style grouped lists */}
+        <View style={styles.settingsSection}>
+          <Text style={styles.settingsSectionTitle}>Preferences</Text>
+          <View style={styles.settingsGroup}>
+            <TouchableOpacity 
+              style={[styles.settingsItem, styles.settingsItemFirst]}
+              onPress={() => setShowNotifications(true)}
+              activeOpacity={0.6}
+            >
+              <View style={styles.settingsItemLeft}>
+                <Text style={styles.settingsIconText}>🔔</Text>
+                <Text style={styles.settingsItemText}>Notifications</Text>
+              </View>
+              <Text style={styles.settingsItemArrow}>›</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.settingsDivider} />
+            
+            <TouchableOpacity 
+              style={[styles.settingsItem, styles.settingsItemLast]}
+              onPress={() => setShowAbout(true)}
+              activeOpacity={0.6}
+            >
+              <View style={styles.settingsItemLeft}>
+                <Text style={styles.settingsIconText}>ℹ️</Text>
+                <Text style={styles.settingsItemText}>About Mixtape</Text>
+              </View>
+              <Text style={styles.settingsItemArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Account Section */}
+        <View style={styles.settingsSection}>
+          <Text style={styles.settingsSectionTitle}>Account</Text>
+          <View style={styles.settingsGroup}>
+            <TouchableOpacity 
+              style={[styles.settingsItem, styles.settingsItemSingle]}
+              onPress={handleLogout}
+              activeOpacity={0.6}
+            >
+              <View style={styles.settingsItemLeft}>
+                <Text style={styles.settingsIconText}>↗️</Text>
+                <Text style={[styles.settingsItemText, { color: '#FF3B30' }]}>Sign Out</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* App Version Footer */}
+        <View style={styles.profileFooter}>
+          <Text style={styles.profileFooterText}>Mixtape v1.0.0</Text>
+          <Text style={styles.profileFooterSubtext}>Made with ♪ for music lovers</Text>
+        </View>
+      </Animated.ScrollView>
     );
   };
 
@@ -2368,6 +2522,13 @@ const AppNavigator = () => {
           onClose={() => setShowJoinGroup(false)}
           onJoinGroup={handleJoinGroup}
         />
+      </Modal>
+
+      {/* Subscription Modal */}
+      <Modal visible={showSubscription} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={{ flex: 1 }}>
+          <SubscriptionScreen onClose={() => setShowSubscription(false)} />
+        </SafeAreaView>
       </Modal>
 
       {/* Confetti Animation */}
@@ -4122,6 +4283,333 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontWeight: '500',
     textAlign: 'center',
+  },
+
+  // Enhanced Profile Styles - Jony Ive & Steve Jobs Inspired
+  profileContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.bgPrimary,
+  },
+  profileScrollContent: {
+    paddingBottom: 100,
+  },
+  
+  // Profile Hero Section - Inspired by iOS Settings profile card
+  profileHeroSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+    borderRadius: 20,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    borderWidth: 0.33,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  profileAvatarContainer: {
+    position: 'relative',
+    marginBottom: theme.spacing.lg,
+  },
+  profileAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: theme.colors.primaryButton,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    zIndex: 2,
+  },
+  profileAvatarShadow: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: theme.colors.primaryButton,
+    opacity: 0.2,
+    top: 4,
+    left: 4,
+    zIndex: 1,
+  },
+  profileAvatarText: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: 'white',
+    letterSpacing: -1,
+  },
+  profileNameSection: {
+    alignItems: 'center',
+  },
+  profileDisplayName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    maxWidth: '90%',
+  },
+  profileDisplayEmail: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.lg,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  profileMetaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.06)',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 16,
+  },
+  profileMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileMetaIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  profileMetaText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  profileMetaDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: theme.colors.borderLight,
+    marginHorizontal: theme.spacing.md,
+  },
+
+  // Subscription Hero Card - Premium treatment
+  subscriptionHeroCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+    borderRadius: 20,
+    padding: theme.spacing.xl,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    borderWidth: 0.33,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  subscriptionHeroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  subscriptionHeroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
+  subscriptionHeroIconText: {
+    fontSize: 24,
+  },
+  subscriptionHeroContent: {
+    flex: 1,
+  },
+  subscriptionHeroTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+    letterSpacing: -0.3,
+  },
+  subscriptionHeroSubtitle: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  subscriptionHeroBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  subscriptionHeroBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  subscriptionUpgradeButton: {
+    backgroundColor: theme.colors.primaryButton,
+    borderRadius: 16,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: theme.colors.primaryButton,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  subscriptionUpgradeButtonText: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  subscriptionUpgradeButtonIcon: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  subscriptionManageButton: {
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderRadius: 16,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  subscriptionManageButtonText: {
+    color: theme.colors.primaryButton,
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  subscriptionManageButtonIcon: {
+    color: theme.colors.primaryButton,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+
+  // Settings Sections - iOS Settings style
+  settingsSection: {
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+  },
+  settingsSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: theme.spacing.sm,
+    marginLeft: theme.spacing.sm,
+  },
+  settingsGroup: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 0.33,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    minHeight: 56,
+  },
+  settingsItemFirst: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  settingsItemLast: {
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  settingsItemSingle: {
+    borderRadius: 16,
+  },
+  settingsItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingsIconText: {
+    fontSize: 20,
+    marginRight: theme.spacing.md,
+    width: 28,
+    textAlign: 'center',
+  },
+  settingsItemText: {
+    fontSize: 17,
+    color: theme.colors.textPrimary,
+    fontWeight: '400',
+    letterSpacing: -0.2,
+  },
+  settingsItemArrow: {
+    fontSize: 20,
+    color: theme.colors.textTertiary,
+    fontWeight: '300',
+  },
+  settingsDivider: {
+    height: 0.5,
+    backgroundColor: theme.colors.borderLight,
+    marginLeft: 64, // Align with text
+    opacity: 0.6,
+  },
+
+  // Profile Footer
+  profileFooter: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
+    marginTop: theme.spacing.lg,
+  },
+  profileFooterText: {
+    fontSize: 13,
+    color: theme.colors.textTertiary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  profileFooterSubtext: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    fontWeight: '400',
+    opacity: 0.8,
+  },
+
+  // Legacy subscription styles (keeping for backward compatibility)
+  subscriptionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  subscriptionBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  upgradeButton: {
+    backgroundColor: theme.colors.primaryButton,
+  },
+  upgradeButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    flex: 1,
   },
 });
 

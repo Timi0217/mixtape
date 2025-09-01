@@ -33,19 +33,19 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
     interval: 'month',
     features: {
       maxSongsPerDay: 1,
-      maxGroups: 3,
+      maxGroups: 1,
       hasAdvancedDiscovery: false,
       hasPrioritySupport: false,
       hasExclusivePlaylists: false,
       canCreateGroups: false,
-      hasAnalytics: false,
-      hasCustomThemes: false,
+      hasAnalytics: true,
+      hasCustomThemes: true,
       hasApiAccess: false,
     },
   },
-  premium: {
-    id: 'premium',
-    name: 'Mixtape Premium',
+  pro: {
+    id: 'pro',
+    name: 'Mixtape Pro',
     price: 4.99,
     interval: 'month',
     features: {
@@ -55,15 +55,15 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
       hasPrioritySupport: true,
       hasExclusivePlaylists: true,
       canCreateGroups: false,
-      hasAnalytics: false,
-      hasCustomThemes: false,
+      hasAnalytics: true,
+      hasCustomThemes: true,
       hasApiAccess: false,
     },
-    stripePriceId: config.stripe.premiumPriceId,
+    stripePriceId: config.stripe.proPriceId,
   },
-  pro: {
-    id: 'pro',
-    name: 'Mixtape Pro',
+  curator: {
+    id: 'curator',
+    name: 'Mixtape Curator',
     price: 9.99,
     interval: 'month',
     features: {
@@ -75,9 +75,9 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
       canCreateGroups: true,
       hasAnalytics: true,
       hasCustomThemes: true,
-      hasApiAccess: true,
+      hasApiAccess: false,
     },
-    stripePriceId: config.stripe.proPriceId,
+    stripePriceId: config.stripe.curatorPriceId,
   },
 };
 
@@ -415,6 +415,10 @@ export class SubscriptionService {
       const plan = SUBSCRIPTION_PLANS[planId];
       if (!plan || planId === 'basic') {
         throw new Error('Invalid plan for payment');
+      }
+
+      if (!plan.stripePriceId) {
+        throw new Error(`Stripe price ID not configured for ${planId} plan`);
       }
 
       const user = await prisma.user.findUnique({

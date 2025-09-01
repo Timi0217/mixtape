@@ -35,7 +35,7 @@ router.get('/user/subscription', authenticateToken, async (req: AuthRequest, res
 router.post('/user/subscription', 
   authenticateToken,
   [
-    body('plan').isIn(['basic', 'premium', 'pro']).withMessage('Invalid subscription plan'),
+    body('plan').isIn(['basic', 'pro', 'curator']).withMessage('Invalid subscription plan'),
   ],
   async (req: AuthRequest, res) => {
     try {
