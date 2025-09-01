@@ -27,6 +27,8 @@ model User {
   playlistPermissions   PlaylistPermission[]
   adminDelegations      PlaylistDelegationRequest[] @relation("AdminDelegations")
   delegateDelegations   PlaylistDelegationRequest[] @relation("DelegateDelegations")
+  subscription          UserSubscription?
+  subscriptionUsage     SubscriptionUsage[]
   
   @@map("users")
 }
@@ -274,4 +276,40 @@ model PlaylistDelegationRequest {
   delegate       User     @relation("DelegateDelegations", fields: [delegateUserId], references: [id], onDelete: Cascade)
   
   @@map("playlist_delegation_requests")
+}
+
+model UserSubscription {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  plan              String   @default("basic") // basic, premium, pro
+  status            String   @default("active") // active, cancelled, expired, past_due
+  stripeCustomerId  String?  @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+  currentPeriodStart DateTime? @map("current_period_start")
+  currentPeriodEnd   DateTime? @map("current_period_end")
+  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
+  trialStart         DateTime? @map("trial_start")
+  trialEnd           DateTime? @map("trial_end")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  
+  user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_subscriptions")
+}
+
+model SubscriptionUsage {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  date            DateTime @db.Date
+  songsShared     Int      @default(0) @map("songs_shared")
+  groupsJoined    Int      @default(0) @map("groups_joined")
+  groupsCreated   Int      @default(0) @map("groups_created")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@map("subscription_usage")
 }

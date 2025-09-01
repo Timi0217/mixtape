@@ -4,11 +4,14 @@ import { GroupService } from '../services/groupService';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { validateRequest } from '../utils/validation';
 import { prisma } from '../config/database';
+import { requireFeature, checkUsageLimit, trackUsage } from '../middleware/subscription';
 
 const router = express.Router();
 
 router.post('/',
   authenticateToken,
+  requireFeature('createGroups'),
+  checkUsageLimit('groupCreated'),
   [
     body('name').trim().isLength({ min: 1, max: 100 }),
     body('maxMembers').optional().isInt({ min: 3, max: 20 }),
@@ -17,6 +20,7 @@ router.post('/',
     body('backgroundColor').optional().isString().matches(/^#[0-9A-Fa-f]{6}$/),
   ],
   validateRequest,
+  trackUsage('groupCreated'),
   async (req: AuthRequest, res) => {
     try {
       const { name, maxMembers, isPublic, emoji, backgroundColor } = req.body;
@@ -96,10 +100,12 @@ router.get('/:id',
 
 router.post('/join',
   authenticateToken,
+  checkUsageLimit('groupJoined'),
   [
     body('inviteCode').isString().notEmpty(),
   ],
   validateRequest,
+  trackUsage('groupJoined'),
   async (req: AuthRequest, res) => {
     try {
       const { inviteCode } = req.body;
@@ -125,10 +131,12 @@ router.post('/join',
 
 router.post('/:id/join',
   authenticateToken,
+  checkUsageLimit('groupJoined'),
   [
     param('id').isString().notEmpty(),
   ],
   validateRequest,
+  trackUsage('groupJoined'),
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;

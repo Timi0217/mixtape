@@ -41,6 +41,14 @@ export const config = {
   
   frontendUrl: process.env.FRONTEND_URL || 'mixtape://',
   apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000',
+  
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    premiumPriceId: process.env.STRIPE_PREMIUM_PRICE_ID || '',
+    proPriceId: process.env.STRIPE_PRO_PRICE_ID || '',
+  },
 };
 
 const requiredEnvVars = [

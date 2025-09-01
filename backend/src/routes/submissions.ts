@@ -3,6 +3,7 @@ import { body, param, query } from 'express-validator';
 import { SubmissionService } from '../services/submissionService';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { validateRequest } from '../utils/validation';
+import { checkUsageLimit, trackUsage } from '../middleware/subscription';
 
 const router = express.Router();
 
@@ -41,12 +42,14 @@ router.get('/groups/:groupId/current',
 
 router.post('/',
   authenticateToken,
+  checkUsageLimit('songShared'),
   [
     body('roundId').isString().notEmpty(),
     body('songId').isString().notEmpty(),
     body('comment').optional().trim().isLength({ max: 200 }),
   ],
   validateRequest,
+  trackUsage('songShared'),
   async (req: AuthRequest, res) => {
     try {
       const { roundId, songId, comment } = req.body;
