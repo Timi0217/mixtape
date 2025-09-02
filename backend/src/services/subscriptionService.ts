@@ -37,7 +37,7 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
       hasAdvancedDiscovery: false,
       hasPrioritySupport: false,
       hasExclusivePlaylists: false,
-      canCreateGroups: false,
+      canCreateGroups: true,
       hasAnalytics: true,
       hasCustomThemes: true,
       hasApiAccess: false,
@@ -54,7 +54,7 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
       hasAdvancedDiscovery: true,
       hasPrioritySupport: true,
       hasExclusivePlaylists: true,
-      canCreateGroups: false,
+      canCreateGroups: true,
       hasAnalytics: true,
       hasCustomThemes: true,
       hasApiAccess: false,
@@ -377,7 +377,7 @@ export class SubscriptionService {
       // No limits for unlimited plans
       if (action === 'songShared' && features.maxSongsPerDay === 'unlimited') return true;
       if (action === 'groupJoined' && features.maxGroups === 'unlimited') return true;
-      if (action === 'groupCreated' && features.canCreateGroups) return true;
+      if (action === 'groupCreated' && features.maxGroups === 'unlimited') return true;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -397,13 +397,12 @@ export class SubscriptionService {
         case 'songShared':
           return usage.songsShared < (features.maxSongsPerDay as number);
         case 'groupJoined':
-          // Check total groups, not daily joins
+        case 'groupCreated':
+          // Check total groups, not daily usage
           const totalGroups = await prisma.groupMember.count({
             where: { userId },
           });
           return totalGroups < (features.maxGroups as number);
-        case 'groupCreated':
-          return features.canCreateGroups;
         default:
           return true;
       }
