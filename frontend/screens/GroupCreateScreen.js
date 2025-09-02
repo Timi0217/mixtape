@@ -146,7 +146,7 @@ const theme = {
   },
 };
 
-export default function GroupCreateScreen({ onClose, onCreateGroup, onShowSubscription }) {
+export default function GroupCreateScreen({ onClose, onCreateGroup }) {
   const [groupName, setGroupName] = useState('');
   const [maxMembers, setMaxMembers] = useState('6');
   const [isPublic, setIsPublic] = useState(false);
@@ -160,28 +160,6 @@ export default function GroupCreateScreen({ onClose, onCreateGroup, onShowSubscr
   const [selectedCategory, setSelectedCategory] = useState('😀');
 
   const handleCreate = async () => {
-    // Check if basic user is already in a group
-    if (subscription?.plan === 'basic' && subscription?.features?.maxGroups === 1) {
-      try {
-        const groupsResponse = await api.get('/user/groups');
-        if (groupsResponse.data.groups.length >= 1) {
-          Alert.alert(
-            'Upgrade Required', 
-            'Basic users can only be in 1 group. Upgrade to Pro to create unlimited groups!',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Upgrade to Pro', onPress: () => {
-                onClose();
-                onShowSubscription?.();
-              }}
-            ]
-          );
-          return;
-        }
-      } catch (error) {
-        console.error('Error checking user groups:', error);
-      }
-    }
 
     if (!groupName.trim()) {
       Alert.alert('Error', 'Please enter a group name');

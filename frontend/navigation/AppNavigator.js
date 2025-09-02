@@ -384,18 +384,16 @@ const AppNavigator = () => {
   
   // Check if basic user can create/join groups
   const checkGroupLimit = () => {
-    if (subscription?.plan === 'basic' && subscription?.features?.maxGroups === 1) {
-      if (userGroups.length >= 1) {
-        Alert.alert(
-          'Upgrade Required', 
-          'Basic users can only be in 1 group. Upgrade to Pro to create unlimited groups!',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Upgrade to Pro', onPress: () => setShowSubscription(true) }
-          ]
-        );
-        return false;
-      }
+    if (subscription?.plan === 'basic' && userGroups.length >= 1) {
+      Alert.alert(
+        'Upgrade Required', 
+        'Upgrade to Pro for unlimited groups.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Upgrade to Pro', onPress: () => setShowSubscription(true) }
+        ]
+      );
+      return false;
     }
     return true;
   };
@@ -1367,7 +1365,6 @@ const AppNavigator = () => {
           <GroupCreateScreen
             onClose={() => setShowGroupCreate(false)}
             onCreateGroup={handleCreateGroup}
-            onShowSubscription={() => setShowSubscription(true)}
           />
         </Modal>
 
@@ -1375,7 +1372,6 @@ const AppNavigator = () => {
           <JoinGroupScreen
             onClose={() => setShowJoinGroup(false)}
             onJoinGroup={handleJoinGroup}
-            onShowSubscription={() => setShowSubscription(true)}
           />
         </Modal>
       </SafeAreaView>

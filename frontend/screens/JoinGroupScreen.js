@@ -41,7 +41,7 @@ const theme = {
   },
 };
 
-export default function JoinGroupScreen({ onClose, onJoinGroup, onShowSubscription }) {
+export default function JoinGroupScreen({ onClose, onJoinGroup }) {
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -52,30 +52,6 @@ export default function JoinGroupScreen({ onClose, onJoinGroup, onShowSubscripti
     if (!inviteCode.trim()) {
       Alert.alert('Error', 'Please enter an invite code');
       return;
-    }
-
-    // Check if basic user is trying to join additional groups
-    if (subscription?.plan === 'basic' && subscription?.features?.maxGroups === 1) {
-      // Check if user is already in a group by checking current groups
-      try {
-        const groupsResponse = await api.get('/user/groups');
-        if (groupsResponse.data.groups.length >= 1) {
-          Alert.alert(
-            'Upgrade Required', 
-            'Basic users can only join 1 group. Upgrade to Pro to join unlimited groups!',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Upgrade to Pro', onPress: () => {
-                onClose();
-                onShowSubscription?.();
-              }}
-            ]
-          );
-          return;
-        }
-      } catch (error) {
-        console.error('Error checking user groups:', error);
-      }
     }
 
     setLoading(true);
@@ -120,28 +96,6 @@ export default function JoinGroupScreen({ onClose, onJoinGroup, onShowSubscripti
   };
 
   const handleJoinGroup = async (group) => {
-    // Check if basic user is trying to join additional groups
-    if (subscription?.plan === 'basic' && subscription?.features?.maxGroups === 1) {
-      try {
-        const groupsResponse = await api.get('/user/groups');
-        if (groupsResponse.data.groups.length >= 1) {
-          Alert.alert(
-            'Upgrade Required', 
-            'Basic users can only join 1 group. Upgrade to Pro to join unlimited groups!',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Upgrade to Pro', onPress: () => {
-                onClose();
-                onShowSubscription?.();
-              }}
-            ]
-          );
-          return;
-        }
-      } catch (error) {
-        console.error('Error checking user groups:', error);
-      }
-    }
 
     setLoading(true);
     try {

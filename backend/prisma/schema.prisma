@@ -281,7 +281,7 @@ model PlaylistDelegationRequest {
 model UserSubscription {
   id                String   @id @default(cuid())
   userId            String   @unique @map("user_id")
-  plan              String   @default("basic") // basic, pro, curator
+  plan              String   @default("basic") // basic, premium, pro
   status            String   @default("active") // active, cancelled, expired, past_due
   stripeCustomerId  String?  @map("stripe_customer_id")
   stripeSubscriptionId String? @map("stripe_subscription_id")
