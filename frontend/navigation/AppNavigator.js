@@ -382,6 +382,24 @@ const AppNavigator = () => {
   const { user, logout } = useAuth();
   const { subscription, isPremium, isPro, loading: subscriptionLoading } = useSubscription();
   
+  // Check if basic user can create/join groups
+  const checkGroupLimit = () => {
+    if (subscription?.plan === 'basic' && subscription?.features?.maxGroups === 1) {
+      if (userGroups.length >= 1) {
+        Alert.alert(
+          'Upgrade Required', 
+          'Basic users can only be in 1 group. Upgrade to Pro to create unlimited groups!',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Upgrade to Pro', onPress: () => setShowSubscription(true) }
+          ]
+        );
+        return false;
+      }
+    }
+    return true;
+  };
+  
   // Detect user's music platform (phone users = Apple Music, OAuth = Spotify)
   const getUserMusicPlatform = () => {
     // Phone users have email like "+15551234567", OAuth users have real emails
@@ -1862,13 +1880,21 @@ const AppNavigator = () => {
       <View style={styles.quickActions}>
         <TouchableOpacity 
           style={[styles.actionButton, styles.joinGroupButton]}
-          onPress={() => setShowGroupCreate(true)}
+          onPress={() => {
+            if (checkGroupLimit()) {
+              setShowGroupCreate(true);
+            }
+          }}
         >
           <Text style={styles.actionButtonText}>Create Group</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.actionButton, styles.createGroupButton]}
-          onPress={() => setShowJoinGroup(true)}
+          onPress={() => {
+            if (checkGroupLimit()) {
+              setShowJoinGroup(true);
+            }
+          }}
         >
           <Text style={[styles.actionButtonText, styles.primaryActionText]}>Join Group</Text>
         </TouchableOpacity>
