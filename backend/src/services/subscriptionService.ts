@@ -398,11 +398,15 @@ export class SubscriptionService {
           return usage.songsShared < (features.maxSongsPerDay as number);
         case 'groupJoined':
         case 'groupCreated':
-          // Check total groups, not daily usage
-          const totalGroups = await prisma.groupMember.count({
-            where: { userId },
-          });
-          return totalGroups < (features.maxGroups as number);
+          // For basic users with maxGroups: 1, block if they're already in any group
+          if (features.maxGroups === 1) {
+            const totalGroups = await prisma.groupMember.count({
+              where: { userId },
+            });
+            return totalGroups === 0; // Only allow if they're in 0 groups
+          }
+          // For unlimited plans, always allow
+          return true;
         default:
           return true;
       }
