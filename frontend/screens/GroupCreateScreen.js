@@ -146,7 +146,7 @@ const theme = {
   },
 };
 
-export default function GroupCreateScreen({ onClose, onCreateGroup }) {
+export default function GroupCreateScreen({ onClose, onCreateGroup, onShowSubscription }) {
   const [groupName, setGroupName] = useState('');
   const [maxMembers, setMaxMembers] = useState('6');
   const [isPublic, setIsPublic] = useState(false);
@@ -170,7 +170,10 @@ export default function GroupCreateScreen({ onClose, onCreateGroup }) {
             'Basic users can only be in 1 group. Upgrade to Pro to create unlimited groups!',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Upgrade to Pro', onPress: () => onClose() }
+              { text: 'Upgrade to Pro', onPress: () => {
+                onClose();
+                onShowSubscription?.();
+              }}
             ]
           );
           return;

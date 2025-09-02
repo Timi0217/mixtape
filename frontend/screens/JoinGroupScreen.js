@@ -41,7 +41,7 @@ const theme = {
   },
 };
 
-export default function JoinGroupScreen({ onClose, onJoinGroup }) {
+export default function JoinGroupScreen({ onClose, onJoinGroup, onShowSubscription }) {
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -65,7 +65,10 @@ export default function JoinGroupScreen({ onClose, onJoinGroup }) {
             'Basic users can only join 1 group. Upgrade to Pro to join unlimited groups!',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Upgrade to Pro', onPress: () => onClose() }
+              { text: 'Upgrade to Pro', onPress: () => {
+                onClose();
+                onShowSubscription?.();
+              }}
             ]
           );
           return;
@@ -127,7 +130,10 @@ export default function JoinGroupScreen({ onClose, onJoinGroup }) {
             'Basic users can only join 1 group. Upgrade to Pro to join unlimited groups!',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Upgrade to Pro', onPress: () => onClose() }
+              { text: 'Upgrade to Pro', onPress: () => {
+                onClose();
+                onShowSubscription?.();
+              }}
             ]
           );
           return;

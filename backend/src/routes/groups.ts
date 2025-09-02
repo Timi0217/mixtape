@@ -10,7 +10,6 @@ const router = express.Router();
 
 router.post('/',
   authenticateToken,
-  requireFeature('createGroups'),
   checkUsageLimit('groupCreated'),
   [
     body('name').trim().isLength({ min: 1, max: 100 }),

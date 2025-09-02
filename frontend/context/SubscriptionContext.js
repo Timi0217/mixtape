@@ -49,11 +49,11 @@ export const SubscriptionProvider = ({ children }) => {
         status: 'active',
         features: {
           maxSongsPerDay: 1,
-          maxGroups: 3,
+          maxGroups: 1,
           hasAdvancedDiscovery: false,
           hasPrioritySupport: false,
           hasExclusivePlaylists: false,
-          canCreateGroups: false,
+          canCreateGroups: true,
           hasAnalytics: false,
           hasCustomThemes: false,
           hasApiAccess: false,
@@ -101,11 +101,11 @@ export const SubscriptionProvider = ({ children }) => {
         status: 'active',
         features: {
           maxSongsPerDay: 1,
-          maxGroups: 3,
+          maxGroups: 1,
           hasAdvancedDiscovery: false,
           hasPrioritySupport: false,
           hasExclusivePlaylists: false,
-          canCreateGroups: false,
+          canCreateGroups: true,
           hasAnalytics: false,
           hasCustomThemes: false,
           hasApiAccess: false,
@@ -130,11 +130,15 @@ export const SubscriptionProvider = ({ children }) => {
   };
 
   const isPremium = () => {
-    return subscription?.plan === 'premium' || subscription?.plan === 'pro';
+    return subscription?.plan === 'pro' || subscription?.plan === 'curator';
   };
 
   const isPro = () => {
     return subscription?.plan === 'pro';
+  };
+
+  const isCurator = () => {
+    return subscription?.plan === 'curator';
   };
 
   const canPerformAction = (action) => {
@@ -162,13 +166,13 @@ export const SubscriptionProvider = ({ children }) => {
     if (!subscription?.features) {
       return {
         maxSongsPerDay: 1,
-        maxGroups: 3,
+        maxGroups: 1,
       };
     }
     
     return {
       maxSongsPerDay: subscription.features.maxSongsPerDay || 1,
-      maxGroups: subscription.features.maxGroups || 3,
+      maxGroups: subscription.features.maxGroups || 1,
     };
   };
 
@@ -180,6 +184,7 @@ export const SubscriptionProvider = ({ children }) => {
     hasFeature,
     isPremium,
     isPro,
+    isCurator,
     canPerformAction,
     getFeatureLimits,
     refreshSubscription: loadSubscriptionData,

@@ -1349,6 +1349,7 @@ const AppNavigator = () => {
           <GroupCreateScreen
             onClose={() => setShowGroupCreate(false)}
             onCreateGroup={handleCreateGroup}
+            onShowSubscription={() => setShowSubscription(true)}
           />
         </Modal>
 
@@ -1356,6 +1357,7 @@ const AppNavigator = () => {
           <JoinGroupScreen
             onClose={() => setShowJoinGroup(false)}
             onJoinGroup={handleJoinGroup}
+            onShowSubscription={() => setShowSubscription(true)}
           />
         </Modal>
       </SafeAreaView>
